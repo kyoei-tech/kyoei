@@ -1,10 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { Bell, CalendarDays, MapPin, Menu } from 'lucide-react'
+import { Bell, CalendarDays, Menu } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { BottomTabs, type TabId } from './bottom-tabs'
 import { HomeView } from './home-view'
+import { LolView } from './lol-view'
 
 function Placeholder({
   Icon,
@@ -37,13 +38,7 @@ export function AttendanceApp() {
     <div className="relative mx-auto flex min-h-[100dvh] w-full max-w-md flex-col bg-background">
       <main className="flex flex-1 flex-col px-4 pb-24 pt-6">
         {tab === 'home' && <HomeView />}
-        {tab === 'lol' && (
-          <Placeholder
-            Icon={MapPin}
-            title="LoL"
-            description="マップ・位置情報の機能をここに追加できます。"
-          />
-        )}
+        {tab === 'lol' && <LolView />}
         {tab === 'aa' && (
           <Placeholder
             Icon={CalendarDays}
