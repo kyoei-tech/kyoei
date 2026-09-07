@@ -9,6 +9,7 @@ import {
   Plus,
   Trash2,
   X,
+  Pencil,
 } from 'lucide-react'
 
 type Destination = {
@@ -84,6 +85,7 @@ export function LolView() {
   const [entries, setEntries] = useState<EntriesMap>({})
   const [hydrated, setHydrated] = useState(false)
   const [adding, setAdding] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<Record<FieldKey, string>>(emptyForm)
 
   useEffect(() => {
@@ -114,21 +116,43 @@ export function LolView() {
   function openDetail(id: string) {
     setSelectedId(id)
     setAdding(false)
+    setEditingId(null)
+    setForm(emptyForm())
+  }
+
+  function startAdd() {
+    setEditingId(null)
+    setForm(emptyForm())
+    setAdding(true)
+  }
+
+  function startEdit(entry: InfoEntry) {
+    const { id: _id, ...values } = entry
+    setEditingId(entry.id)
+    setForm(values)
+    setAdding(true)
+  }
+
+  function closeForm() {
+    setAdding(false)
+    setEditingId(null)
     setForm(emptyForm())
   }
 
   function saveEntry() {
     if (!selected || !form.shopName.trim()) return
-    const entry: InfoEntry = { id: `${Date.now()}`, ...form }
+    const trimmed = emptyForm()
     ;(Object.keys(form) as FieldKey[]).forEach((k) => {
-      entry[k] = form[k].trim()
+      trimmed[k] = form[k].trim()
     })
-    setEntries((prev) => ({
-      ...prev,
-      [selected.id]: [...(prev[selected.id] ?? []), entry],
-    }))
-    setForm(emptyForm())
-    setAdding(false)
+    setEntries((prev) => {
+      const current = prev[selected.id] ?? []
+      const next = editingId
+        ? current.map((e) => (e.id === editingId ? { id: e.id, ...trimmed } : e))
+        : [...current, { id: `${Date.now()}`, ...trimmed }]
+      return { ...prev, [selected.id]: next }
+    })
+    closeForm()
   }
 
   function deleteEntry(entryId: string) {
@@ -155,7 +179,7 @@ export function LolView() {
 
           <button
             type="button"
-            onClick={() => setAdding((v) => !v)}
+            onClick={() => (adding ? closeForm() : startAdd())}
             className="flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-sm font-semibold text-primary-foreground transition-colors hover:opacity-90 active:scale-95"
           >
             {adding ? (
@@ -213,7 +237,7 @@ export function LolView() {
               disabled={!form.shopName.trim()}
               className="self-end rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95 disabled:opacity-40"
             >
-              保存
+              {editingId ? '更新' : '保存'}
             </button>
           </section>
         )}
@@ -235,14 +259,24 @@ export function LolView() {
                   <h3 className="text-base font-semibold text-foreground">
                     {e.shopName || '（店舗名なし）'}
                   </h3>
-                  <button
-                    type="button"
-                    onClick={() => deleteEntry(e.id)}
-                    aria-label={`${e.shopName}を削除`}
-                    className="shrink-0 rounded-lg p-1 text-muted-foreground transition-colors hover:text-destructive active:scale-90"
-                  >
-                    <Trash2 className="h-4 w-4" aria-hidden="true" />
-                  </button>
+                  <div className="flex shrink-0 items-center gap-0.5">
+                    <button
+                      type="button"
+                      onClick={() => startEdit(e)}
+                      aria-label={`${e.shopName}を編集`}
+                      className="rounded-lg p-1 text-muted-foreground/50 transition-colors hover:text-foreground active:scale-90"
+                    >
+                      <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteEntry(e.id)}
+                      aria-label={`${e.shopName}を削除`}
+                      className="rounded-lg p-1 text-muted-foreground/50 transition-colors hover:text-destructive active:scale-90"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                    </button>
+                  </div>
                 </div>
                 <dl className="flex flex-col gap-1.5">
                   {FIELDS.filter((f) => f.key !== 'shopName' && e[f.key]).map(
