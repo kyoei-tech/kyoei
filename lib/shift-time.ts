@@ -12,6 +12,7 @@ export type ClockParts = {
   date: string
   weekday: string
   time: string
+  meridiem: string
 }
 
 export type ClockFormat = { hour12?: boolean; seconds?: boolean }
@@ -31,12 +32,12 @@ export function formatClock(date: Date, opts: ClockFormat = {}): ClockParts {
   const hourStr = hour12 ? String(hour) : pad2(hour)
   let time = `${hourStr}:${pad2(date.getMinutes())}`
   if (seconds) time += `:${pad2(date.getSeconds())}`
-  if (hour12) time = `${meridiem}${time}`
 
   return {
     date: `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`,
     weekday: `${WEEKDAYS_JP[date.getDay()]}曜日`,
     time,
+    meridiem,
   }
 }
 

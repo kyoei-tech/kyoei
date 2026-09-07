@@ -46,6 +46,11 @@ export function StatusDisplay({
           mode === 'idle' ? 'text-foreground' : ACCENT[mode]
         }`}
       >
+        {parts.meridiem && (
+          <span className="mr-1 text-lg font-medium text-muted-foreground">
+            {parts.meridiem}
+          </span>
+        )}
         {parts.time}
       </p>
     </section>

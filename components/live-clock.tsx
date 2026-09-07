@@ -23,6 +23,11 @@ export function LiveClock({
         <span className="ml-2 text-foreground">{parts.weekday}</span>
       </p>
       <p className="mt-1 font-mono text-5xl font-semibold tabular-nums tracking-tight text-foreground">
+        {parts.meridiem && (
+          <span className="mr-1 text-2xl font-medium text-muted-foreground">
+            {parts.meridiem}
+          </span>
+        )}
         {parts.time}
       </p>
     </section>
