@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   ChevronRight,
   ArrowLeft,
@@ -17,10 +17,42 @@ type Destination = {
   category: string
 }
 
+type FieldKey =
+  | 'shopName'
+  | 'address'
+  | 'phone'
+  | 'hours'
+  | 'breakTime'
+  | 'place'
+  | 'method'
+  | 'notes'
+
 type InfoEntry = {
   id: string
-  title: string
-  body: string
+} & Record<FieldKey, string>
+
+const FIELDS: { key: FieldKey; label: string; multiline?: boolean }[] = [
+  { key: 'shopName', label: '店舗名' },
+  { key: 'address', label: '住所' },
+  { key: 'phone', label: '電話番号' },
+  { key: 'hours', label: '搬入可能時間' },
+  { key: 'breakTime', label: '休憩時間' },
+  { key: 'place', label: '搬入場所' },
+  { key: 'method', label: '搬入方法', multiline: true },
+  { key: 'notes', label: '注意事項', multiline: true },
+]
+
+function emptyForm(): Record<FieldKey, string> {
+  return {
+    shopName: '',
+    address: '',
+    phone: '',
+    hours: '',
+    breakTime: '',
+    place: '',
+    method: '',
+    notes: '',
+  }
 }
 
 const DESTINATIONS: Destination[] = [
@@ -52,8 +84,7 @@ export function LolView() {
   const [entries, setEntries] = useState<EntriesMap>({})
   const [hydrated, setHydrated] = useState(false)
   const [adding, setAdding] = useState(false)
-  const [title, setTitle] = useState('')
-  const [body, setBody] = useState('')
+  const [form, setForm] = useState<Record<FieldKey, string>>(emptyForm)
 
   useEffect(() => {
     setEntries(loadEntries())
@@ -68,34 +99,35 @@ export function LolView() {
   const selected = DESTINATIONS.find((d) => d.id === selectedId) ?? null
 
   const q = query.trim().toLowerCase()
-  const filtered = q
-    ? DESTINATIONS.filter(
-        (d) =>
-          d.name.toLowerCase().includes(q) ||
-          d.category.toLowerCase().includes(q),
-      )
-    : DESTINATIONS
+  const filtered = useMemo(
+    () =>
+      q
+        ? DESTINATIONS.filter(
+            (d) =>
+              d.name.toLowerCase().includes(q) ||
+              d.category.toLowerCase().includes(q),
+          )
+        : DESTINATIONS,
+    [q],
+  )
 
   function openDetail(id: string) {
     setSelectedId(id)
     setAdding(false)
-    setTitle('')
-    setBody('')
+    setForm(emptyForm())
   }
 
   function saveEntry() {
-    if (!selected || !title.trim()) return
-    const entry: InfoEntry = {
-      id: `${Date.now()}`,
-      title: title.trim(),
-      body: body.trim(),
-    }
+    if (!selected || !form.shopName.trim()) return
+    const entry: InfoEntry = { id: `${Date.now()}`, ...form }
+    ;(Object.keys(form) as FieldKey[]).forEach((k) => {
+      entry[k] = form[k].trim()
+    })
     setEntries((prev) => ({
       ...prev,
       [selected.id]: [...(prev[selected.id] ?? []), entry],
     }))
-    setTitle('')
-    setBody('')
+    setForm(emptyForm())
     setAdding(false)
   }
 
@@ -146,26 +178,39 @@ export function LolView() {
 
         {adding && (
           <section className="flex flex-col gap-3 rounded-3xl border border-border bg-card px-5 py-5">
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="タイトル（例：搬入口・受付時間）"
-              aria-label="タイトル"
-              className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/60"
-            />
-            <textarea
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              placeholder="詳細を入力"
-              aria-label="詳細"
-              rows={3}
-              className="w-full resize-none rounded-2xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/60"
-            />
+            {FIELDS.map((f) => (
+              <label key={f.key} className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-muted-foreground">
+                  {f.label}
+                  {f.key === 'shopName' && (
+                    <span className="ml-1 text-destructive">*</span>
+                  )}
+                </span>
+                {f.multiline ? (
+                  <textarea
+                    value={form[f.key]}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, [f.key]: e.target.value }))
+                    }
+                    rows={2}
+                    className="w-full resize-none rounded-2xl border border-border bg-background px-4 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/60"
+                  />
+                ) : (
+                  <input
+                    type="text"
+                    value={form[f.key]}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, [f.key]: e.target.value }))
+                    }
+                    className="w-full rounded-2xl border border-border bg-background px-4 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/60"
+                  />
+                )}
+              </label>
+            ))}
             <button
               type="button"
               onClick={saveEntry}
-              disabled={!title.trim()}
+              disabled={!form.shopName.trim()}
               className="self-end rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95 disabled:opacity-40"
             >
               保存
@@ -186,24 +231,34 @@ export function LolView() {
                 key={e.id}
                 className="rounded-2xl border border-border bg-card px-5 py-4"
               >
-                <div className="flex items-start justify-between gap-3">
+                <div className="mb-2 flex items-start justify-between gap-3">
                   <h3 className="text-base font-semibold text-foreground">
-                    {e.title}
+                    {e.shopName || '（店舗名なし）'}
                   </h3>
                   <button
                     type="button"
                     onClick={() => deleteEntry(e.id)}
-                    aria-label={`${e.title}を削除`}
+                    aria-label={`${e.shopName}を削除`}
                     className="shrink-0 rounded-lg p-1 text-muted-foreground transition-colors hover:text-destructive active:scale-90"
                   >
                     <Trash2 className="h-4 w-4" aria-hidden="true" />
                   </button>
                 </div>
-                {e.body && (
-                  <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
-                    {e.body}
-                  </p>
-                )}
+                <dl className="flex flex-col gap-1.5">
+                  {FIELDS.filter((f) => f.key !== 'shopName' && e[f.key]).map(
+                    (f) => (
+                      <div
+                        key={f.key}
+                        className="grid grid-cols-[6.5rem_1fr] gap-2 text-sm"
+                      >
+                        <dt className="text-muted-foreground">{f.label}</dt>
+                        <dd className="whitespace-pre-wrap leading-relaxed text-foreground">
+                          {e[f.key]}
+                        </dd>
+                      </div>
+                    ),
+                  )}
+                </dl>
               </li>
             ))}
           </ul>
