@@ -127,12 +127,13 @@ function hasCalendar(e: InfoEntry): boolean {
   )
 }
 
-// 0:00 〜 24:00 in 1-hour steps for the time dropdowns.
+// 0:00 〜 24:00 in 1-hour steps, plus a special "セリ終了後" choice.
 const TIME_OPTIONS: string[] = (() => {
   const arr: string[] = []
   for (let h = 0; h <= 24; h++) {
     arr.push(`${h}:00`)
   }
+  arr.push('セリ終了後')
   return arr
 })()
 
