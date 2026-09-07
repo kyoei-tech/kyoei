@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import {
   ChevronRight,
   ArrowLeft,
@@ -25,14 +25,23 @@ type FieldKey =
   | 'hours'
   | 'breakTime'
   | 'place'
+  | 'loadOut'
+  | 'loadIn'
   | 'method'
   | 'notes'
 
+type FieldConfig = { key: FieldKey; label: string; multiline?: boolean }
+
 type InfoEntry = {
   id: string
+  calOut?: string[]
+  calIn?: string[]
 } & Record<FieldKey, string>
 
-const FIELDS: { key: FieldKey; label: string; multiline?: boolean }[] = [
+const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土']
+
+// Standard template used by every destination except AA.
+const FIELDS: FieldConfig[] = [
   { key: 'shopName', label: '店舗名' },
   { key: 'address', label: '住所' },
   { key: 'phone', label: '電話番号' },
@@ -43,6 +52,21 @@ const FIELDS: { key: FieldKey; label: string; multiline?: boolean }[] = [
   { key: 'notes', label: '注意事項', multiline: true },
 ]
 
+// AA uses a venue-oriented template with a weekly calendar.
+const AA_FIELDS: FieldConfig[] = [
+  { key: 'shopName', label: '会場名' },
+  { key: 'address', label: '住所' },
+  { key: 'phone', label: '電話番号' },
+  { key: 'loadOut', label: '搬出時間' },
+  { key: 'loadIn', label: '搬入時間' },
+  { key: 'method', label: '搬入方法', multiline: true },
+  { key: 'notes', label: '注意事項', multiline: true },
+]
+
+function fieldsFor(id: string | undefined): FieldConfig[] {
+  return id === 'aa' ? AA_FIELDS : FIELDS
+}
+
 function emptyForm(): Record<FieldKey, string> {
   return {
     shopName: '',
@@ -51,9 +75,15 @@ function emptyForm(): Record<FieldKey, string> {
     hours: '',
     breakTime: '',
     place: '',
+    loadOut: '',
+    loadIn: '',
     method: '',
     notes: '',
   }
+}
+
+function emptyWeek(): string[] {
+  return Array(7).fill('')
 }
 
 const DESTINATIONS: Destination[] = [
@@ -79,6 +109,90 @@ function loadEntries(): EntriesMap {
   }
 }
 
+function weekdayColor(i: number): string {
+  if (i === 0) return 'text-destructive'
+  if (i === 6) return 'text-secondary'
+  return 'text-muted-foreground'
+}
+
+function hasCalendar(e: InfoEntry): boolean {
+  return (
+    (e.calOut?.some((v) => v.trim()) ?? false) ||
+    (e.calIn?.some((v) => v.trim()) ?? false)
+  )
+}
+
+function WeeklyCalendar({
+  out,
+  inn,
+  editable,
+  onChangeOut,
+  onChangeIn,
+}: {
+  out: string[]
+  inn: string[]
+  editable?: boolean
+  onChangeOut?: (i: number, v: string) => void
+  onChangeIn?: (i: number, v: string) => void
+}) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[22rem] border-collapse text-center text-xs">
+        <thead>
+          <tr>
+            <th className="w-14 border border-border bg-muted p-1 font-medium text-muted-foreground" />
+            {WEEKDAYS.map((d, i) => (
+              <th
+                key={d}
+                className={`border border-border bg-muted p-1 font-semibold ${weekdayColor(i)}`}
+              >
+                {d}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {(
+            [
+              ['搬出', out, onChangeOut] as const,
+              ['搬入', inn, onChangeIn] as const,
+            ] as const
+          ).map(([label, values, onChange]) => (
+            <tr key={label}>
+              <th className="border border-border bg-muted/60 p-1 font-medium text-muted-foreground">
+                {label}
+              </th>
+              {values.map((v, i) => (
+                <td key={i} className="border border-border p-0">
+                  {editable ? (
+                    <input
+                      type="text"
+                      value={v}
+                      onChange={(e) => onChange?.(i, e.target.value)}
+                      aria-label={`${label} ${WEEKDAYS[i]}曜日`}
+                      className="w-full bg-background px-1 py-2 text-center text-xs text-foreground outline-none focus:bg-accent"
+                    />
+                  ) : (
+                    <span
+                      className={
+                        v.trim()
+                          ? 'block px-1 py-2 text-foreground'
+                          : 'block px-1 py-2 text-muted-foreground/40'
+                      }
+                    >
+                      {v.trim() || '—'}
+                    </span>
+                  )}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
 export function LolView() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [focusedEntryId, setFocusedEntryId] = useState<string | null>(null)
@@ -89,6 +203,8 @@ export function LolView() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [form, setForm] = useState<Record<FieldKey, string>>(emptyForm)
+  const [calOut, setCalOut] = useState<string[]>(emptyWeek)
+  const [calIn, setCalIn] = useState<string[]>(emptyWeek)
 
   useEffect(() => {
     setEntries(loadEntries())
@@ -101,12 +217,14 @@ export function LolView() {
   }, [hydrated, entries])
 
   const selected = DESTINATIONS.find((d) => d.id === selectedId) ?? null
+  const isAA = selected?.id === 'aa'
+  const activeFields = fieldsFor(selected?.id)
 
   const q = query.trim().toLowerCase()
 
   // When searching, produce a flat list of matching registered places (entries)
-  // across all destinations. An entry matches if any of its field values, or
-  // its parent destination's name/category, contains the query.
+  // across all destinations. An entry matches if any of its field values (or
+  // calendar cells), or its parent destination's name/category, contains the query.
   const matchedEntries = useMemo(() => {
     if (!q) return []
     const results: { dest: Destination; entry: InfoEntry }[] = []
@@ -115,10 +233,13 @@ export function LolView() {
         dest.name.toLowerCase().includes(q) ||
         dest.category.toLowerCase().includes(q)
       for (const entry of entries[dest.id] ?? []) {
-        const entryMatch = (Object.keys(emptyForm()) as FieldKey[]).some((k) =>
+        const textMatch = (Object.keys(emptyForm()) as FieldKey[]).some((k) =>
           entry[k].toLowerCase().includes(q),
         )
-        if (destMatch || entryMatch) results.push({ dest, entry })
+        const calMatch = [...(entry.calOut ?? []), ...(entry.calIn ?? [])].some(
+          (v) => v.toLowerCase().includes(q),
+        )
+        if (destMatch || textMatch || calMatch) results.push({ dest, entry })
       }
     }
     return results
@@ -131,18 +252,24 @@ export function LolView() {
     setEditingId(null)
     setConfirmDeleteId(null)
     setForm(emptyForm())
+    setCalOut(emptyWeek())
+    setCalIn(emptyWeek())
   }
 
   function startAdd() {
     setEditingId(null)
     setForm(emptyForm())
+    setCalOut(emptyWeek())
+    setCalIn(emptyWeek())
     setAdding(true)
   }
 
   function startEdit(entry: InfoEntry) {
-    const { id: _id, ...values } = entry
+    const { id: _id, calOut: eOut, calIn: eIn, ...values } = entry
     setEditingId(entry.id)
     setForm(values)
+    setCalOut(eOut ?? emptyWeek())
+    setCalIn(eIn ?? emptyWeek())
     setAdding(true)
   }
 
@@ -150,6 +277,8 @@ export function LolView() {
     setAdding(false)
     setEditingId(null)
     setForm(emptyForm())
+    setCalOut(emptyWeek())
+    setCalIn(emptyWeek())
   }
 
   function saveEntry() {
@@ -158,11 +287,16 @@ export function LolView() {
     ;(Object.keys(form) as FieldKey[]).forEach((k) => {
       trimmed[k] = form[k].trim()
     })
+    const base: InfoEntry = { id: editingId ?? `${Date.now()}`, ...trimmed }
+    if (isAA) {
+      base.calOut = calOut.map((v) => v.trim())
+      base.calIn = calIn.map((v) => v.trim())
+    }
     setEntries((prev) => {
       const current = prev[selected.id] ?? []
       const next = editingId
-        ? current.map((e) => (e.id === editingId ? { id: e.id, ...trimmed } : e))
-        : [...current, { id: `${Date.now()}`, ...trimmed }]
+        ? current.map((e) => (e.id === editingId ? base : e))
+        : [...current, base]
       return { ...prev, [selected.id]: next }
     })
     closeForm()
@@ -230,34 +364,54 @@ export function LolView() {
 
         {adding && (
           <section className="flex flex-col gap-3 rounded-3xl border border-border bg-card px-5 py-5">
-            {FIELDS.map((f) => (
-              <label key={f.key} className="flex flex-col gap-1">
-                <span className="text-xs font-medium text-muted-foreground">
-                  {f.label}
-                  {f.key === 'shopName' && (
-                    <span className="ml-1 text-destructive">*</span>
+            {activeFields.map((f) => (
+              <Fragment key={f.key}>
+                <label className="flex flex-col gap-1">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {f.label}
+                    {f.key === 'shopName' && (
+                      <span className="ml-1 text-destructive">*</span>
+                    )}
+                  </span>
+                  {f.multiline ? (
+                    <textarea
+                      value={form[f.key]}
+                      onChange={(e) =>
+                        setForm((p) => ({ ...p, [f.key]: e.target.value }))
+                      }
+                      rows={2}
+                      className="w-full resize-none rounded-2xl border border-border bg-background px-4 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/60"
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      value={form[f.key]}
+                      onChange={(e) =>
+                        setForm((p) => ({ ...p, [f.key]: e.target.value }))
+                      }
+                      className="w-full rounded-2xl border border-border bg-background px-4 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/60"
+                    />
                   )}
-                </span>
-                {f.multiline ? (
-                  <textarea
-                    value={form[f.key]}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, [f.key]: e.target.value }))
-                    }
-                    rows={2}
-                    className="w-full resize-none rounded-2xl border border-border bg-background px-4 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/60"
-                  />
-                ) : (
-                  <input
-                    type="text"
-                    value={form[f.key]}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, [f.key]: e.target.value }))
-                    }
-                    className="w-full rounded-2xl border border-border bg-background px-4 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/60"
-                  />
+                </label>
+                {isAA && f.key === 'phone' && (
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">
+                      週間カレンダー（〇 または 時間を入力）
+                    </span>
+                    <WeeklyCalendar
+                      out={calOut}
+                      inn={calIn}
+                      editable
+                      onChangeOut={(i, v) =>
+                        setCalOut((p) => p.map((x, j) => (j === i ? v : x)))
+                      }
+                      onChangeIn={(i, v) =>
+                        setCalIn((p) => p.map((x, j) => (j === i ? v : x)))
+                      }
+                    />
+                  </div>
                 )}
-              </label>
+              </Fragment>
             ))}
             <button
               type="button"
@@ -285,7 +439,7 @@ export function LolView() {
               >
                 <div className="mb-2 flex items-start justify-between gap-3">
                   <h3 className="text-base font-semibold text-foreground">
-                    {e.shopName || '（店舗名なし）'}
+                    {e.shopName || '（名称なし）'}
                   </h3>
                   <div className="flex shrink-0 items-center gap-0.5">
                     <button
@@ -330,19 +484,44 @@ export function LolView() {
                   </div>
                 )}
                 <dl className="flex flex-col gap-1.5">
-                  {FIELDS.filter((f) => f.key !== 'shopName' && e[f.key]).map(
-                    (f) => (
-                      <div
-                        key={f.key}
-                        className="grid grid-cols-[6.5rem_1fr] gap-2 text-sm"
-                      >
-                        <dt className="text-muted-foreground">{f.label}</dt>
-                        <dd className="whitespace-pre-wrap leading-relaxed text-foreground">
-                          {e[f.key]}
-                        </dd>
+                  {activeFields
+                    .filter((f) => f.key !== 'shopName' && e[f.key])
+                    .map((f) => (
+                      <Fragment key={f.key}>
+                        <div className="grid grid-cols-[6.5rem_1fr] gap-2 text-sm">
+                          <dt className="text-muted-foreground">{f.label}</dt>
+                          <dd className="whitespace-pre-wrap leading-relaxed text-foreground">
+                            {e[f.key]}
+                          </dd>
+                        </div>
+                        {isAA && f.key === 'phone' && hasCalendar(e) && (
+                          <div className="my-1.5">
+                            <p className="mb-1 text-sm text-muted-foreground">
+                              週間カレンダー
+                            </p>
+                            <WeeklyCalendar
+                              out={e.calOut ?? emptyWeek()}
+                              inn={e.calIn ?? emptyWeek()}
+                            />
+                          </div>
+                        )}
+                      </Fragment>
+                    ))}
+                  {isAA &&
+                    hasCalendar(e) &&
+                    !activeFields.some(
+                      (f) => f.key === 'phone' && e.phone,
+                    ) && (
+                      <div className="my-1.5">
+                        <p className="mb-1 text-sm text-muted-foreground">
+                          週間カレンダー
+                        </p>
+                        <WeeklyCalendar
+                          out={e.calOut ?? emptyWeek()}
+                          inn={e.calIn ?? emptyWeek()}
+                        />
                       </div>
-                    ),
-                  )}
+                    )}
                 </dl>
               </li>
             ))}
@@ -357,7 +536,7 @@ export function LolView() {
                   className="flex w-full items-center justify-between gap-3 rounded-2xl border border-border bg-card px-5 py-4 text-left transition-colors hover:border-primary/60 hover:bg-accent active:scale-[0.99]"
                 >
                   <span className="truncate text-base font-semibold text-foreground">
-                    {e.shopName || '（店舗名なし）'}
+                    {e.shopName || '（名称なし）'}
                   </span>
                   <ChevronRight
                     className="h-5 w-5 shrink-0 text-muted-foreground"
@@ -416,7 +595,7 @@ export function LolView() {
                     </span>
                     <span className="flex min-w-0 flex-col">
                       <span className="truncate text-base font-semibold text-foreground">
-                        {entry.shopName || '（店舗名なし）'}
+                        {entry.shopName || '（名称なし）'}
                       </span>
                       <span className="truncate text-xs text-muted-foreground">
                         {dest.name}
