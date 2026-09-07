@@ -87,6 +87,7 @@ export function LolView() {
   const [hydrated, setHydrated] = useState(false)
   const [adding, setAdding] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [form, setForm] = useState<Record<FieldKey, string>>(emptyForm)
 
   useEffect(() => {
@@ -128,6 +129,7 @@ export function LolView() {
     setFocusedEntryId(entryId)
     setAdding(false)
     setEditingId(null)
+    setConfirmDeleteId(null)
     setForm(emptyForm())
   }
 
@@ -172,6 +174,7 @@ export function LolView() {
       ...prev,
       [selected.id]: (prev[selected.id] ?? []).filter((e) => e.id !== entryId),
     }))
+    setConfirmDeleteId(null)
   }
 
   if (selected) {
@@ -295,7 +298,7 @@ export function LolView() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => deleteEntry(e.id)}
+                      onClick={() => setConfirmDeleteId(e.id)}
                       aria-label={`${e.shopName}を削除`}
                       className="rounded-lg p-1 text-muted-foreground/50 transition-colors hover:text-destructive active:scale-90"
                     >
@@ -303,6 +306,29 @@ export function LolView() {
                     </button>
                   </div>
                 </div>
+                {confirmDeleteId === e.id && (
+                  <div className="mb-3 flex flex-col gap-2.5 rounded-2xl border border-destructive/40 bg-destructive/10 px-4 py-3">
+                    <p className="text-sm font-medium text-foreground">
+                      本当に削除しますか？
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => deleteEntry(e.id)}
+                        className="rounded-full bg-destructive px-4 py-1.5 text-sm font-semibold text-destructive-foreground transition-opacity hover:opacity-90 active:scale-95"
+                      >
+                        削除する
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteId(null)}
+                        className="rounded-full border border-border bg-card px-4 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground active:scale-95"
+                      >
+                        キャンセル
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <dl className="flex flex-col gap-1.5">
                   {FIELDS.filter((f) => f.key !== 'shopName' && e[f.key]).map(
                     (f) => (
