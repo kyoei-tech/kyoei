@@ -104,13 +104,22 @@ export function LolView() {
   const filtered = useMemo(
     () =>
       q
-        ? DESTINATIONS.filter(
-            (d) =>
+        ? DESTINATIONS.filter((d) => {
+            if (
               d.name.toLowerCase().includes(q) ||
-              d.category.toLowerCase().includes(q),
-          )
+              d.category.toLowerCase().includes(q)
+            ) {
+              return true
+            }
+            // Also search inside every added/edited entry's field values
+            return (entries[d.id] ?? []).some((entry) =>
+              (Object.keys(emptyForm()) as FieldKey[]).some((k) =>
+                entry[k].toLowerCase().includes(q),
+              ),
+            )
+          })
         : DESTINATIONS,
-    [q],
+    [q, entries],
   )
 
   function openDetail(id: string) {
@@ -319,7 +328,7 @@ export function LolView() {
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="配達先を検索"
+          placeholder="配達先・店舗名・住所などで検索"
           aria-label="配達先を検索"
           className="w-full rounded-2xl border border-border bg-card py-3 pl-11 pr-4 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/60"
         />
