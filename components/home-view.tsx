@@ -15,6 +15,25 @@ import { ShiftTimer } from './shift-timer'
 type Mode = 'idle' | 'departure' | 'return'
 
 const MS_PER_HOUR = 3600 * 1000
+const STORAGE_KEY = 'kyoei-shift-state'
+
+type PersistedState = {
+  mode: Mode
+  startedAt: number | null
+  countdownOffset: number
+  hour12: boolean
+}
+
+function loadState(): PersistedState | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY)
+    if (!raw) return null
+    return JSON.parse(raw) as PersistedState
+  } catch {
+    return null
+  }
+}
 
 export function HomeView() {
   const [now, setNow] = useState(() => new Date())
@@ -24,8 +43,28 @@ export function HomeView() {
     isSaturday(new Date()) ? 33 : 9,
   )
   const [hour12, setHour12] = useState(false)
+  const [hydrated, setHydrated] = useState(false)
 
   const toggleFormat = useCallback(() => setHour12((v) => !v), [])
+
+  // Restore persisted state on mount (after hydration to avoid SSR mismatch)
+  useEffect(() => {
+    const saved = loadState()
+    if (saved) {
+      setMode(saved.mode)
+      setStartedAt(saved.startedAt)
+      setCountdownOffset(saved.countdownOffset)
+      setHour12(saved.hour12)
+    }
+    setHydrated(true)
+  }, [])
+
+  // Persist whenever the tracked state changes
+  useEffect(() => {
+    if (!hydrated) return
+    const state: PersistedState = { mode, startedAt, countdownOffset, hour12 }
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+  }, [hydrated, mode, startedAt, countdownOffset, hour12])
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 250)
