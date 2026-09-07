@@ -25,12 +25,17 @@ type FieldKey =
   | 'hours'
   | 'breakTime'
   | 'place'
-  | 'loadOut'
-  | 'loadIn'
+  | 'eventDay'
+  | 'memo'
   | 'method'
   | 'notes'
 
-type FieldConfig = { key: FieldKey; label: string; multiline?: boolean }
+type FieldConfig = {
+  key: FieldKey
+  label: string
+  multiline?: boolean
+  weekday?: boolean
+}
 
 type InfoEntry = {
   id: string
@@ -57,9 +62,9 @@ const AA_FIELDS: FieldConfig[] = [
   { key: 'shopName', label: '会場名' },
   { key: 'address', label: '住所' },
   { key: 'phone', label: '電話番号' },
-  { key: 'loadOut', label: '搬出時間' },
-  { key: 'loadIn', label: '搬入時間' },
+  { key: 'eventDay', label: '開催日', weekday: true },
   { key: 'method', label: '搬入方法', multiline: true },
+  { key: 'memo', label: 'メモ', multiline: true },
   { key: 'notes', label: '注意事項', multiline: true },
 ]
 
@@ -75,8 +80,8 @@ function emptyForm(): Record<FieldKey, string> {
     hours: '',
     breakTime: '',
     place: '',
-    loadOut: '',
-    loadIn: '',
+    eventDay: '',
+    memo: '',
     method: '',
     notes: '',
   }
@@ -477,7 +482,22 @@ export function LolView() {
                       <span className="ml-1 text-destructive">*</span>
                     )}
                   </span>
-                  {f.multiline ? (
+                  {f.weekday ? (
+                    <select
+                      value={form[f.key]}
+                      onChange={(e) =>
+                        setForm((p) => ({ ...p, [f.key]: e.target.value }))
+                      }
+                      className="w-full rounded-2xl border border-border bg-background px-4 py-2.5 text-sm text-foreground outline-none transition-colors focus:border-primary/60"
+                    >
+                      <option value="">未設定</option>
+                      {WEEKDAYS.map((d) => (
+                        <option key={d} value={`${d}曜日`}>
+                          {d}曜日
+                        </option>
+                      ))}
+                    </select>
+                  ) : f.multiline ? (
                     <textarea
                       value={form[f.key]}
                       onChange={(e) =>
@@ -497,7 +517,7 @@ export function LolView() {
                     />
                   )}
                 </label>
-                {isAA && f.key === 'phone' && (
+                {isAA && f.key === 'eventDay' && (
                   <div className="flex flex-col gap-1.5">
                     <span className="text-xs font-medium text-muted-foreground">
                       週間カレンダー（24時間OK または 時間を選択）
@@ -598,7 +618,7 @@ export function LolView() {
                             {e[f.key]}
                           </dd>
                         </div>
-                        {isAA && f.key === 'phone' && hasCalendar(e) && (
+                        {isAA && f.key === 'eventDay' && hasCalendar(e) && (
                           <div className="my-1.5">
                             <p className="mb-1 text-sm text-muted-foreground">
                               週間カレンダー
@@ -614,7 +634,7 @@ export function LolView() {
                   {isAA &&
                     hasCalendar(e) &&
                     !activeFields.some(
-                      (f) => f.key === 'phone' && e.phone,
+                      (f) => f.key === 'eventDay' && e.eventDay,
                     ) && (
                       <div className="my-1.5">
                         <p className="mb-1 text-sm text-muted-foreground">
