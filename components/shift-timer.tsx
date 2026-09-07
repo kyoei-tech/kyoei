@@ -50,8 +50,8 @@ export function ShiftTimer({
           const [hh, mm, ss] = text.split(':')
           return (
             <>
-              <span className="text-6xl">{`${hh}:${mm}`}</span>
-              <span className="ml-1 text-3xl">{`:${ss}`}</span>
+              <span className="text-4xl">{`${hh}:${mm}`}</span>
+              <span className="ml-1 text-xl">{`:${ss}`}</span>
             </>
           )
         })()}
