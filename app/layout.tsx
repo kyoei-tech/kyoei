@@ -10,7 +10,7 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: '出退勤クロック',
+  title: 'KYOEI',
   description: '出庫・帰庫の時刻とシフトタイマーを管理するクロックアプリ',
   generator: 'v0.app',
   icons: {
