@@ -81,6 +81,7 @@ function loadEntries(): EntriesMap {
 
 export function LolView() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [focusedEntryId, setFocusedEntryId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [entries, setEntries] = useState<EntriesMap>({})
   const [hydrated, setHydrated] = useState(false)
@@ -122,8 +123,9 @@ export function LolView() {
     return results
   }, [q, entries])
 
-  function openDetail(id: string) {
+  function openDetail(id: string, entryId: string | null = null) {
     setSelectedId(id)
+    setFocusedEntryId(entryId)
     setAdding(false)
     setEditingId(null)
     setForm(emptyForm())
@@ -173,7 +175,12 @@ export function LolView() {
   }
 
   if (selected) {
-    const list = entries[selected.id] ?? []
+    const allEntries = entries[selected.id] ?? []
+    const focusing =
+      focusedEntryId != null && allEntries.some((e) => e.id === focusedEntryId)
+    const list = focusing
+      ? allEntries.filter((e) => e.id === focusedEntryId)
+      : allEntries
     return (
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between gap-3">
@@ -207,6 +214,15 @@ export function LolView() {
           <h2 className="mt-1 text-2xl font-bold text-foreground">
             {selected.name}
           </h2>
+          {focusing && (
+            <button
+              type="button"
+              onClick={() => setFocusedEntryId(null)}
+              className="mt-2 text-xs font-medium text-muted-foreground underline underline-offset-2 transition-colors hover:text-foreground"
+            >
+              {selected.name}の登録情報をすべて表示（{allEntries.length}件）
+            </button>
+          )}
         </div>
 
         {adding && (
@@ -345,7 +361,7 @@ export function LolView() {
               <li key={`${dest.id}-${entry.id}`}>
                 <button
                   type="button"
-                  onClick={() => openDetail(dest.id)}
+                  onClick={() => openDetail(dest.id, entry.id)}
                   className="flex w-full items-center justify-between rounded-2xl border border-border bg-card px-5 py-4 text-left transition-colors hover:border-primary/60 hover:bg-accent active:scale-[0.99]"
                 >
                   <span className="flex min-w-0 items-center gap-3">
