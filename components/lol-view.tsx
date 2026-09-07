@@ -101,26 +101,26 @@ export function LolView() {
   const selected = DESTINATIONS.find((d) => d.id === selectedId) ?? null
 
   const q = query.trim().toLowerCase()
-  const filtered = useMemo(
-    () =>
-      q
-        ? DESTINATIONS.filter((d) => {
-            if (
-              d.name.toLowerCase().includes(q) ||
-              d.category.toLowerCase().includes(q)
-            ) {
-              return true
-            }
-            // Also search inside every added/edited entry's field values
-            return (entries[d.id] ?? []).some((entry) =>
-              (Object.keys(emptyForm()) as FieldKey[]).some((k) =>
-                entry[k].toLowerCase().includes(q),
-              ),
-            )
-          })
-        : DESTINATIONS,
-    [q, entries],
-  )
+
+  // When searching, produce a flat list of matching registered places (entries)
+  // across all destinations. An entry matches if any of its field values, or
+  // its parent destination's name/category, contains the query.
+  const matchedEntries = useMemo(() => {
+    if (!q) return []
+    const results: { dest: Destination; entry: InfoEntry }[] = []
+    for (const dest of DESTINATIONS) {
+      const destMatch =
+        dest.name.toLowerCase().includes(q) ||
+        dest.category.toLowerCase().includes(q)
+      for (const entry of entries[dest.id] ?? []) {
+        const entryMatch = (Object.keys(emptyForm()) as FieldKey[]).some((k) =>
+          entry[k].toLowerCase().includes(q),
+        )
+        if (destMatch || entryMatch) results.push({ dest, entry })
+      }
+    }
+    return results
+  }, [q, entries])
 
   function openDetail(id: string) {
     setSelectedId(id)
@@ -334,13 +334,46 @@ export function LolView() {
         />
       </div>
 
-      {filtered.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-border px-5 py-8 text-center text-sm text-muted-foreground">
-          「{query}」に一致する配達先はありません。
-        </p>
+      {q ? (
+        matchedEntries.length === 0 ? (
+          <p className="rounded-2xl border border-dashed border-border px-5 py-8 text-center text-sm text-muted-foreground">
+            「{query}」に一致する配達先はありません。
+          </p>
+        ) : (
+          <ul className="flex flex-col gap-2.5">
+            {matchedEntries.map(({ dest, entry }) => (
+              <li key={`${dest.id}-${entry.id}`}>
+                <button
+                  type="button"
+                  onClick={() => openDetail(dest.id)}
+                  className="flex w-full items-center justify-between rounded-2xl border border-border bg-card px-5 py-4 text-left transition-colors hover:border-primary/60 hover:bg-accent active:scale-[0.99]"
+                >
+                  <span className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                      <MapPin className="h-5 w-5" aria-hidden="true" />
+                    </span>
+                    <span className="flex min-w-0 flex-col">
+                      <span className="truncate text-base font-semibold text-foreground">
+                        {entry.shopName || '（店舗名なし）'}
+                      </span>
+                      <span className="truncate text-xs text-muted-foreground">
+                        {dest.name}
+                        {entry.address ? ` ・ ${entry.address}` : ''}
+                      </span>
+                    </span>
+                  </span>
+                  <ChevronRight
+                    className="h-5 w-5 shrink-0 text-muted-foreground"
+                    aria-hidden="true"
+                  />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )
       ) : (
         <ul className="flex flex-col gap-2.5">
-          {filtered.map((d) => {
+          {DESTINATIONS.map((d) => {
             const count = entries[d.id]?.length ?? 0
             return (
               <li key={d.id}>
