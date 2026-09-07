@@ -37,7 +37,7 @@ export function StatusDisplay({
         </span>
         <FormatToggle hour12={hour12} onToggle={onToggleFormat} />
       </div>
-      <p className="text-sm font-medium text-muted-foreground">
+      <p className="text-lg font-medium text-muted-foreground">
         {parts.date}
         <span className="ml-2 text-foreground">{parts.weekday}</span>
       </p>

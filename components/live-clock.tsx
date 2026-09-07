@@ -18,7 +18,7 @@ export function LiveClock({
       <div className="absolute right-3 top-3">
         <FormatToggle hour12={hour12} onToggle={onToggleFormat} />
       </div>
-      <p className="text-base font-medium text-muted-foreground">
+      <p className="text-xl font-medium text-muted-foreground">
         {parts.date}
         <span className="ml-2 text-foreground">{parts.weekday}</span>
       </p>

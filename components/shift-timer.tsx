@@ -38,8 +38,8 @@ export function ShiftTimer({
       className="rounded-3xl border border-border bg-card px-6 py-6 text-center"
     >
       <div className="mb-2 flex items-center justify-center gap-1.5">
-        <Timer className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
-        <span className="text-xs font-semibold tracking-wide text-muted-foreground">
+        <Timer className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+        <span className="text-base font-semibold tracking-wide text-muted-foreground">
           {LABELS[mode]}
         </span>
       </div>
