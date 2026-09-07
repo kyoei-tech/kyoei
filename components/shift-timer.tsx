@@ -5,7 +5,7 @@ type Mode = 'idle' | 'departure' | 'return'
 const LABELS: Record<Mode, string> = {
   idle: 'タイマー',
   departure: '運行時間',
-  return: '休息時間',
+  return: '出庫可能時刻まで残り',
 }
 
 const COUNTDOWN_OPTIONS = [3, 9, 33]

@@ -32,7 +32,7 @@ export function StatusDisplay({
       className="rounded-3xl border border-border bg-card px-6 py-5"
     >
       <div className="mb-2 flex items-center justify-between">
-        <span className={`text-xs font-semibold tracking-wide ${ACCENT[mode]}`}>
+        <span className={`text-2xl font-bold tracking-wide ${ACCENT[mode]}`}>
           {LABELS[mode]}
         </span>
         <FormatToggle hour12={hour12} onToggle={onToggleFormat} />
