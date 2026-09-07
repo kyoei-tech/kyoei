@@ -122,6 +122,104 @@ function hasCalendar(e: InfoEntry): boolean {
   )
 }
 
+// 0:00 〜 24:00 in 30-minute steps for the time dropdowns.
+const TIME_OPTIONS: string[] = (() => {
+  const arr: string[] = []
+  for (let h = 0; h <= 24; h++) {
+    for (const m of [0, 30]) {
+      if (h === 24 && m > 0) break
+      arr.push(`${h}:${m === 0 ? '00' : '30'}`)
+    }
+  }
+  return arr
+})()
+
+type CellMode = 'none' | 'allday' | 'time'
+
+// Stored value encoding: '' = 未設定, '〇' = 24時間OK, 'H:MM〜H:MM' = 時間指定
+function parseCell(v: string): { mode: CellMode; start: string; end: string } {
+  const t = (v ?? '').trim()
+  if (t === '〇') return { mode: 'allday', start: '0:00', end: '0:00' }
+  if (t.includes('〜')) {
+    const [start, end] = t.split('〜')
+    return { mode: 'time', start: start || '0:00', end: end || '0:00' }
+  }
+  return { mode: 'none', start: '0:00', end: '0:00' }
+}
+
+function cellText(v: string): string {
+  const t = (v ?? '').trim()
+  if (t === '〇') return '〇（24時間OK）'
+  if (t.includes('〜')) return t
+  return '—'
+}
+
+const SELECT_CLASS =
+  'rounded-lg border border-border bg-background px-2 py-1.5 text-xs text-foreground outline-none focus:border-primary/60'
+
+function DayCellEditor({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+}) {
+  const parsed = parseCell(value)
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="w-8 text-xs font-medium text-muted-foreground">
+        {label}
+      </span>
+      <select
+        value={parsed.mode}
+        aria-label={`${label}の区分`}
+        onChange={(e) => {
+          const m = e.target.value as CellMode
+          if (m === 'none') onChange('')
+          else if (m === 'allday') onChange('〇')
+          else onChange(`${parsed.start}〜${parsed.end}`)
+        }}
+        className={SELECT_CLASS}
+      >
+        <option value="none">未設定</option>
+        <option value="allday">24時間OK</option>
+        <option value="time">時間指定</option>
+      </select>
+      {parsed.mode === 'time' && (
+        <div className="flex items-center gap-1">
+          <select
+            value={parsed.start}
+            aria-label={`${label}の開始時間`}
+            onChange={(e) => onChange(`${e.target.value}〜${parsed.end}`)}
+            className={SELECT_CLASS}
+          >
+            {TIME_OPTIONS.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+          <span className="text-xs text-muted-foreground">〜</span>
+          <select
+            value={parsed.end}
+            aria-label={`${label}の終了時間`}
+            onChange={(e) => onChange(`${parsed.start}〜${e.target.value}`)}
+            className={SELECT_CLASS}
+          >
+            {TIME_OPTIONS.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function WeeklyCalendar({
   out,
   inn,
@@ -135,56 +233,65 @@ function WeeklyCalendar({
   onChangeOut?: (i: number, v: string) => void
   onChangeIn?: (i: number, v: string) => void
 }) {
+  if (editable) {
+    return (
+      <div className="flex flex-col gap-2">
+        {WEEKDAYS.map((d, i) => (
+          <div
+            key={d}
+            className="rounded-2xl border border-border bg-background px-3 py-2.5"
+          >
+            <div className={`mb-2 text-sm font-semibold ${weekdayColor(i)}`}>
+              {d}曜日
+            </div>
+            <div className="flex flex-col gap-2">
+              <DayCellEditor
+                label="搬出"
+                value={out[i] ?? ''}
+                onChange={(v) => onChangeOut?.(i, v)}
+              />
+              <DayCellEditor
+                label="搬入"
+                value={inn[i] ?? ''}
+                onChange={(v) => onChangeIn?.(i, v)}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[22rem] border-collapse text-center text-xs">
+    <div className="overflow-hidden rounded-2xl border border-border">
+      <table className="w-full border-collapse text-sm">
         <thead>
           <tr>
-            <th className="w-14 border border-border bg-muted p-1 font-medium text-muted-foreground" />
-            {WEEKDAYS.map((d, i) => (
-              <th
-                key={d}
-                className={`border border-border bg-muted p-1 font-semibold ${weekdayColor(i)}`}
-              >
-                {d}
-              </th>
-            ))}
+            <th className="w-12 border-b border-border bg-muted p-2 text-center font-medium text-muted-foreground">
+              曜日
+            </th>
+            <th className="border-b border-border bg-muted p-2 text-left font-medium text-muted-foreground">
+              搬出
+            </th>
+            <th className="border-b border-border bg-muted p-2 text-left font-medium text-muted-foreground">
+              搬入
+            </th>
           </tr>
         </thead>
         <tbody>
-          {(
-            [
-              ['搬出', out, onChangeOut] as const,
-              ['搬入', inn, onChangeIn] as const,
-            ] as const
-          ).map(([label, values, onChange]) => (
-            <tr key={label}>
-              <th className="border border-border bg-muted/60 p-1 font-medium text-muted-foreground">
-                {label}
+          {WEEKDAYS.map((d, i) => (
+            <tr key={d} className="last:[&>*]:border-b-0">
+              <th
+                className={`border-b border-border bg-muted/40 p-2 text-center font-semibold ${weekdayColor(i)}`}
+              >
+                {d}
               </th>
-              {values.map((v, i) => (
-                <td key={i} className="border border-border p-0">
-                  {editable ? (
-                    <input
-                      type="text"
-                      value={v}
-                      onChange={(e) => onChange?.(i, e.target.value)}
-                      aria-label={`${label} ${WEEKDAYS[i]}曜日`}
-                      className="w-full bg-background px-1 py-2 text-center text-xs text-foreground outline-none focus:bg-accent"
-                    />
-                  ) : (
-                    <span
-                      className={
-                        v.trim()
-                          ? 'block px-1 py-2 text-foreground'
-                          : 'block px-1 py-2 text-muted-foreground/40'
-                      }
-                    >
-                      {v.trim() || '—'}
-                    </span>
-                  )}
-                </td>
-              ))}
+              <td className="border-b border-border p-2 text-foreground">
+                {cellText(out[i] ?? '')}
+              </td>
+              <td className="border-b border-border p-2 text-foreground">
+                {cellText(inn[i] ?? '')}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -396,7 +503,7 @@ export function LolView() {
                 {isAA && f.key === 'phone' && (
                   <div className="flex flex-col gap-1.5">
                     <span className="text-xs font-medium text-muted-foreground">
-                      週間カレンダー（〇 または 時間を入力）
+                      週間カレンダー（24時間OK または 時間を選択）
                     </span>
                     <WeeklyCalendar
                       out={calOut}
