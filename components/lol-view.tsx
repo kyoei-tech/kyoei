@@ -1,7 +1,15 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronRight, ArrowLeft, MapPin, Clock, Phone, Truck } from 'lucide-react'
+import {
+  ChevronRight,
+  ArrowLeft,
+  MapPin,
+  Clock,
+  Phone,
+  Truck,
+  Search,
+} from 'lucide-react'
 
 type Destination = {
   id: string
@@ -14,15 +22,6 @@ type Destination = {
 }
 
 const DESTINATIONS: Destination[] = [
-  {
-    id: 'kyoei-yard',
-    name: '共栄ヤード',
-    category: '自社ヤード',
-    address: '愛知県名古屋市港区（社内ヤード）',
-    hours: '8:00 - 17:00',
-    phone: '052-000-0000',
-    note: '入庫前に事務所へ連絡。指定レーンに駐車。',
-  },
   {
     id: 'ippan',
     name: '一般',
@@ -101,7 +100,17 @@ function DetailRow({
 
 export function LolView() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
   const selected = DESTINATIONS.find((d) => d.id === selectedId) ?? null
+
+  const q = query.trim().toLowerCase()
+  const filtered = q
+    ? DESTINATIONS.filter(
+        (d) =>
+          d.name.toLowerCase().includes(q) ||
+          d.category.toLowerCase().includes(q),
+      )
+    : DESTINATIONS
 
   if (selected) {
     return (
@@ -143,35 +152,56 @@ export function LolView() {
         </p>
       </div>
 
-      <ul className="flex flex-col gap-2.5">
-        {DESTINATIONS.map((d) => (
-          <li key={d.id}>
-            <button
-              type="button"
-              onClick={() => setSelectedId(d.id)}
-              className="flex w-full items-center justify-between rounded-2xl border border-border bg-card px-5 py-4 text-left transition-colors hover:border-primary/60 hover:bg-accent active:scale-[0.99]"
-            >
-              <span className="flex items-center gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-primary">
-                  <MapPin className="h-5 w-5" aria-hidden="true" />
-                </span>
-                <span className="flex flex-col">
-                  <span className="text-base font-semibold text-foreground">
-                    {d.name}
+      <div className="relative">
+        <Search
+          className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+          aria-hidden="true"
+        />
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="配達先を検索"
+          aria-label="配達先を検索"
+          className="w-full rounded-2xl border border-border bg-card py-3 pl-11 pr-4 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/60"
+        />
+      </div>
+
+      {filtered.length === 0 ? (
+        <p className="rounded-2xl border border-dashed border-border px-5 py-8 text-center text-sm text-muted-foreground">
+          「{query}」に一致する配達先はありません。
+        </p>
+      ) : (
+        <ul className="flex flex-col gap-2.5">
+          {filtered.map((d) => (
+            <li key={d.id}>
+              <button
+                type="button"
+                onClick={() => setSelectedId(d.id)}
+                className="flex w-full items-center justify-between rounded-2xl border border-border bg-card px-5 py-4 text-left transition-colors hover:border-primary/60 hover:bg-accent active:scale-[0.99]"
+              >
+                <span className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                    <MapPin className="h-5 w-5" aria-hidden="true" />
                   </span>
-                  <span className="text-xs text-muted-foreground">
-                    {d.category}
+                  <span className="flex flex-col">
+                    <span className="text-base font-semibold text-foreground">
+                      {d.name}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {d.category}
+                    </span>
                   </span>
                 </span>
-              </span>
-              <ChevronRight
-                className="h-5 w-5 text-muted-foreground"
-                aria-hidden="true"
-              />
-            </button>
-          </li>
-        ))}
-      </ul>
+                <ChevronRight
+                  className="h-5 w-5 text-muted-foreground"
+                  aria-hidden="true"
+                />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }
