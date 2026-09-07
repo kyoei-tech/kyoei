@@ -4,11 +4,11 @@ type Mode = 'idle' | 'departure' | 'return'
 
 const LABELS: Record<Mode, string> = {
   idle: 'タイマー',
-  departure: '経過時間 — カウントアップ',
-  return: '残り時間 — カウントダウン',
+  departure: '運行時間',
+  return: '休息時間',
 }
 
-const COUNTDOWN_OPTIONS = [4, 9, 33]
+const COUNTDOWN_OPTIONS = [3, 9, 33]
 
 export function ShiftTimer({
   mode,
@@ -80,7 +80,7 @@ export function ShiftTimer({
 
       {finished && (
         <p className="mt-3 text-sm font-semibold text-destructive">
-          帰庫予定時刻になりました
+          出庫可能時刻になりました
         </p>
       )}
     </section>

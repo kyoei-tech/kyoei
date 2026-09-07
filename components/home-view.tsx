@@ -14,16 +14,12 @@ import { ShiftTimer } from './shift-timer'
 
 type Mode = 'idle' | 'departure' | 'return'
 
-const DISPLAY_OFFSETS = [3, 9, 33]
 const MS_PER_HOUR = 3600 * 1000
 
 export function HomeView() {
   const [now, setNow] = useState(() => new Date())
   const [mode, setMode] = useState<Mode>('idle')
   const [startedAt, setStartedAt] = useState<number | null>(null)
-  const [displayOffset, setDisplayOffset] = useState(() =>
-    isSaturday(new Date()) ? 33 : 9,
-  )
   const [countdownOffset, setCountdownOffset] = useState(() =>
     isSaturday(new Date()) ? 33 : 9,
   )
@@ -39,18 +35,9 @@ export function HomeView() {
   }, [])
 
   const handleReturn = useCallback(() => {
-    const saturday = isSaturday(new Date())
-    setDisplayOffset(saturday ? 33 : 9)
-    setCountdownOffset(saturday ? 33 : 9)
+    setCountdownOffset(isSaturday(new Date()) ? 33 : 9)
     setMode('return')
     setStartedAt(Date.now())
-  }, [])
-
-  const cycleDisplayOffset = useCallback(() => {
-    setDisplayOffset((current) => {
-      const index = DISPLAY_OFFSETS.indexOf(current)
-      return DISPLAY_OFFSETS[(index + 1) % DISPLAY_OFFSETS.length]
-    })
   }, [])
 
   // Second (linked) display parts
@@ -58,7 +45,7 @@ export function HomeView() {
   if (mode === 'departure' && startedAt != null) {
     statusParts = formatClock(new Date(startedAt))
   } else if (mode === 'return' && startedAt != null) {
-    statusParts = formatClock(addHours(new Date(startedAt), displayOffset))
+    statusParts = formatClock(addHours(new Date(startedAt), countdownOffset))
   }
 
   // Timer text
@@ -76,12 +63,7 @@ export function HomeView() {
     <div className="flex flex-col gap-4">
       <LiveClock parts={formatClock(now)} />
 
-      <StatusDisplay
-        parts={statusParts}
-        mode={mode}
-        displayOffset={displayOffset}
-        onCycleOffset={cycleDisplayOffset}
-      />
+      <StatusDisplay parts={statusParts} mode={mode} />
 
       <ShiftTimer
         mode={mode}
