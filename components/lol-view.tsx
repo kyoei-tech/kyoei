@@ -273,7 +273,7 @@ export function LolView() {
             <br />
             右上の「情報を追加」から登録できます。
           </p>
-        ) : (
+        ) : focusing ? (
           <ul className="flex flex-col gap-2.5">
             {list.map((e) => (
               <li
@@ -318,6 +318,26 @@ export function LolView() {
                     ),
                   )}
                 </dl>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <ul className="flex flex-col gap-2.5">
+            {list.map((e) => (
+              <li key={e.id}>
+                <button
+                  type="button"
+                  onClick={() => setFocusedEntryId(e.id)}
+                  className="flex w-full items-center justify-between gap-3 rounded-2xl border border-border bg-card px-5 py-4 text-left transition-colors hover:border-primary/60 hover:bg-accent active:scale-[0.99]"
+                >
+                  <span className="truncate text-base font-semibold text-foreground">
+                    {e.shopName || '（店舗名なし）'}
+                  </span>
+                  <ChevronRight
+                    className="h-5 w-5 shrink-0 text-muted-foreground"
+                    aria-hidden="true"
+                  />
+                </button>
               </li>
             ))}
           </ul>
