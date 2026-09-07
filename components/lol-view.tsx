@@ -139,14 +139,15 @@ const TIME_OPTIONS: string[] = (() => {
 type CellMode = 'none' | 'allday' | 'time'
 
 // Stored value encoding: '' = 未設定, '〇' = 24時間OK, 'H:MM〜H:MM' = 時間指定
+// Either side of 〜 may be blank (e.g. '〜12:00' = 12時まで, '9:00〜' = 9時から)
 function parseCell(v: string): { mode: CellMode; start: string; end: string } {
   const t = (v ?? '').trim()
-  if (t === '〇') return { mode: 'allday', start: '0:00', end: '0:00' }
+  if (t === '〇') return { mode: 'allday', start: '', end: '' }
   if (t.includes('〜')) {
     const [start, end] = t.split('〜')
-    return { mode: 'time', start: start || '0:00', end: end || '0:00' }
+    return { mode: 'time', start: start ?? '', end: end ?? '' }
   }
-  return { mode: 'none', start: '0:00', end: '0:00' }
+  return { mode: 'none', start: '', end: '' }
 }
 
 function cellText(v: string): string {
@@ -197,6 +198,7 @@ function DayCellEditor({
             onChange={(e) => onChange(`${e.target.value}〜${parsed.end}`)}
             className={SELECT_CLASS}
           >
+            <option value="">（空白）</option>
             {TIME_OPTIONS.map((t) => (
               <option key={t} value={t}>
                 {t}
@@ -210,6 +212,7 @@ function DayCellEditor({
             onChange={(e) => onChange(`${parsed.start}〜${e.target.value}`)}
             className={SELECT_CLASS}
           >
+            <option value="">（空白）</option>
             {TIME_OPTIONS.map((t) => (
               <option key={t} value={t}>
                 {t}
