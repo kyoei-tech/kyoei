@@ -44,9 +44,17 @@ export function ShiftTimer({
         </span>
       </div>
       <p
-        className={`font-mono text-6xl font-bold tabular-nums tracking-tight ${accent}`}
+        className={`font-mono font-bold tabular-nums tracking-tight ${accent}`}
       >
-        {text}
+        {(() => {
+          const [hh, mm, ss] = text.split(':')
+          return (
+            <>
+              <span className="text-6xl">{`${hh}:${mm}`}</span>
+              <span className="ml-1 text-3xl">{`:${ss}`}</span>
+            </>
+          )
+        })()}
       </p>
 
       {mode === 'return' ? (
@@ -70,13 +78,11 @@ export function ShiftTimer({
             )
           })}
         </div>
-      ) : (
+      ) : mode === 'idle' ? (
         <p className="mt-4 text-xs text-muted-foreground">
-          {mode === 'departure'
-            ? 'カウントアップ中は切替できません'
-            : '出庫・帰庫ボタンで開始します'}
+          出庫・帰庫ボタンで開始します
         </p>
-      )}
+      ) : null}
 
       {finished && (
         <p className="mt-3 text-sm font-semibold text-destructive">

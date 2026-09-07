@@ -1,4 +1,5 @@
 import type { ClockParts } from '@/lib/shift-time'
+import { FormatToggle } from './format-toggle'
 
 type Mode = 'idle' | 'departure' | 'return'
 
@@ -17,9 +18,13 @@ const ACCENT: Record<Mode, string> = {
 export function StatusDisplay({
   parts,
   mode,
+  hour12,
+  onToggleFormat,
 }: {
   parts: ClockParts
   mode: Mode
+  hour12: boolean
+  onToggleFormat: () => void
 }) {
   return (
     <section
@@ -30,6 +35,7 @@ export function StatusDisplay({
         <span className={`text-xs font-semibold tracking-wide ${ACCENT[mode]}`}>
           {LABELS[mode]}
         </span>
+        <FormatToggle hour12={hour12} onToggle={onToggleFormat} />
       </div>
       <p className="text-sm font-medium text-muted-foreground">
         {parts.date}

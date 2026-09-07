@@ -14,12 +14,29 @@ export type ClockParts = {
   time: string
 }
 
-/** e.g. { date: "2026年9月7日", weekday: "月曜日", time: "14:23:45" } */
-export function formatClock(date: Date): ClockParts {
+export type ClockFormat = { hour12?: boolean; seconds?: boolean }
+
+/** e.g. { date: "2026年9月7日", weekday: "月曜日", time: "14:23" } */
+export function formatClock(date: Date, opts: ClockFormat = {}): ClockParts {
+  const { hour12 = false, seconds = true } = opts
+
+  let hour = date.getHours()
+  let meridiem = ''
+  if (hour12) {
+    meridiem = hour < 12 ? '午前' : '午後'
+    hour = hour % 12
+    if (hour === 0) hour = 12
+  }
+
+  const hourStr = hour12 ? String(hour) : pad2(hour)
+  let time = `${hourStr}:${pad2(date.getMinutes())}`
+  if (seconds) time += `:${pad2(date.getSeconds())}`
+  if (hour12) time = `${meridiem}${time}`
+
   return {
     date: `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`,
     weekday: `${WEEKDAYS_JP[date.getDay()]}曜日`,
-    time: `${pad2(date.getHours())}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())}`,
+    time,
   }
 }
 

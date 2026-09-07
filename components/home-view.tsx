@@ -23,6 +23,9 @@ export function HomeView() {
   const [countdownOffset, setCountdownOffset] = useState(() =>
     isSaturday(new Date()) ? 33 : 9,
   )
+  const [hour12, setHour12] = useState(false)
+
+  const toggleFormat = useCallback(() => setHour12((v) => !v), [])
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 250)
@@ -40,12 +43,16 @@ export function HomeView() {
     setStartedAt(Date.now())
   }, [])
 
-  // Second (linked) display parts
-  let statusParts = formatClock(now)
+  // Second (linked) display parts (no seconds)
+  const clockOpts = { hour12, seconds: false }
+  let statusParts = formatClock(now, clockOpts)
   if (mode === 'departure' && startedAt != null) {
-    statusParts = formatClock(new Date(startedAt))
+    statusParts = formatClock(new Date(startedAt), clockOpts)
   } else if (mode === 'return' && startedAt != null) {
-    statusParts = formatClock(addHours(new Date(startedAt), countdownOffset))
+    statusParts = formatClock(
+      addHours(new Date(startedAt), countdownOffset),
+      clockOpts,
+    )
   }
 
   // Timer text
@@ -61,9 +68,18 @@ export function HomeView() {
 
   return (
     <div className="flex flex-col gap-4">
-      <LiveClock parts={formatClock(now)} />
+      <LiveClock
+        parts={formatClock(now, clockOpts)}
+        hour12={hour12}
+        onToggleFormat={toggleFormat}
+      />
 
-      <StatusDisplay parts={statusParts} mode={mode} />
+      <StatusDisplay
+        parts={statusParts}
+        mode={mode}
+        hour12={hour12}
+        onToggleFormat={toggleFormat}
+      />
 
       <ShiftTimer
         mode={mode}
