@@ -1,11 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { Bell, CalendarDays, Menu } from 'lucide-react'
+import { Menu } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { BottomTabs, type TabId } from './bottom-tabs'
 import { HomeView } from './home-view'
 import { LolView } from './lol-view'
+import { AAView } from './aa-view'
+import { NewsView } from './news-view'
 
 function Placeholder({
   Icon,
@@ -39,20 +41,8 @@ export function AttendanceApp() {
       <main className="flex flex-1 flex-col px-4 pb-24 pt-6">
         {tab === 'home' && <HomeView />}
         {tab === 'lol' && <LolView />}
-        {tab === 'aa' && (
-          <Placeholder
-            Icon={CalendarDays}
-            title="AA"
-            description="カレンダー・予定の機能をここに追加できます。"
-          />
-        )}
-        {tab === 'news' && (
-          <Placeholder
-            Icon={Bell}
-            title="おしらせ"
-            description="通知やお知らせをここに表示します。"
-          />
-        )}
+        {tab === 'aa' && <AAView />}
+        {tab === 'news' && <NewsView />}
         {tab === 'menu' && (
           <Placeholder
             Icon={Menu}
