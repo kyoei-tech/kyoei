@@ -67,7 +67,7 @@ export function HomeView() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-1 flex-col justify-evenly gap-4">
       <LiveClock
         parts={formatClock(now, clockOpts)}
         hour12={hour12}
