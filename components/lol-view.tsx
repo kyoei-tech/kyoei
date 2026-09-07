@@ -44,7 +44,7 @@ const DESTINATIONS: Destination[] = [
   {
     id: 'kokunaisen',
     name: '国内船',
-    category: '国内航路',
+    category: '国内船 港',
     address: '指定フェリーターミナル',
     hours: '出航時刻の90分前まで',
     phone: '—',
