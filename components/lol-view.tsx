@@ -122,14 +122,11 @@ function hasCalendar(e: InfoEntry): boolean {
   )
 }
 
-// 0:00 〜 24:00 in 30-minute steps for the time dropdowns.
+// 0:00 〜 24:00 in 1-hour steps for the time dropdowns.
 const TIME_OPTIONS: string[] = (() => {
   const arr: string[] = []
   for (let h = 0; h <= 24; h++) {
-    for (const m of [0, 30]) {
-      if (h === 24 && m > 0) break
-      arr.push(`${h}:${m === 0 ? '00' : '30'}`)
-    }
+    arr.push(`${h}:00`)
   }
   return arr
 })()
@@ -149,7 +146,7 @@ function parseCell(v: string): { mode: CellMode; start: string; end: string } {
 
 function cellText(v: string): string {
   const t = (v ?? '').trim()
-  if (t === '〇') return '〇（24時間OK）'
+  if (t === '〇') return '〇'
   if (t.includes('〜')) return t
   return '—'
 }
