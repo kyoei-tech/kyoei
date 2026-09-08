@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import {
   ArrowLeft,
+  BookMarked,
   BookOpen,
   CalendarCheck,
   CalendarDays,
@@ -21,6 +22,7 @@ import { BeginnerNotesView } from './beginner-notes-view'
 import { AAView } from './aa-view'
 import { EmergencyContactsView } from './emergency-contacts-view'
 import { AccidentCalendarView } from './accident-calendar-view'
+import { DriverTermsView } from './driver-terms-view'
 import { SettingsView } from './settings-view'
 
 export type MenuItemId =
@@ -30,6 +32,7 @@ export type MenuItemId =
   | 'cars'
   | 'notes'
   | 'accidents'
+  | 'terms'
   | 'emergency'
   | 'settings'
 
@@ -76,6 +79,12 @@ const MENU_ITEMS: {
     Icon: CalendarCheck,
   },
   {
+    id: 'terms',
+    label: 'ドライバー語録',
+    description: '業界用語、隠語を調べられるおもしろ辞典📖',
+    Icon: BookMarked,
+  },
+  {
     id: 'emergency',
     label: '緊急連絡先',
     description: '緊急時に連絡する連絡先一覧です。',
@@ -115,6 +124,7 @@ export function MenuView({
         {item?.id === 'cars' && <HighValueCarsView />}
         {item?.id === 'notes' && <BeginnerNotesView />}
         {item?.id === 'accidents' && <AccidentCalendarView />}
+        {item?.id === 'terms' && <DriverTermsView />}
         {item?.id === 'emergency' && <EmergencyContactsView />}
         {item?.id === 'settings' && <SettingsView />}
       </div>
