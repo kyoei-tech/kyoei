@@ -42,12 +42,12 @@ export function StatusDisplay({
         <span className="ml-2 text-foreground">{parts.weekday}</span>
       </p>
       <p
-        className={`my-4 text-center font-mono text-6xl font-semibold tabular-nums tracking-tight ${
+        className={`my-4 text-center font-mono text-4xl font-semibold tabular-nums tracking-tight ${
           mode === 'idle' ? 'text-foreground' : ACCENT[mode]
         }`}
       >
         {parts.meridiem && (
-          <span className="mr-1 text-2xl font-medium text-muted-foreground">
+          <span className="mr-1 text-xl font-medium text-muted-foreground">
             {parts.meridiem}
           </span>
         )}

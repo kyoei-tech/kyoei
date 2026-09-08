@@ -11,6 +11,7 @@ import {
 import { LiveClock } from './live-clock'
 import { StatusDisplay } from './status-display'
 import { ShiftTimer } from './shift-timer'
+import { AccidentStreakBadge } from './accident-streak-badge'
 
 type Mode = 'idle' | 'departure' | 'return'
 
@@ -107,11 +108,14 @@ export function HomeView() {
 
   return (
     <div className="flex flex-1 flex-col justify-evenly gap-4">
-      <LiveClock
-        parts={formatClock(now, clockOpts)}
-        hour12={hour12}
-        onToggleFormat={toggleFormat}
-      />
+      <div className="flex flex-col gap-2">
+        <LiveClock
+          parts={formatClock(now, clockOpts)}
+          hour12={hour12}
+          onToggleFormat={toggleFormat}
+        />
+        <AccidentStreakBadge size="sm" />
+      </div>
 
       <StatusDisplay
         parts={statusParts}

@@ -4,18 +4,34 @@ import { useState } from 'react'
 import {
   ArrowLeft,
   BookOpen,
+  CalendarCheck,
+  CalendarDays,
   Car,
   ChevronRight,
   MapPin,
   MessageCircleQuestion,
+  Phone,
+  Settings,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { HighValueCarsView } from './high-value-cars-view'
 import { QAView } from './qa-view'
 import { LolView } from './lol-view'
 import { BeginnerNotesView } from './beginner-notes-view'
+import { AAView } from './aa-view'
+import { EmergencyContactsView } from './emergency-contacts-view'
+import { AccidentCalendarView } from './accident-calendar-view'
+import { SettingsView } from './settings-view'
 
-type MenuItemId = 'cars' | 'qa' | 'lol' | 'notes'
+type MenuItemId =
+  | 'lol'
+  | 'aa'
+  | 'qa'
+  | 'cars'
+  | 'notes'
+  | 'accidents'
+  | 'emergency'
+  | 'settings'
 
 const MENU_ITEMS: {
   id: MenuItemId
@@ -24,10 +40,16 @@ const MENU_ITEMS: {
   Icon: LucideIcon
 }[] = [
   {
-    id: 'cars',
-    label: '高額車一覧',
-    description: '高額車の車種・型式・メモを確認できます。',
-    Icon: Car,
+    id: 'lol',
+    label: 'LoL',
+    description: '配達先情報の一覧を確認できます。',
+    Icon: MapPin,
+  },
+  {
+    id: 'aa',
+    label: 'AA',
+    description: 'オークションの開催日・搬出期限を確認できます。',
+    Icon: CalendarDays,
   },
   {
     id: 'qa',
@@ -36,16 +58,34 @@ const MENU_ITEMS: {
     Icon: MessageCircleQuestion,
   },
   {
-    id: 'lol',
-    label: 'LoL',
-    description: '車両位置の一覧を確認できます。',
-    Icon: MapPin,
+    id: 'cars',
+    label: '高額車一覧',
+    description: '該当車両は中継の際、本郷へ。',
+    Icon: Car,
   },
   {
     id: 'notes',
     label: '初心者ノート',
-    description: '新人向けのメモや手順を確認できます。',
+    description: '新人向けのメモや手順の確認ができます。',
     Icon: BookOpen,
+  },
+  {
+    id: 'accidents',
+    label: '無事故カレンダー',
+    description: '目指せ無事故！',
+    Icon: CalendarCheck,
+  },
+  {
+    id: 'emergency',
+    label: '緊急連絡先',
+    description: '緊急時に連絡する連絡先一覧です。',
+    Icon: Phone,
+  },
+  {
+    id: 'settings',
+    label: '設定',
+    description: 'フォントサイズや背景色を変更できます。',
+    Icon: Settings,
   },
 ]
 

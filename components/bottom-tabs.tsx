@@ -1,21 +1,13 @@
-import {
-  Bell,
-  CalendarDays,
-  ClipboardCheck,
-  House,
-  Menu,
-  Warehouse,
-} from 'lucide-react'
+import { Bell, ClipboardCheck, House, Menu, Warehouse } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
-export type TabId = 'menu' | 'news' | 'aa' | 'yard' | 'staff' | 'home'
+export type TabId = 'home' | 'yard' | 'staff' | 'news' | 'menu'
 
 const TABS: { id: TabId; label: string; Icon: LucideIcon }[] = [
   { id: 'home', label: 'ホーム', Icon: House },
-  { id: 'aa', label: 'AA', Icon: CalendarDays },
-  { id: 'news', label: 'おしらせ', Icon: Bell },
   { id: 'yard', label: 'ヤード配置', Icon: Warehouse },
   { id: 'staff', label: '出勤簿', Icon: ClipboardCheck },
+  { id: 'news', label: 'おしらせ', Icon: Bell },
   { id: 'menu', label: 'メニュー', Icon: Menu },
 ]
 

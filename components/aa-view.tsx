@@ -8,10 +8,13 @@ import { ConfirmDeleteInline } from './confirm-delete'
 
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土']
 
-// 0:00 〜 24:00 in 1-hour steps.
+// 0:00 〜 24:00 in 30-minute steps.
 const TIME_OPTIONS: string[] = (() => {
   const arr: string[] = []
-  for (let h = 0; h <= 24; h++) arr.push(`${h}:00`)
+  for (let h = 0; h <= 24; h++) {
+    arr.push(`${h}:00`)
+    if (h < 24) arr.push(`${h}:30`)
+  }
   return arr
 })()
 
