@@ -116,6 +116,10 @@ function CalendarCard({
 export function AAView() {
   const [editingDays, setEditingDays] = useState(false)
   const [editingDeadlines, setEditingDeadlines] = useState(false)
+  const [confirmVenueId, setConfirmVenueId] = useState<string | null>(null)
+  const [confirmDeadlineId, setConfirmDeadlineId] = useState<string | null>(
+    null,
+  )
   const [dayInputs, setDayInputs] = useState<string[]>(Array(7).fill(''))
   const [deadlineNameInputs, setDeadlineNameInputs] = useState<string[]>(
     Array(7).fill(''),
@@ -167,6 +171,7 @@ export function AAView() {
   async function removeVenue(_dayIndex: number, id: string) {
     const supabase = createClient()
     await supabase.from('aa_venues').delete().eq('id', id)
+    setConfirmVenueId(null)
     await refetchVenues()
   }
 
@@ -187,6 +192,7 @@ export function AAView() {
   async function removeDeadline(_dayIndex: number, id: string) {
     const supabase = createClient()
     await supabase.from('aa_deadlines').delete().eq('id', id)
+    setConfirmDeadlineId(null)
     await refetchDeadlines()
   }
 
@@ -232,7 +238,7 @@ export function AAView() {
                         {editingDays && (
                           <button
                             type="button"
-                            onClick={() => removeVenue(i, v.id)}
+                            onClick={() => setConfirmVenueId(v.id)}
                             aria-label={`${v.name}を削除`}
                             className="ml-0.5 text-primary/70 transition-colors hover:text-destructive"
                           >
@@ -243,6 +249,17 @@ export function AAView() {
                     ))
                   )}
                 </div>
+                {editingDays &&
+                  days[i]
+                    .filter((v) => v.id === confirmVenueId)
+                    .map((v) => (
+                      <ConfirmDeleteInline
+                        key={v.id}
+                        message={`「${v.name}」を削除しますか？`}
+                        onConfirm={() => removeVenue(i, v.id)}
+                        onCancel={() => setConfirmVenueId(null)}
+                      />
+                    ))}
                 {editingDays && (
                   <div className="flex gap-1.5">
                     <input
@@ -314,7 +331,7 @@ export function AAView() {
                           {editingDeadlines && (
                             <button
                               type="button"
-                              onClick={() => removeDeadline(i, v.id)}
+                              onClick={() => setConfirmDeadlineId(v.id)}
                               aria-label={`${v.name}を削除`}
                               className="ml-0.5 text-primary/70 transition-colors hover:text-destructive"
                             >
@@ -326,6 +343,17 @@ export function AAView() {
                     ))
                   )}
                 </div>
+                {editingDeadlines &&
+                  deadlines[i]
+                    .filter((v) => v.id === confirmDeadlineId)
+                    .map((v) => (
+                      <ConfirmDeleteInline
+                        key={v.id}
+                        message={`「${v.name}」を削除しますか？`}
+                        onConfirm={() => removeDeadline(i, v.id)}
+                        onCancel={() => setConfirmDeadlineId(null)}
+                      />
+                    ))}
                 {editingDeadlines && (
                   <div className="flex gap-1.5">
                     <input

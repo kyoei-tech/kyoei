@@ -1,12 +1,21 @@
 'use client'
 
 import { useState } from 'react'
-import { ArrowLeft, Car, ChevronRight, MessageCircleQuestion } from 'lucide-react'
+import {
+  ArrowLeft,
+  BookOpen,
+  Car,
+  ChevronRight,
+  MapPin,
+  MessageCircleQuestion,
+} from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { HighValueCarsView } from './high-value-cars-view'
 import { QAView } from './qa-view'
+import { LolView } from './lol-view'
+import { BeginnerNotesView } from './beginner-notes-view'
 
-type MenuItemId = 'cars' | 'qa'
+type MenuItemId = 'cars' | 'qa' | 'lol' | 'notes'
 
 const MENU_ITEMS: {
   id: MenuItemId
@@ -25,6 +34,18 @@ const MENU_ITEMS: {
     label: 'Q&A',
     description: '匿名で質問・回答できます。',
     Icon: MessageCircleQuestion,
+  },
+  {
+    id: 'lol',
+    label: 'LoL',
+    description: '車両位置の一覧を確認できます。',
+    Icon: MapPin,
+  },
+  {
+    id: 'notes',
+    label: '初心者ノート',
+    description: '新人向けのメモや手順を確認できます。',
+    Icon: BookOpen,
   },
 ]
 
@@ -45,6 +66,8 @@ export function MenuView() {
         </button>
         {item?.id === 'cars' && <HighValueCarsView />}
         {item?.id === 'qa' && <QAView />}
+        {item?.id === 'lol' && <LolView />}
+        {item?.id === 'notes' && <BeginnerNotesView />}
       </div>
     )
   }
