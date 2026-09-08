@@ -104,10 +104,14 @@ export function MenuView() {
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           メニューへ戻る
         </button>
-        {item?.id === 'cars' && <HighValueCarsView />}
-        {item?.id === 'qa' && <QAView />}
         {item?.id === 'lol' && <LolView />}
+        {item?.id === 'aa' && <AAView />}
+        {item?.id === 'qa' && <QAView />}
+        {item?.id === 'cars' && <HighValueCarsView />}
         {item?.id === 'notes' && <BeginnerNotesView />}
+        {item?.id === 'accidents' && <AccidentCalendarView />}
+        {item?.id === 'emergency' && <EmergencyContactsView />}
+        {item?.id === 'settings' && <SettingsView />}
       </div>
     )
   }

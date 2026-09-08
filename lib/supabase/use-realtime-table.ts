@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useId } from 'react'
 import useSWR from 'swr'
 import { createClient } from './client'
 
@@ -18,10 +18,16 @@ export function useRealtimeTable<T>(
     revalidateOnFocus: false,
   })
 
+  // Supabase dedupes channels by name, so two hook instances watching the
+  // same table at the same time (e.g. this page and an embedded badge) must
+  // use distinct channel names or the second `.on()` call throws once the
+  // first channel has already subscribed.
+  const instanceId = useId()
+
   useEffect(() => {
     const supabase = createClient()
     const channel = supabase
-      .channel(`realtime:${table}`)
+      .channel(`realtime:${table}:${instanceId}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table },
@@ -35,7 +41,7 @@ export function useRealtimeTable<T>(
       supabase.removeChannel(channel)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- table is stable per hook usage
-  }, [table])
+  }, [table, instanceId])
 
   return { data: data ?? [], error, isLoading, mutate }
 }
