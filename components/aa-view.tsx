@@ -145,6 +145,10 @@ export function AAView() {
     for (const r of venueRows) {
       grouped[r.weekday]?.push({ id: r.id, name: r.venue_name })
     }
+    // Show venues within each weekday sorted by name, not entry order.
+    for (const list of grouped) {
+      list.sort((a, b) => a.name.localeCompare(b.name, 'ja'))
+    }
     return grouped
   }, [venueRows])
 
@@ -156,6 +160,10 @@ export function AAView() {
         name: r.venue_name,
         time: r.deadline_time,
       })
+    }
+    // Show deadlines within each weekday sorted by venue name, not entry order.
+    for (const list of grouped) {
+      list.sort((a, b) => a.name.localeCompare(b.name, 'ja'))
     }
     return grouped
   }, [deadlineRows])

@@ -369,6 +369,10 @@ export function LolView() {
       if (!map[r.destination_id]) map[r.destination_id] = []
       map[r.destination_id].push(rowToEntry(r))
     }
+    // Show entries within each destination sorted by shop name, not entry order.
+    for (const list of Object.values(map)) {
+      list.sort((a, b) => a.shopName.localeCompare(b.shopName, 'ja'))
+    }
     return map
   }, [rows])
 

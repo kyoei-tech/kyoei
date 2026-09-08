@@ -103,9 +103,10 @@ export function HighValueCarsView() {
 
   const modelsForSelectedMaker = useMemo(() => {
     if (!selectedMaker) return []
-    return cars.filter(
-      (c) => (c.maker.trim() || UNSET_MAKER) === selectedMaker,
-    )
+    // Show models within the selected maker sorted by name, not entry order.
+    return cars
+      .filter((c) => (c.maker.trim() || UNSET_MAKER) === selectedMaker)
+      .sort((a, b) => a.modelName.localeCompare(b.modelName, 'ja'))
   }, [cars, selectedMaker])
 
   const selectedCar = useMemo(
@@ -443,7 +444,7 @@ export function HighValueCarsView() {
                     </span>
                     <span className="flex min-w-0 flex-col">
                       <span className="truncate text-base font-semibold text-foreground">
-                        {c.modelName || '（車種名なし）'}
+                        {c.modelName || '��車種名なし）'}
                       </span>
                       {c.modelCode && (
                         <span className="truncate text-xs text-muted-foreground">
