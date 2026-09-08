@@ -20,9 +20,12 @@ export const FONT_TABS: { id: FontTabId; label: string }[] = [
   { id: 'menu', label: 'メニュー' },
 ]
 
-const DEFAULT_FONT_LEVEL = 3
-// Level 1-5, level 3 (index 2) is the current baseline size.
-export const FONT_SCALES = [0.85, 0.925, 1, 1.075, 1.15]
+// Level 1 is the floor: it matches today's default size (e.g. the home
+// tab's current-time display), so text can only be scaled up from here,
+// never smaller than what's already on screen. Levels 2-6 step up by 0.1
+// each, a bigger jump than the previous 5-level scale's 0.075 step.
+const DEFAULT_FONT_LEVEL = 1
+export const FONT_SCALES = [1, 1.1, 1.2, 1.3, 1.4, 1.5]
 
 const STORAGE_KEY = 'kyoei-settings'
 

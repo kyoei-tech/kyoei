@@ -2,6 +2,7 @@
 
 import { Monitor, Moon, Sun } from 'lucide-react'
 import {
+  FONT_SCALES,
   FONT_TABS,
   useSettings,
   type ThemeMode,
@@ -13,7 +14,7 @@ const THEME_OPTIONS: { id: ThemeMode; label: string; Icon: typeof Sun }[] = [
   { id: 'system', label: 'デバイスに合わせる', Icon: Monitor },
 ]
 
-const LEVELS = [1, 2, 3, 4, 5]
+const LEVELS = [1, 2, 3, 4, 5, 6]
 
 export function SettingsView() {
   const { theme, setTheme, fontLevels, setFontLevel } = useSettings()
@@ -30,7 +31,7 @@ export function SettingsView() {
       <section className="flex flex-col gap-4 rounded-2xl border border-border bg-card px-5 py-5">
         <h3 className="text-base font-bold text-foreground">フォント</h3>
         <p className="text-xs text-muted-foreground">
-          各タブごとに文字の大きさを5段階で調整できます（ホームタブの現在のサイズが中央値です）。
+          各タブごとに文字の大きさを6段階で調整できます。
         </p>
         <div className="flex flex-col gap-4">
           {FONT_TABS.map(({ id, label }) => (
@@ -54,7 +55,9 @@ export function SettingsView() {
                           : 'border-border bg-background text-muted-foreground hover:text-foreground'
                       }`}
                       style={{
-                        fontSize: `${0.7 + level * 0.06}rem`,
+                        // Preview size follows the real scale ratio so the
+                        // buttons visibly reflect the bigger per-level jump.
+                        fontSize: `${0.75 * FONT_SCALES[level - 1]}rem`,
                       }}
                     >
                       Aa
