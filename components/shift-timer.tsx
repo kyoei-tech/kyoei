@@ -10,6 +10,14 @@ const LABELS: Record<Mode, string> = {
 
 const COUNTDOWN_OPTIONS = [3, 9, 33]
 
+// Matches the label accent used by StatusDisplay's 出庫時刻/出庫可能時刻 text
+// so the two linked labels read as one visual pair.
+const LABEL_ACCENT: Record<Mode, string> = {
+  idle: 'text-muted-foreground',
+  departure: 'text-secondary',
+  return: 'text-primary',
+}
+
 export function ShiftTimer({
   mode,
   text,
@@ -38,8 +46,8 @@ export function ShiftTimer({
       className="rounded-3xl border border-border bg-card px-6 py-6 text-center"
     >
       <div className="mb-2 flex items-center justify-center gap-1.5">
-        <Timer className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-        <span className="text-base font-semibold tracking-wide text-muted-foreground">
+        <Timer className={`h-5 w-5 ${LABEL_ACCENT[mode]}`} aria-hidden="true" />
+        <span className={`text-2xl font-bold tracking-wide ${LABEL_ACCENT[mode]}`}>
           {LABELS[mode]}
         </span>
       </div>

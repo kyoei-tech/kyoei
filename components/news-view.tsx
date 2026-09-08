@@ -58,6 +58,11 @@ function emptyForm() {
   return { title: '', category: '', content: '', author: '' }
 }
 
+function formatPostDate(createdAt: number) {
+  const d = new Date(createdAt)
+  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`
+}
+
 export function NewsView() {
   const [view, setView] = useState<ViewMode>('list')
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -142,6 +147,14 @@ export function NewsView() {
           一覧へ戻る
         </button>
         <div className="rounded-2xl border border-border bg-card px-5 py-6">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h3 className="text-lg font-bold text-foreground">
+              {selected.title}
+            </h3>
+            <span className="shrink-0 text-xs font-medium text-muted-foreground">
+              {formatPostDate(selected.createdAt)}
+            </span>
+          </div>
           <p className="whitespace-pre-wrap text-base leading-relaxed text-foreground">
             {selected.content || '内容はありません。'}
           </p>
@@ -269,8 +282,13 @@ export function NewsView() {
                 className="rounded-2xl border border-border bg-card px-4 py-3.5"
               >
                 <div className="flex items-center justify-between gap-3">
-                  <span className="truncate text-sm font-semibold text-foreground">
-                    {p.title}
+                  <span className="flex min-w-0 flex-col gap-0.5">
+                    <span className="truncate text-sm font-semibold text-foreground">
+                      {p.title}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {formatPostDate(p.createdAt)}
+                    </span>
                   </span>
                   <div className="flex shrink-0 items-center gap-0.5">
                     <button
@@ -354,8 +372,13 @@ export function NewsView() {
                 onClick={() => openDetail(p.id)}
                 className="flex w-full items-center justify-between gap-3 rounded-2xl border border-border bg-card px-5 py-4 text-left transition-colors hover:border-primary/60 hover:bg-accent active:scale-[0.99]"
               >
-                <span className="truncate text-base font-semibold text-foreground">
-                  {p.title}
+                <span className="flex min-w-0 flex-col gap-0.5">
+                  <span className="truncate text-base font-semibold text-foreground">
+                    {p.title}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {formatPostDate(p.createdAt)}
+                  </span>
                 </span>
                 <ChevronRight
                   className="h-5 w-5 shrink-0 text-muted-foreground"
