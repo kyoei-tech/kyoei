@@ -21,6 +21,7 @@ export function useAccidentStreak() {
   const { data } = useRealtimeTable<AccidentDateRow>(
     'accident_records',
     fetchAccidentDates,
+    { cacheKey: 'dates' },
   )
   return useMemo(
     () => computeStreakDays(data.map((d) => d.occurred_on)),

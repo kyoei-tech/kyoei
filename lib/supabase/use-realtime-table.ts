@@ -12,9 +12,18 @@ import { createClient } from './client'
 export function useRealtimeTable<T>(
   table: string,
   fetcher: () => Promise<T[]>,
-  options?: { orderKey?: string },
+  options?: { orderKey?: string; cacheKey?: string },
 ) {
-  const { data, error, isLoading, mutate } = useSWR<T[]>(table, fetcher, {
+  // The SWR cache key must be unique per data *shape*, not just per table.
+  // Two components can watch the same table but select different columns
+  // (e.g. a full-row editor vs. a lightweight badge that only needs one
+  // column) — if they shared a plain `table` key, SWR would treat them as
+  // the same cache entry and whichever fetch resolved last would silently
+  // overwrite the other's fields (e.g. dropping `id`). Callers with a
+  // non-default shape must pass a distinct `cacheKey`.
+  const swrKey = options?.cacheKey ? `${table}:${options.cacheKey}` : table
+
+  const { data, error, isLoading, mutate } = useSWR<T[]>(swrKey, fetcher, {
     revalidateOnFocus: false,
   })
 

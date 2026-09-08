@@ -127,6 +127,7 @@ export function AccidentCalendarView() {
   const [historyEditId, setHistoryEditId] = useState<string | null>(null)
   const [historyForm, setHistoryForm] = useState(emptyForm)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
 
   const { data: rows, mutate: refetch } = useRealtimeTable<AccidentRow>(
     'accident_records',
@@ -183,16 +184,29 @@ export function AccidentCalendarView() {
     })
   }, [rows, historyMonth])
 
+  function canSaveNewAccident(f: typeof form) {
+    // The date input always has a value (defaults to today), so requiring
+    // only `occurredOn` let a blank tap on 保存 silently create a phantom
+    // record for the current day. Require actual content instead.
+    return Boolean(f.occurredOn && (f.vehicleClass.trim() || f.description.trim()))
+  }
+
   async function addAccident() {
-    if (!form.occurredOn) return
-    const supabase = createClient()
-    await supabase.from('accident_records').insert({
-      occurred_on: form.occurredOn,
-      vehicle_class: form.vehicleClass.trim(),
-      description: form.description.trim(),
-    })
-    setForm(emptyForm())
-    await refetch()
+    if (!canSaveNewAccident(form) || isSaving) return
+    setIsSaving(true)
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.from('accident_records').insert({
+        occurred_on: form.occurredOn,
+        vehicle_class: form.vehicleClass.trim(),
+        description: form.description.trim(),
+      })
+      if (error) throw error
+      setForm(emptyForm())
+      await refetch()
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   function openHistoryEdit(row: AccidentRow) {
@@ -384,13 +398,16 @@ export function AccidentCalendarView() {
                 className="w-full resize-none rounded-2xl border border-border bg-background px-4 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60"
               />
             </label>
+            <p className="text-xs text-muted-foreground">
+              車格または事故内容のいずれかを入力してください。
+            </p>
             <button
               type="button"
               onClick={addAccident}
-              disabled={!form.occurredOn}
+              disabled={!canSaveNewAccident(form) || isSaving}
               className="self-end rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95 disabled:opacity-40"
             >
-              保存
+              {isSaving ? '保存中…' : '保存'}
             </button>
           </section>
 
