@@ -95,6 +95,7 @@ export function EmergencyContactsView() {
     await supabase.from('emergency_contacts').delete().eq('id', id)
     await refetch()
     setConfirmDeleteId(null)
+    closeForm()
   }
 
   return (
