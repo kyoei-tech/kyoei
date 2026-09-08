@@ -11,6 +11,8 @@ import {
   X,
   Pencil,
 } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 
 type Destination = {
   id: string
@@ -100,18 +102,55 @@ const DESTINATIONS: Destination[] = [
   { id: 'nagoya', name: '名古屋', category: '名古屋方面' },
 ]
 
-const STORAGE_KEY = 'kyoei-lol-entries'
-
 type EntriesMap = Record<string, InfoEntry[]>
 
-function loadEntries(): EntriesMap {
-  if (typeof window === 'undefined') return {}
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
-    return raw ? (JSON.parse(raw) as EntriesMap) : {}
-  } catch {
-    return {}
+// Shared across every browser via the `lol_entries` Supabase table.
+type LolRow = {
+  id: string
+  destination_id: string
+  shop_name: string
+  address: string
+  phone: string
+  hours: string
+  break_time: string
+  place: string
+  event_day: string
+  memo: string
+  method: string
+  notes: string
+  cal_out: string[] | null
+  cal_in: string[] | null
+}
+
+function rowToEntry(r: LolRow): InfoEntry {
+  return {
+    id: r.id,
+    shopName: r.shop_name,
+    address: r.address,
+    phone: r.phone,
+    hours: r.hours,
+    breakTime: r.break_time,
+    place: r.place,
+    eventDay: r.event_day,
+    memo: r.memo,
+    method: r.method,
+    notes: r.notes,
+    calOut: r.cal_out ?? emptyWeek(),
+    calIn: r.cal_in ?? emptyWeek(),
   }
+}
+
+async function fetchLolRows(): Promise<LolRow[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('lol_entries')
+    .select(
+      'id, destination_id, shop_name, address, phone, hours, break_time, place, event_day, memo, method, notes, cal_out, cal_in',
+    )
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: true })
+  if (error) throw error
+  return (data as LolRow[]) ?? []
 }
 
 function weekdayColor(i: number): string {
@@ -310,8 +349,6 @@ export function LolView() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [focusedEntryId, setFocusedEntryId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
-  const [entries, setEntries] = useState<EntriesMap>({})
-  const [hydrated, setHydrated] = useState(false)
   const [adding, setAdding] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
@@ -319,15 +356,21 @@ export function LolView() {
   const [calOut, setCalOut] = useState<string[]>(emptyWeek)
   const [calIn, setCalIn] = useState<string[]>(emptyWeek)
 
-  useEffect(() => {
-    setEntries(loadEntries())
-    setHydrated(true)
-  }, [])
+  // Shared across every browser: fetched from Supabase and kept live via
+  // Postgres Changes, so an edit made anywhere shows up here automatically.
+  const { data: rows, mutate: refetch } = useRealtimeTable<LolRow>(
+    'lol_entries',
+    fetchLolRows,
+  )
 
-  useEffect(() => {
-    if (!hydrated) return
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(entries))
-  }, [hydrated, entries])
+  const entries: EntriesMap = useMemo(() => {
+    const map: EntriesMap = {}
+    for (const r of rows) {
+      if (!map[r.destination_id]) map[r.destination_id] = []
+      map[r.destination_id].push(rowToEntry(r))
+    }
+    return map
+  }, [rows])
 
   const selected = DESTINATIONS.find((d) => d.id === selectedId) ?? null
   const isAA = selected?.id === 'aa'
@@ -394,33 +437,46 @@ export function LolView() {
     setCalIn(emptyWeek())
   }
 
-  function saveEntry() {
+  async function saveEntry() {
     if (!selected || !form.shopName.trim()) return
     const trimmed = emptyForm()
     ;(Object.keys(form) as FieldKey[]).forEach((k) => {
       trimmed[k] = form[k].trim()
     })
-    const base: InfoEntry = { id: editingId ?? `${Date.now()}`, ...trimmed }
-    if (isAA) {
-      base.calOut = calOut.map((v) => v.trim())
-      base.calIn = calIn.map((v) => v.trim())
+    const payload = {
+      destination_id: selected.id,
+      shop_name: trimmed.shopName,
+      address: trimmed.address,
+      phone: trimmed.phone,
+      hours: trimmed.hours,
+      break_time: trimmed.breakTime,
+      place: trimmed.place,
+      event_day: trimmed.eventDay,
+      memo: trimmed.memo,
+      method: trimmed.method,
+      notes: trimmed.notes,
+      ...(isAA
+        ? {
+            cal_out: calOut.map((v) => v.trim()),
+            cal_in: calIn.map((v) => v.trim()),
+          }
+        : {}),
     }
-    setEntries((prev) => {
-      const current = prev[selected.id] ?? []
-      const next = editingId
-        ? current.map((e) => (e.id === editingId ? base : e))
-        : [...current, base]
-      return { ...prev, [selected.id]: next }
-    })
+    const supabase = createClient()
+    if (editingId) {
+      await supabase.from('lol_entries').update(payload).eq('id', editingId)
+    } else {
+      await supabase.from('lol_entries').insert(payload)
+    }
+    await refetch()
     closeForm()
   }
 
-  function deleteEntry(entryId: string) {
+  async function deleteEntry(entryId: string) {
     if (!selected) return
-    setEntries((prev) => ({
-      ...prev,
-      [selected.id]: (prev[selected.id] ?? []).filter((e) => e.id !== entryId),
-    }))
+    const supabase = createClient()
+    await supabase.from('lol_entries').delete().eq('id', entryId)
+    await refetch()
     setConfirmDeleteId(null)
   }
 

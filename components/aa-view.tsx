@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Pencil, X, Plus, Store, Clock } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土']
-const STORAGE_KEY_DAYS = 'kyoei-aa-auction-days'
-const STORAGE_KEY_DEADLINES = 'kyoei-aa-deadlines'
 
 // 0:00 〜 24:00 in 1-hour steps.
 const TIME_OPTIONS: string[] = (() => {
@@ -31,17 +31,35 @@ function emptyDeadlines(): DeadlineEntry[][] {
   return Array.from({ length: 7 }, () => [])
 }
 
-function loadJson<T>(key: string, fallback: T): T {
-  if (typeof window === 'undefined') return fallback
-  try {
-    const raw = window.localStorage.getItem(key)
-    if (!raw) return fallback
-    const parsed = JSON.parse(raw)
-    if (Array.isArray(parsed) && parsed.length === 7) return parsed as T
-  } catch {
-    // ignore malformed storage
-  }
-  return fallback
+// Shared across every browser via the `aa_venues` / `aa_deadlines` tables.
+type VenueRow = { id: string; weekday: number; venue_name: string }
+type DeadlineRow = {
+  id: string
+  weekday: number
+  venue_name: string
+  deadline_time: string
+}
+
+async function fetchVenueRows(): Promise<VenueRow[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('aa_venues')
+    .select('id, weekday, venue_name')
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: true })
+  if (error) throw error
+  return (data as VenueRow[]) ?? []
+}
+
+async function fetchDeadlineRows(): Promise<DeadlineRow[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('aa_deadlines')
+    .select('id, weekday, venue_name, deadline_time')
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: true })
+  if (error) throw error
+  return (data as DeadlineRow[]) ?? []
 }
 
 function handleEnter(fn: () => void) {
@@ -95,9 +113,6 @@ function CalendarCard({
 }
 
 export function AAView() {
-  const [days, setDays] = useState<VenueEntry[][]>(emptyDays)
-  const [deadlines, setDeadlines] = useState<DeadlineEntry[][]>(emptyDeadlines)
-  const [loaded, setLoaded] = useState(false)
   const [editingDays, setEditingDays] = useState(false)
   const [editingDeadlines, setEditingDeadlines] = useState(false)
   const [dayInputs, setDayInputs] = useState<string[]>(Array(7).fill(''))
@@ -108,66 +123,70 @@ export function AAView() {
     Array(7).fill('9:00'),
   )
 
-  useEffect(() => {
-    setDays(loadJson(STORAGE_KEY_DAYS, emptyDays()))
-    setDeadlines(loadJson(STORAGE_KEY_DEADLINES, emptyDeadlines()))
-    setLoaded(true)
-  }, [])
+  // Shared across every browser: fetched from Supabase and kept live via
+  // Postgres Changes, so an edit made anywhere shows up here automatically.
+  const { data: venueRows, mutate: refetchVenues } = useRealtimeTable<VenueRow>(
+    'aa_venues',
+    fetchVenueRows,
+  )
+  const { data: deadlineRows, mutate: refetchDeadlines } =
+    useRealtimeTable<DeadlineRow>('aa_deadlines', fetchDeadlineRows)
 
-  useEffect(() => {
-    if (!loaded) return
-    window.localStorage.setItem(STORAGE_KEY_DAYS, JSON.stringify(days))
-  }, [days, loaded])
+  const days: VenueEntry[][] = useMemo(() => {
+    const grouped = emptyDays()
+    for (const r of venueRows) {
+      grouped[r.weekday]?.push({ id: r.id, name: r.venue_name })
+    }
+    return grouped
+  }, [venueRows])
 
-  useEffect(() => {
-    if (!loaded) return
-    window.localStorage.setItem(
-      STORAGE_KEY_DEADLINES,
-      JSON.stringify(deadlines),
-    )
-  }, [deadlines, loaded])
+  const deadlines: DeadlineEntry[][] = useMemo(() => {
+    const grouped = emptyDeadlines()
+    for (const r of deadlineRows) {
+      grouped[r.weekday]?.push({
+        id: r.id,
+        name: r.venue_name,
+        time: r.deadline_time,
+      })
+    }
+    return grouped
+  }, [deadlineRows])
 
-  function addVenue(dayIndex: number) {
+  async function addVenue(dayIndex: number) {
     const name = dayInputs[dayIndex].trim()
     if (!name) return
-    setDays((prev) =>
-      prev.map((list, i) =>
-        i === dayIndex ? [...list, { id: `${Date.now()}`, name }] : list,
-      ),
-    )
+    const supabase = createClient()
+    await supabase
+      .from('aa_venues')
+      .insert({ weekday: dayIndex, venue_name: name })
     setDayInputs((prev) => prev.map((v, i) => (i === dayIndex ? '' : v)))
+    await refetchVenues()
   }
 
-  function removeVenue(dayIndex: number, id: string) {
-    setDays((prev) =>
-      prev.map((list, i) =>
-        i === dayIndex ? list.filter((v) => v.id !== id) : list,
-      ),
-    )
+  async function removeVenue(_dayIndex: number, id: string) {
+    const supabase = createClient()
+    await supabase.from('aa_venues').delete().eq('id', id)
+    await refetchVenues()
   }
 
-  function addDeadline(dayIndex: number) {
+  async function addDeadline(dayIndex: number) {
     const name = deadlineNameInputs[dayIndex].trim()
     if (!name) return
     const time = deadlineTimeInputs[dayIndex]
-    setDeadlines((prev) =>
-      prev.map((list, i) =>
-        i === dayIndex
-          ? [...list, { id: `${Date.now()}`, name, time }]
-          : list,
-      ),
-    )
+    const supabase = createClient()
+    await supabase
+      .from('aa_deadlines')
+      .insert({ weekday: dayIndex, venue_name: name, deadline_time: time })
     setDeadlineNameInputs((prev) =>
       prev.map((v, i) => (i === dayIndex ? '' : v)),
     )
+    await refetchDeadlines()
   }
 
-  function removeDeadline(dayIndex: number, id: string) {
-    setDeadlines((prev) =>
-      prev.map((list, i) =>
-        i === dayIndex ? list.filter((v) => v.id !== id) : list,
-      ),
-    )
+  async function removeDeadline(_dayIndex: number, id: string) {
+    const supabase = createClient()
+    await supabase.from('aa_deadlines').delete().eq('id', id)
+    await refetchDeadlines()
   }
 
   return (

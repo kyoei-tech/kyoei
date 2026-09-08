@@ -1,37 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { Menu } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
 import { BottomTabs, type TabId } from './bottom-tabs'
 import { HomeView } from './home-view'
 import { LolView } from './lol-view'
 import { AAView } from './aa-view'
 import { NewsView } from './news-view'
-
-function Placeholder({
-  Icon,
-  title,
-  description,
-}: {
-  Icon: LucideIcon
-  title: string
-  description: string
-}) {
-  return (
-    <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 text-center">
-      <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-border bg-card">
-        <Icon className="h-7 w-7 text-primary" aria-hidden="true" />
-      </div>
-      <div>
-        <h2 className="text-xl font-bold text-foreground">{title}</h2>
-        <p className="mt-1 max-w-xs text-pretty text-sm text-muted-foreground">
-          {description}
-        </p>
-      </div>
-    </div>
-  )
-}
+import { MenuView } from './menu-view'
 
 export function AttendanceApp() {
   const [tab, setTab] = useState<TabId>('home')
@@ -43,13 +18,7 @@ export function AttendanceApp() {
         {tab === 'lol' && <LolView />}
         {tab === 'aa' && <AAView />}
         {tab === 'news' && <NewsView />}
-        {tab === 'menu' && (
-          <Placeholder
-            Icon={Menu}
-            title="メニュー"
-            description="設定やその他の項目をここにまとめます。"
-          />
-        )}
+        {tab === 'menu' && <MenuView />}
       </main>
       <BottomTabs active={tab} onChange={setTab} />
     </div>

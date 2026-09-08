@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   ArrowLeft,
   ChevronRight,
@@ -9,6 +9,8 @@ import {
   Plus,
   Trash2,
 } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 
 type NewsPost = {
   id: string
@@ -21,18 +23,35 @@ type NewsPost = {
 
 type ViewMode = 'list' | 'detail' | 'create' | 'manage'
 
-const STORAGE_KEY = 'kyoei-news-posts'
+// Shared across every browser via the `news_posts` Supabase table.
+type NewsRow = {
+  id: string
+  title: string
+  category: string
+  content: string
+  author: string
+  created_at: string
+}
 
-function loadPosts(): NewsPost[] {
-  if (typeof window === 'undefined') return []
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
+function rowToPost(r: NewsRow): NewsPost {
+  return {
+    id: r.id,
+    title: r.title,
+    category: r.category,
+    content: r.content,
+    author: r.author,
+    createdAt: new Date(r.created_at).getTime(),
   }
+}
+
+async function fetchNewsRows(): Promise<NewsRow[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('news_posts')
+    .select('id, title, category, content, author, created_at')
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return (data as NewsRow[]) ?? []
 }
 
 function emptyForm() {
@@ -40,24 +59,20 @@ function emptyForm() {
 }
 
 export function NewsView() {
-  const [posts, setPosts] = useState<NewsPost[]>([])
-  const [loaded, setLoaded] = useState(false)
   const [view, setView] = useState<ViewMode>('list')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm())
 
-  useEffect(() => {
-    setPosts(loadPosts())
-    setLoaded(true)
-  }, [])
+  // Shared across every browser: fetched from Supabase and kept live via
+  // Postgres Changes, so a post made anywhere shows up here automatically.
+  const { data: rows, mutate: refetch } = useRealtimeTable<NewsRow>(
+    'news_posts',
+    fetchNewsRows,
+  )
 
-  useEffect(() => {
-    if (!loaded) return
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(posts))
-  }, [posts, loaded])
-
+  const posts: NewsPost[] = useMemo(() => rows.map(rowToPost), [rows])
   const sorted = useMemo(
     () => [...posts].sort((a, b) => b.createdAt - a.createdAt),
     [posts],
@@ -87,7 +102,7 @@ export function NewsView() {
     setView('create')
   }
 
-  function savePost() {
+  async function savePost() {
     const trimmed = {
       title: form.title.trim(),
       category: form.category.trim(),
@@ -95,23 +110,22 @@ export function NewsView() {
       author: form.author.trim(),
     }
     if (!trimmed.title) return
+    const supabase = createClient()
     if (editingId) {
-      setPosts((prev) =>
-        prev.map((p) => (p.id === editingId ? { ...p, ...trimmed } : p)),
-      )
+      await supabase.from('news_posts').update(trimmed).eq('id', editingId)
     } else {
-      setPosts((prev) => [
-        ...prev,
-        { id: `${Date.now()}`, ...trimmed, createdAt: Date.now() },
-      ])
+      await supabase.from('news_posts').insert(trimmed)
     }
+    await refetch()
     setEditingId(null)
     setForm(emptyForm())
     setView('list')
   }
 
-  function deletePost(id: string) {
-    setPosts((prev) => prev.filter((p) => p.id !== id))
+  async function deletePost(id: string) {
+    const supabase = createClient()
+    await supabase.from('news_posts').delete().eq('id', id)
+    await refetch()
     setConfirmDeleteId(null)
     if (selectedId === id) setSelectedId(null)
   }
