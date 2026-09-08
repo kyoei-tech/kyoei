@@ -23,7 +23,7 @@ import { EmergencyContactsView } from './emergency-contacts-view'
 import { AccidentCalendarView } from './accident-calendar-view'
 import { SettingsView } from './settings-view'
 
-type MenuItemId =
+export type MenuItemId =
   | 'lol'
   | 'aa'
   | 'qa'
@@ -89,8 +89,13 @@ const MENU_ITEMS: {
   },
 ]
 
-export function MenuView() {
-  const [selected, setSelected] = useState<MenuItemId | null>(null)
+export function MenuView({
+  initialItem = null,
+}: {
+  /** Opens directly into this item's detail view instead of the top-level list. */
+  initialItem?: MenuItemId | null
+}) {
+  const [selected, setSelected] = useState<MenuItemId | null>(initialItem)
 
   if (selected) {
     const item = MENU_ITEMS.find((m) => m.id === selected)

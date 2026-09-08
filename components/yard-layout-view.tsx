@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Pencil, Plus, Settings2, Trash2, X } from 'lucide-react'
+import { Check, Pencil, Plus, Settings2, Trash2, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { ConfirmDeleteInline, DeleteIconButton } from './confirm-delete'
@@ -12,7 +12,8 @@ type RowRow = {
   id: string
   yard_id: string
   label: string
-  destination: string
+  // A position can now be assigned more than one destination.
+  destinations: string[]
   sort_order: number
   updated_at: string
 }
@@ -34,11 +35,14 @@ async function fetchRows(): Promise<RowRow[]> {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('yard_rows')
-    .select('id, yard_id, label, destination, sort_order, updated_at')
+    .select('id, yard_id, label, destinations, sort_order, updated_at')
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: true })
   if (error) throw error
-  return (data as RowRow[]) ?? []
+  return ((data as RowRow[]) ?? []).map((r) => ({
+    ...r,
+    destinations: r.destinations ?? [],
+  }))
 }
 
 async function fetchDestinations(): Promise<DestinationRow[]> {
@@ -66,10 +70,10 @@ export function YardLayoutView() {
   const [editingYardId, setEditingYardId] = useState<string | null>(null)
   const [yardNameInput, setYardNameInput] = useState('')
   const [rowEdits, setRowEdits] = useState<
-    Record<string, { label: string; destination: string }>
+    Record<string, { label: string; destinations: string[] }>
   >({})
   const [newRowInputs, setNewRowInputs] = useState<
-    Record<string, { label: string; destination: string }>
+    Record<string, { label: string; destinations: string[] }>
   >({})
   const [confirmDeleteRowId, setConfirmDeleteRowId] = useState<string | null>(
     null,
@@ -79,6 +83,11 @@ export function YardLayoutView() {
   >(null)
   const [addingYard, setAddingYard] = useState(false)
   const [newYardName, setNewYardName] = useState('')
+  // Which row's (or which yard's "add row" form's) destination picker is
+  // currently expanded. Only one can be open at a time.
+  const [openDestinationPicker, setOpenDestinationPicker] = useState<
+    string | null
+  >(null)
 
   const [managingDestinations, setManagingDestinations] = useState(false)
   const [newDestinationName, setNewDestinationName] = useState('')
@@ -133,14 +142,15 @@ export function YardLayoutView() {
   function startEditYard(yard: YardRow) {
     setEditingYardId(yard.id)
     setYardNameInput(yard.name)
-    const edits: Record<string, { label: string; destination: string }> = {}
+    const edits: Record<string, { label: string; destinations: string[] }> =
+      {}
     for (const r of rowsByYard.get(yard.id) ?? []) {
-      edits[r.id] = { label: r.label, destination: r.destination }
+      edits[r.id] = { label: r.label, destinations: r.destinations }
     }
     setRowEdits(edits)
     setNewRowInputs((prev) => ({
       ...prev,
-      [yard.id]: { label: '', destination: '' },
+      [yard.id]: { label: '', destinations: [] },
     }))
   }
 
@@ -148,6 +158,7 @@ export function YardLayoutView() {
     setEditingYardId(null)
     setRowEdits({})
     setConfirmDeleteRowId(null)
+    setOpenDestinationPicker(null)
   }
 
   async function saveYardName(yardId: string) {
@@ -169,48 +180,55 @@ export function YardLayoutView() {
       .from('yard_rows')
       .update({
         label: edit.label.trim(),
-        destination: edit.destination.trim(),
         updated_at: new Date().toISOString(),
       })
       .eq('id', rowId)
     await refetchRows()
   }
 
-  // The destination select saves immediately on change (no separate blur
-  // step), so it writes the chosen value directly instead of relying on
-  // the rowEdits state, which may not have flushed yet.
-  async function saveRowDestination(rowId: string, destination: string) {
+  // The destination checklist saves immediately on each toggle (no separate
+  // blur step), so it writes the chosen value directly instead of relying
+  // on the rowEdits state, which may not have flushed yet.
+  async function toggleRowDestination(rowId: string, name: string) {
+    const current = rowEdits[rowId]?.destinations ?? []
+    const next = current.includes(name)
+      ? current.filter((d) => d !== name)
+      : [...current, name]
     setRowEdits((prev) => ({
       ...prev,
       [rowId]: {
         label: prev[rowId]?.label ?? '',
-        destination,
+        destinations: next,
       },
     }))
     const supabase = createClient()
     await supabase
       .from('yard_rows')
-      .update({ destination, updated_at: new Date().toISOString() })
+      .update({ destinations: next, updated_at: new Date().toISOString() })
       .eq('id', rowId)
     await refetchRows()
   }
 
   async function addRow(yardId: string) {
     const input = newRowInputs[yardId]
-    const label = input?.label.trim()
-    if (!label) return
+    const label = input?.label.trim() ?? ''
+    const destinations = input?.destinations ?? []
+    // The position name can be left blank as long as at least one
+    // destination is chosen (or vice versa) — only block a fully empty row.
+    if (!label && destinations.length === 0) return
     const supabase = createClient()
     const existing = rowsByYard.get(yardId) ?? []
     await supabase.from('yard_rows').insert({
       yard_id: yardId,
       label,
-      destination: input?.destination.trim() ?? '',
+      destinations,
       sort_order: existing.length,
     })
     setNewRowInputs((prev) => ({
       ...prev,
-      [yardId]: { label: '', destination: '' },
+      [yardId]: { label: '', destinations: [] },
     }))
+    setOpenDestinationPicker(null)
     await refetchRows()
   }
 
@@ -219,6 +237,16 @@ export function YardLayoutView() {
     await supabase.from('yard_rows').delete().eq('id', rowId)
     await refetchRows()
     setConfirmDeleteRowId(null)
+  }
+
+  function toggleNewRowDestination(yardId: string, name: string) {
+    setNewRowInputs((prev) => {
+      const current = prev[yardId] ?? { label: '', destinations: [] }
+      const destinations = current.destinations.includes(name)
+        ? current.destinations.filter((d) => d !== name)
+        : [...current.destinations, name]
+      return { ...prev, [yardId]: { ...current, destinations } }
+    })
   }
 
   async function addYard() {
@@ -270,10 +298,22 @@ export function YardLayoutView() {
     if (!error && previous && previous.name !== name) {
       // Keep already-assigned rows pointing at a real destination instead of
       // silently detaching them when a name is renamed.
-      await supabase
-        .from('yard_rows')
-        .update({ destination: name })
-        .eq('destination', previous.name)
+      const affected = rowRows.filter((r) =>
+        r.destinations.includes(previous.name),
+      )
+      await Promise.all(
+        affected.map((r) =>
+          supabase
+            .from('yard_rows')
+            .update({
+              destinations: r.destinations.map((d) =>
+                d === previous.name ? name : d,
+              ),
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', r.id),
+        ),
+      )
       await refetchRows()
     }
     setDestinationEditId(null)
@@ -420,8 +460,9 @@ export function YardLayoutView() {
               {rows.map((row) => {
                 const edit = rowEdits[row.id] ?? {
                   label: row.label,
-                  destination: row.destination,
+                  destinations: row.destinations,
                 }
+                const pickerOpen = openDestinationPicker === row.id
                 return (
                   <div key={row.id} className="flex flex-col gap-1.5">
                     <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-background px-3 py-2">
@@ -440,8 +481,9 @@ export function YardLayoutView() {
                               }))
                             }
                             onBlur={() => saveRow(row.id)}
+                            placeholder="位置名（任意）"
                             aria-label="位置名"
-                            className="w-20 shrink-0 rounded-lg border border-border bg-card px-2 py-1.5 text-sm font-semibold text-foreground outline-none focus:border-primary/60"
+                            className="w-20 shrink-0 rounded-lg border border-border bg-card px-2 py-1.5 text-sm font-semibold text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60"
                           />
                           <span
                             className="text-muted-foreground/40"
@@ -449,38 +491,37 @@ export function YardLayoutView() {
                           >
                             |
                           </span>
-                          <select
-                            value={edit.destination}
-                            onChange={(e) =>
-                              saveRowDestination(row.id, e.target.value)
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setOpenDestinationPicker(
+                                pickerOpen ? null : row.id,
+                              )
                             }
-                            aria-label="行き先"
-                            className="min-w-0 flex-1 rounded-lg border border-border bg-card px-2 py-1.5 text-sm text-foreground outline-none focus:border-primary/60"
+                            aria-expanded={pickerOpen}
+                            className="min-w-0 flex-1 truncate rounded-lg border border-border bg-card px-2 py-1.5 text-left text-sm text-foreground outline-none focus:border-primary/60"
                           >
-                            <option value="">未設定</option>
-                            {destinations.map((d) => (
-                              <option key={d.id} value={d.name}>
-                                {d.name}
-                              </option>
-                            ))}
-                            {edit.destination &&
-                              !destinations.some(
-                                (d) => d.name === edit.destination,
-                              ) && (
-                                <option value={edit.destination}>
-                                  {edit.destination}
-                                </option>
-                              )}
-                          </select>
+                            {edit.destinations.length > 0 ? (
+                              edit.destinations.join('、')
+                            ) : (
+                              <span className="text-muted-foreground">
+                                行き先を選択
+                              </span>
+                            )}
+                          </button>
                           <DeleteIconButton
                             onClick={() => setConfirmDeleteRowId(row.id)}
-                            label={`${row.label}を削除`}
+                            label={`${row.label || '無題の位置'}を削除`}
                           />
                         </>
                       ) : (
                         <>
-                          <span className="w-20 shrink-0 text-sm font-semibold text-foreground">
-                            {row.label}
+                          <span className="w-20 shrink-0 truncate text-sm font-semibold text-foreground">
+                            {row.label || (
+                              <span className="text-muted-foreground/50">
+                                —
+                              </span>
+                            )}
                           </span>
                           <span
                             className="text-muted-foreground/40"
@@ -489,7 +530,9 @@ export function YardLayoutView() {
                             |
                           </span>
                           <span className="min-w-0 flex-1 truncate text-sm text-foreground">
-                            {row.destination || (
+                            {row.destinations.length > 0 ? (
+                              row.destinations.join('、')
+                            ) : (
                               <span className="text-muted-foreground/50">
                                 —
                               </span>
@@ -498,9 +541,48 @@ export function YardLayoutView() {
                         </>
                       )}
                     </div>
+                    {editing && pickerOpen && (
+                      <div className="flex flex-col gap-1 rounded-xl border border-border/60 bg-card p-2">
+                        {destinations.length === 0 && (
+                          <p className="px-2 py-1 text-xs text-muted-foreground/60">
+                            行き先が登録されていません。
+                          </p>
+                        )}
+                        {destinations.map((d) => {
+                          const checked = edit.destinations.includes(d.name)
+                          return (
+                            <button
+                              key={d.id}
+                              type="button"
+                              onClick={() =>
+                                toggleRowDestination(row.id, d.name)
+                              }
+                              aria-pressed={checked}
+                              className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-foreground transition-colors hover:bg-background"
+                            >
+                              <span
+                                className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                                  checked
+                                    ? 'border-primary bg-primary text-primary-foreground'
+                                    : 'border-border'
+                                }`}
+                              >
+                                {checked && (
+                                  <Check
+                                    className="h-3 w-3"
+                                    aria-hidden="true"
+                                  />
+                                )}
+                              </span>
+                              {d.name}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
                     {editing && confirmDeleteRowId === row.id && (
                       <ConfirmDeleteInline
-                        message={`「${row.label}」を削除しますか？`}
+                        message={`「${row.label || '無題の位置'}」を削除しますか？`}
                         onConfirm={() => deleteRow(row.id)}
                         onCancel={() => setConfirmDeleteRowId(null)}
                       />
@@ -511,46 +593,86 @@ export function YardLayoutView() {
             </div>
 
             {editing && (
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={newRow.label}
-                  onChange={(e) =>
-                    setNewRowInputs((prev) => ({
-                      ...prev,
-                      [yard.id]: { ...newRow, label: e.target.value },
-                    }))
-                  }
-                  placeholder="位置名"
-                  aria-label="新しい位置名"
-                  className="w-20 shrink-0 rounded-lg border border-border bg-background px-2 py-1.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60"
-                />
-                <select
-                  value={newRow.destination}
-                  onChange={(e) =>
-                    setNewRowInputs((prev) => ({
-                      ...prev,
-                      [yard.id]: { ...newRow, destination: e.target.value },
-                    }))
-                  }
-                  aria-label="新しい行き先"
-                  className="min-w-0 flex-1 rounded-lg border border-border bg-background px-2 py-1.5 text-sm text-foreground outline-none focus:border-primary/60"
-                >
-                  <option value="">行き先（任意）</option>
-                  {destinations.map((d) => (
-                    <option key={d.id} value={d.name}>
-                      {d.name}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={() => addRow(yard.id)}
-                  aria-label="位置を追加"
-                  className="flex shrink-0 items-center justify-center rounded-lg bg-primary px-2.5 py-1.5 text-primary-foreground transition-opacity hover:opacity-90 active:scale-95"
-                >
-                  <Plus className="h-4 w-4" aria-hidden="true" />
-                </button>
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={newRow.label}
+                    onChange={(e) =>
+                      setNewRowInputs((prev) => ({
+                        ...prev,
+                        [yard.id]: { ...newRow, label: e.target.value },
+                      }))
+                    }
+                    placeholder="位置名（任意）"
+                    aria-label="新しい位置名"
+                    className="w-20 shrink-0 rounded-lg border border-border bg-background px-2 py-1.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60"
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOpenDestinationPicker(
+                        openDestinationPicker === `new-${yard.id}`
+                          ? null
+                          : `new-${yard.id}`,
+                      )
+                    }
+                    aria-expanded={openDestinationPicker === `new-${yard.id}`}
+                    className="min-w-0 flex-1 truncate rounded-lg border border-border bg-background px-2 py-1.5 text-left text-sm text-foreground outline-none focus:border-primary/60"
+                  >
+                    {newRow.destinations.length > 0 ? (
+                      newRow.destinations.join('、')
+                    ) : (
+                      <span className="text-muted-foreground">
+                        行き先を選択（任意）
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => addRow(yard.id)}
+                    aria-label="位置を追加"
+                    className="flex shrink-0 items-center justify-center rounded-lg bg-primary px-2.5 py-1.5 text-primary-foreground transition-opacity hover:opacity-90 active:scale-95"
+                  >
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                </div>
+                {openDestinationPicker === `new-${yard.id}` && (
+                  <div className="flex flex-col gap-1 rounded-xl border border-border/60 bg-background p-2">
+                    {destinations.length === 0 && (
+                      <p className="px-2 py-1 text-xs text-muted-foreground/60">
+                        行き先が登録されていません。
+                      </p>
+                    )}
+                    {destinations.map((d) => {
+                      const checked = newRow.destinations.includes(d.name)
+                      return (
+                        <button
+                          key={d.id}
+                          type="button"
+                          onClick={() =>
+                            toggleNewRowDestination(yard.id, d.name)
+                          }
+                          aria-pressed={checked}
+                          className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-foreground transition-colors hover:bg-card"
+                        >
+                          <span
+                            className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                              checked
+                                ? 'border-primary bg-primary text-primary-foreground'
+                                : 'border-border'
+                            }`}
+                          >
+                            {checked && (
+                              <Check className="h-3 w-3" aria-hidden="true" />
+                            )}
+                          </span>
+                          {d.name}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
             )}
 

@@ -275,7 +275,7 @@ export function StaffAttendanceView() {
             勤続{tenure}年
           </span>
         )}
-        <span className="line-clamp-2 min-h-[2rem] w-full px-1 text-[11px] leading-4 text-muted-foreground">
+        <span className="line-clamp-2 min-h-[2rem] w-full whitespace-pre-wrap px-1 text-[11px] leading-4 text-muted-foreground">
           {working ? member.comment : ''}
         </span>
       </button>
@@ -488,8 +488,8 @@ export function StaffAttendanceView() {
               <textarea
                 value={commentDraft}
                 onChange={(e) => setCommentDraft(e.target.value)}
-                rows={2}
-                placeholder="出勤中のみ表示されるコメントを入力"
+                rows={3}
+                placeholder="出勤中のみ表示されるコメントを入力（改行できます）"
                 className="w-full resize-none rounded-2xl border border-border bg-background px-4 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60"
               />
               <div className="flex justify-end gap-2">

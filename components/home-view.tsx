@@ -36,7 +36,11 @@ function loadState(): PersistedState | null {
   }
 }
 
-export function HomeView() {
+export function HomeView({
+  onOpenAccidentCalendar,
+}: {
+  onOpenAccidentCalendar?: () => void
+}) {
   const [now, setNow] = useState(() => new Date())
   const [mode, setMode] = useState<Mode>('idle')
   const [startedAt, setStartedAt] = useState<number | null>(null)
@@ -114,7 +118,7 @@ export function HomeView() {
           hour12={hour12}
           onToggleFormat={toggleFormat}
         />
-        <AccidentStreakBadge size="sm" />
+        <AccidentStreakBadge size="sm" onClick={onOpenAccidentCalendar} />
       </div>
 
       <StatusDisplay

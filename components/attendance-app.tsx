@@ -5,7 +5,7 @@ import { useSettings } from '@/lib/settings/settings-context'
 import { BottomTabs, type TabId } from './bottom-tabs'
 import { HomeView } from './home-view'
 import { NewsView } from './news-view'
-import { MenuView } from './menu-view'
+import { MenuView, type MenuItemId } from './menu-view'
 import { YardLayoutView } from './yard-layout-view'
 import { StaffAttendanceView } from './staff-attendance-view'
 
@@ -15,6 +15,11 @@ export function AttendanceApp() {
   // remounting MenuView with this as its key always resets it back to the
   // menu's top-level list instead of staying on whatever sub-page was open.
   const [menuResetKey, setMenuResetKey] = useState(0)
+  // Which menu item MenuView should open directly into on its next mount.
+  // Reset to null for a normal tap on the menu tab so it lands on the list.
+  const [menuInitialItem, setMenuInitialItem] = useState<MenuItemId | null>(
+    null,
+  )
   const { fontScaleFor } = useSettings()
 
   // Font size is configured per bottom tab in Settings (メニュー > 設定).
@@ -26,18 +31,33 @@ export function AttendanceApp() {
   }, [tab, fontScaleFor])
 
   function handleTabChange(id: TabId) {
-    if (id === 'menu') setMenuResetKey((k) => k + 1)
+    if (id === 'menu') {
+      setMenuInitialItem(null)
+      setMenuResetKey((k) => k + 1)
+    }
     setTab(id)
+  }
+
+  // Lets other tabs (e.g. the home tab's accident streak badge) jump
+  // straight into a menu sub-page instead of just switching to the menu tab.
+  function openMenuItem(id: MenuItemId) {
+    setMenuInitialItem(id)
+    setMenuResetKey((k) => k + 1)
+    setTab('menu')
   }
 
   return (
     <div className="relative mx-auto flex min-h-[100dvh] w-full max-w-md flex-col bg-background">
       <main className="flex flex-1 flex-col px-4 pb-24 pt-6">
-        {tab === 'home' && <HomeView />}
+        {tab === 'home' && (
+          <HomeView onOpenAccidentCalendar={() => openMenuItem('accidents')} />
+        )}
         {tab === 'news' && <NewsView />}
         {tab === 'yard' && <YardLayoutView />}
         {tab === 'staff' && <StaffAttendanceView />}
-        {tab === 'menu' && <MenuView key={menuResetKey} />}
+        {tab === 'menu' && (
+          <MenuView key={menuResetKey} initialItem={menuInitialItem} />
+        )}
       </main>
       <BottomTabs active={tab} onChange={handleTabChange} />
     </div>
