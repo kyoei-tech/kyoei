@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Pencil, Plus, Trash2, X } from 'lucide-react'
+import { Pencil, Plus, Settings2, Trash2, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { ConfirmDeleteInline, DeleteIconButton } from './confirm-delete'
@@ -16,6 +16,8 @@ type RowRow = {
   sort_order: number
   updated_at: string
 }
+// Managed list of selectable destination names, shared via `yard_destinations`.
+type DestinationRow = { id: string; name: string; sort_order: number }
 
 async function fetchYards(): Promise<YardRow[]> {
   const supabase = createClient()
@@ -37,6 +39,16 @@ async function fetchRows(): Promise<RowRow[]> {
     .order('created_at', { ascending: true })
   if (error) throw error
   return (data as RowRow[]) ?? []
+}
+
+async function fetchDestinations(): Promise<DestinationRow[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('yard_destinations')
+    .select('id, name, sort_order')
+    .order('name', { ascending: true })
+  if (error) throw error
+  return (data as DestinationRow[]) ?? []
 }
 
 function formatUpdated(iso: string): string {
@@ -68,6 +80,15 @@ export function YardLayoutView() {
   const [addingYard, setAddingYard] = useState(false)
   const [newYardName, setNewYardName] = useState('')
 
+  const [managingDestinations, setManagingDestinations] = useState(false)
+  const [newDestinationName, setNewDestinationName] = useState('')
+  const [destinationEditId, setDestinationEditId] = useState<string | null>(
+    null,
+  )
+  const [destinationEditName, setDestinationEditName] = useState('')
+  const [confirmDeleteDestinationId, setConfirmDeleteDestinationId] =
+    useState<string | null>(null)
+
   const { data: yardRows, mutate: refetchYards } = useRealtimeTable<YardRow>(
     'yards',
     fetchYards,
@@ -76,6 +97,8 @@ export function YardLayoutView() {
     'yard_rows',
     fetchRows,
   )
+  const { data: destinationRows, mutate: refetchDestinations } =
+    useRealtimeTable<DestinationRow>('yard_destinations', fetchDestinations)
 
   const yards = useMemo(
     () => [...yardRows].sort((a, b) => a.sort_order - b.sort_order),
@@ -101,6 +124,11 @@ export function YardLayoutView() {
     if (all.length === 0) return null
     return all.reduce((a, b) => (a > b ? a : b))
   }, [yardRows, rowRows])
+
+  const destinations = useMemo(
+    () => [...destinationRows].sort((a, b) => a.name.localeCompare(b.name, 'ja')),
+    [destinationRows],
+  )
 
   function startEditYard(yard: YardRow) {
     setEditingYardId(yard.id)
@@ -144,6 +172,25 @@ export function YardLayoutView() {
         destination: edit.destination.trim(),
         updated_at: new Date().toISOString(),
       })
+      .eq('id', rowId)
+    await refetchRows()
+  }
+
+  // The destination select saves immediately on change (no separate blur
+  // step), so it writes the chosen value directly instead of relying on
+  // the rowEdits state, which may not have flushed yet.
+  async function saveRowDestination(rowId: string, destination: string) {
+    setRowEdits((prev) => ({
+      ...prev,
+      [rowId]: {
+        label: prev[rowId]?.label ?? '',
+        destination,
+      },
+    }))
+    const supabase = createClient()
+    await supabase
+      .from('yard_rows')
+      .update({ destination, updated_at: new Date().toISOString() })
       .eq('id', rowId)
     await refetchRows()
   }
@@ -193,16 +240,150 @@ export function YardLayoutView() {
     stopEditYard()
   }
 
+  async function addDestination() {
+    const name = newDestinationName.trim()
+    if (!name) return
+    const supabase = createClient()
+    const { error } = await supabase
+      .from('yard_destinations')
+      .insert({ name, sort_order: destinations.length })
+    if (error) return
+    setNewDestinationName('')
+    await refetchDestinations()
+  }
+
+  function startEditDestination(destination: DestinationRow) {
+    setDestinationEditId(destination.id)
+    setDestinationEditName(destination.name)
+  }
+
+  async function saveDestinationName() {
+    const name = destinationEditName.trim()
+    const id = destinationEditId
+    if (!id || !name) return
+    const supabase = createClient()
+    const previous = destinations.find((d) => d.id === id)
+    const { error } = await supabase
+      .from('yard_destinations')
+      .update({ name })
+      .eq('id', id)
+    if (!error && previous && previous.name !== name) {
+      // Keep already-assigned rows pointing at a real destination instead of
+      // silently detaching them when a name is renamed.
+      await supabase
+        .from('yard_rows')
+        .update({ destination: name })
+        .eq('destination', previous.name)
+      await refetchRows()
+    }
+    setDestinationEditId(null)
+    await refetchDestinations()
+  }
+
+  async function deleteDestination(id: string) {
+    const supabase = createClient()
+    await supabase.from('yard_destinations').delete().eq('id', id)
+    await refetchDestinations()
+    setConfirmDeleteDestinationId(null)
+  }
+
   return (
     <div className="flex flex-col gap-5 pb-6">
-      <div>
-        <h2 className="text-xl font-bold text-foreground">ヤード配置</h2>
-        {latestUpdate && (
-          <p className="mt-1 text-sm font-medium text-primary">
-            最終更新：{formatUpdated(latestUpdate)}
-          </p>
-        )}
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-bold text-foreground">ヤード配置</h2>
+          {latestUpdate && (
+            <p className="mt-1 text-sm font-medium text-primary">
+              最終更新：{formatUpdated(latestUpdate)}
+            </p>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => setManagingDestinations((v) => !v)}
+          className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors active:scale-95 ${
+            managingDestinations
+              ? 'bg-primary text-primary-foreground'
+              : 'border border-border text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <Settings2 className="h-3.5 w-3.5" aria-hidden="true" />
+          行き先を管理
+        </button>
       </div>
+
+      {managingDestinations && (
+        <section className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
+          <h3 className="text-sm font-bold text-foreground">
+            行き先の候補一覧
+          </h3>
+          {destinations.length === 0 && (
+            <p className="py-1 text-sm text-muted-foreground/60">
+              行き先が登録されていません。
+            </p>
+          )}
+          {destinations.map((d) => (
+            <div key={d.id} className="flex flex-col gap-1.5">
+              <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-background px-3 py-2">
+                {destinationEditId === d.id ? (
+                  <input
+                    type="text"
+                    value={destinationEditName}
+                    onChange={(e) => setDestinationEditName(e.target.value)}
+                    onBlur={saveDestinationName}
+                    autoFocus
+                    aria-label="行き先名"
+                    className="min-w-0 flex-1 rounded-lg border border-border bg-card px-2 py-1.5 text-sm text-foreground outline-none focus:border-primary/60"
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => startEditDestination(d)}
+                    className="min-w-0 flex-1 truncate text-left text-sm text-foreground"
+                  >
+                    {d.name}
+                  </button>
+                )}
+                <DeleteIconButton
+                  onClick={() => setConfirmDeleteDestinationId(d.id)}
+                  label={`${d.name}を削除`}
+                />
+              </div>
+              {confirmDeleteDestinationId === d.id && (
+                <ConfirmDeleteInline
+                  message={`「${d.name}」を削除しますか？`}
+                  onConfirm={() => deleteDestination(d.id)}
+                  onCancel={() => setConfirmDeleteDestinationId(null)}
+                />
+              )}
+            </div>
+          ))}
+          <div className="flex items-center gap-2 pt-1">
+            <input
+              type="text"
+              value={newDestinationName}
+              onChange={(e) => setNewDestinationName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                  e.preventDefault()
+                  addDestination()
+                }
+              }}
+              placeholder="新しい行き先名"
+              aria-label="新しい行き先名"
+              className="min-w-0 flex-1 rounded-lg border border-border bg-background px-2 py-1.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60"
+            />
+            <button
+              type="button"
+              onClick={addDestination}
+              aria-label="行き先を追加"
+              className="flex shrink-0 items-center justify-center rounded-lg bg-primary px-2.5 py-1.5 text-primary-foreground transition-opacity hover:opacity-90 active:scale-95"
+            >
+              <Plus className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
+        </section>
+      )}
 
       {yards.map((yard) => {
         const rows = rowsByYard.get(yard.id) ?? []
@@ -268,23 +449,29 @@ export function YardLayoutView() {
                           >
                             |
                           </span>
-                          <input
-                            type="text"
+                          <select
                             value={edit.destination}
                             onChange={(e) =>
-                              setRowEdits((prev) => ({
-                                ...prev,
-                                [row.id]: {
-                                  ...edit,
-                                  destination: e.target.value,
-                                },
-                              }))
+                              saveRowDestination(row.id, e.target.value)
                             }
-                            onBlur={() => saveRow(row.id)}
-                            placeholder="行き先"
                             aria-label="行き先"
-                            className="min-w-0 flex-1 rounded-lg border border-border bg-card px-2 py-1.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60"
-                          />
+                            className="min-w-0 flex-1 rounded-lg border border-border bg-card px-2 py-1.5 text-sm text-foreground outline-none focus:border-primary/60"
+                          >
+                            <option value="">未設定</option>
+                            {destinations.map((d) => (
+                              <option key={d.id} value={d.name}>
+                                {d.name}
+                              </option>
+                            ))}
+                            {edit.destination &&
+                              !destinations.some(
+                                (d) => d.name === edit.destination,
+                              ) && (
+                                <option value={edit.destination}>
+                                  {edit.destination}
+                                </option>
+                              )}
+                          </select>
                           <DeleteIconButton
                             onClick={() => setConfirmDeleteRowId(row.id)}
                             label={`${row.label}を削除`}
@@ -338,8 +525,7 @@ export function YardLayoutView() {
                   aria-label="新しい位置名"
                   className="w-20 shrink-0 rounded-lg border border-border bg-background px-2 py-1.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60"
                 />
-                <input
-                  type="text"
+                <select
                   value={newRow.destination}
                   onChange={(e) =>
                     setNewRowInputs((prev) => ({
@@ -347,10 +533,16 @@ export function YardLayoutView() {
                       [yard.id]: { ...newRow, destination: e.target.value },
                     }))
                   }
-                  placeholder="行き先（任意）"
                   aria-label="新しい行き先"
-                  className="min-w-0 flex-1 rounded-lg border border-border bg-background px-2 py-1.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60"
-                />
+                  className="min-w-0 flex-1 rounded-lg border border-border bg-background px-2 py-1.5 text-sm text-foreground outline-none focus:border-primary/60"
+                >
+                  <option value="">行き先（任意）</option>
+                  {destinations.map((d) => (
+                    <option key={d.id} value={d.name}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
                 <button
                   type="button"
                   onClick={() => addRow(yard.id)}

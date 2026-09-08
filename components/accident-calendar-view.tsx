@@ -18,6 +18,7 @@ type AccidentRow = {
   id: string
   occurred_on: string
   vehicle_class: string
+  location: string
   description: string
 }
 
@@ -25,7 +26,7 @@ async function fetchAccidentRows(): Promise<AccidentRow[]> {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('accident_records')
-    .select('id, occurred_on, vehicle_class, description')
+    .select('id, occurred_on, vehicle_class, location, description')
     .order('occurred_on', { ascending: false })
   if (error) throw error
   return (data as AccidentRow[]) ?? []
@@ -107,7 +108,12 @@ function MonthNav({
 }
 
 function emptyForm() {
-  return { occurredOn: todayISO(), vehicleClass: '', description: '' }
+  return {
+    occurredOn: todayISO(),
+    vehicleClass: '',
+    location: '',
+    description: '',
+  }
 }
 
 export function AccidentCalendarView() {
@@ -199,6 +205,7 @@ export function AccidentCalendarView() {
       const { error } = await supabase.from('accident_records').insert({
         occurred_on: form.occurredOn,
         vehicle_class: form.vehicleClass.trim(),
+        location: form.location.trim(),
         description: form.description.trim(),
       })
       if (error) throw error
@@ -214,6 +221,7 @@ export function AccidentCalendarView() {
     setHistoryForm({
       occurredOn: row.occurred_on,
       vehicleClass: row.vehicle_class,
+      location: row.location,
       description: row.description,
     })
   }
@@ -226,6 +234,7 @@ export function AccidentCalendarView() {
       .update({
         occurred_on: historyForm.occurredOn,
         vehicle_class: historyForm.vehicleClass.trim(),
+        location: historyForm.location.trim(),
         description: historyForm.description.trim(),
       })
       .eq('id', historyEditId)
@@ -322,6 +331,11 @@ export function AccidentCalendarView() {
                       {a.vehicle_class}
                     </span>
                   )}
+                  {a.location && (
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      発生場所：{a.location}
+                    </p>
+                  )}
                   <p className="mt-0.5 text-sm text-foreground">
                     {a.description || '詳細なし'}
                   </p>
@@ -381,6 +395,20 @@ export function AccidentCalendarView() {
                   setForm((p) => ({ ...p, vehicleClass: e.target.value }))
                 }
                 placeholder="例：中型"
+                className="w-full rounded-2xl border border-border bg-background px-4 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs font-medium text-muted-foreground">
+                事故発生場所
+              </span>
+              <input
+                type="text"
+                value={form.location}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, location: e.target.value }))
+                }
+                placeholder="例：東京都渋谷区付近"
                 className="w-full rounded-2xl border border-border bg-background px-4 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60"
               />
             </label>
@@ -463,6 +491,18 @@ export function AccidentCalendarView() {
                             placeholder="車格"
                             className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60"
                           />
+                          <input
+                            type="text"
+                            value={historyForm.location}
+                            onChange={(e) =>
+                              setHistoryForm((p) => ({
+                                ...p,
+                                location: e.target.value,
+                              }))
+                            }
+                            placeholder="事故発生場所"
+                            className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60"
+                          />
                           <textarea
                             value={historyForm.description}
                             onChange={(e) =>
@@ -525,6 +565,11 @@ export function AccidentCalendarView() {
                               </span>
                             )}
                           </span>
+                          {row.location && (
+                            <span className="text-xs text-muted-foreground">
+                              発生場所：{row.location}
+                            </span>
+                          )}
                           <span className="text-sm text-foreground">
                             {row.description || '詳細なし'}
                           </span>

@@ -32,6 +32,9 @@ const STORAGE_KEY = 'kyoei-settings'
 type StoredSettings = {
   theme: ThemeMode
   fontLevels: Record<FontTabId, number>
+  // When true, per-tab font levels are ignored and text follows the
+  // device/browser's own font size setting instead (scale of 1 everywhere).
+  deviceFont: boolean
 }
 
 function defaultSettings(): StoredSettings {
@@ -44,6 +47,7 @@ function defaultSettings(): StoredSettings {
       news: DEFAULT_FONT_LEVEL,
       menu: DEFAULT_FONT_LEVEL,
     },
+    deviceFont: false,
   }
 }
 
@@ -57,6 +61,7 @@ function loadSettings(): StoredSettings {
     return {
       theme: parsed.theme ?? base.theme,
       fontLevels: { ...base.fontLevels, ...(parsed.fontLevels ?? {}) },
+      deviceFont: parsed.deviceFont ?? base.deviceFont,
     }
   } catch {
     return defaultSettings()
@@ -69,6 +74,8 @@ type SettingsContextValue = {
   fontLevels: Record<FontTabId, number>
   setFontLevel: (tab: FontTabId, level: number) => void
   fontScaleFor: (tab: FontTabId) => number
+  deviceFont: boolean
+  setDeviceFont: (enabled: boolean) => void
 }
 
 const SettingsContext = createContext<SettingsContextValue | null>(null)
@@ -119,10 +126,18 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       })),
     [],
   )
+  const setDeviceFont = useCallback(
+    (enabled: boolean) => setSettings((p) => ({ ...p, deviceFont: enabled })),
+    [],
+  )
   const fontScaleFor = useCallback(
-    (tab: FontTabId) =>
-      FONT_SCALES[(settings.fontLevels[tab] ?? DEFAULT_FONT_LEVEL) - 1] ?? 1,
-    [settings.fontLevels],
+    (tab: FontTabId) => {
+      if (settings.deviceFont) return 1
+      return (
+        FONT_SCALES[(settings.fontLevels[tab] ?? DEFAULT_FONT_LEVEL) - 1] ?? 1
+      )
+    },
+    [settings.deviceFont, settings.fontLevels],
   )
 
   const value = useMemo<SettingsContextValue>(
@@ -132,8 +147,18 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       fontLevels: settings.fontLevels,
       setFontLevel,
       fontScaleFor,
+      deviceFont: settings.deviceFont,
+      setDeviceFont,
     }),
-    [settings.theme, settings.fontLevels, setTheme, setFontLevel, fontScaleFor],
+    [
+      settings.theme,
+      settings.fontLevels,
+      settings.deviceFont,
+      setTheme,
+      setFontLevel,
+      fontScaleFor,
+      setDeviceFont,
+    ],
   )
 
   return (

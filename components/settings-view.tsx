@@ -1,6 +1,6 @@
 'use client'
 
-import { Monitor, Moon, Sun } from 'lucide-react'
+import { Monitor, Moon, Smartphone, Sun } from 'lucide-react'
 import {
   FONT_SCALES,
   FONT_TABS,
@@ -17,7 +17,8 @@ const THEME_OPTIONS: { id: ThemeMode; label: string; Icon: typeof Sun }[] = [
 const LEVELS = [1, 2, 3, 4, 5, 6]
 
 export function SettingsView() {
-  const { theme, setTheme, fontLevels, setFontLevel } = useSettings()
+  const { theme, setTheme, fontLevels, setFontLevel, deviceFont, setDeviceFont } =
+    useSettings()
 
   return (
     <div className="flex flex-col gap-6 pb-6">
@@ -30,10 +31,54 @@ export function SettingsView() {
 
       <section className="flex flex-col gap-4 rounded-2xl border border-border bg-card px-5 py-5">
         <h3 className="text-base font-bold text-foreground">フォント</h3>
+
+        <button
+          type="button"
+          onClick={() => setDeviceFont(!deviceFont)}
+          aria-pressed={deviceFont}
+          className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left transition-colors active:scale-[0.99] ${
+            deviceFont
+              ? 'border-primary bg-primary/15'
+              : 'border-border bg-background'
+          }`}
+        >
+          <span className="flex items-center gap-2.5">
+            <Smartphone
+              className={`h-5 w-5 ${deviceFont ? 'text-primary' : 'text-muted-foreground'}`}
+              aria-hidden="true"
+            />
+            <span className="flex flex-col">
+              <span className="text-sm font-semibold text-foreground">
+                デバイスに合わせる
+              </span>
+              <span className="text-xs text-muted-foreground">
+                ONの場合、デバイスの文字サイズ設定に合わせて表示します。
+              </span>
+            </span>
+          </span>
+          <span
+            className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
+              deviceFont ? 'bg-primary' : 'bg-border'
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 h-5 w-5 rounded-full bg-card transition-transform ${
+                deviceFont ? 'translate-x-5' : 'translate-x-0.5'
+              }`}
+            />
+          </span>
+        </button>
+
         <p className="text-xs text-muted-foreground">
-          各タブごとに文字の大きさを6段階で調整できます。
+          {deviceFont
+            ? 'デバイスに合わせる設定がONのため、下の個別設定は無効になっています。'
+            : '各タブごとに文字の大きさを6段階で調整できます。'}
         </p>
-        <div className="flex flex-col gap-4">
+        <div
+          className={`flex flex-col gap-4 ${
+            deviceFont ? 'pointer-events-none opacity-40' : ''
+          }`}
+        >
           {FONT_TABS.map(({ id, label }) => (
             <div key={id} className="flex flex-col gap-2">
               <span className="text-sm font-semibold text-foreground">
@@ -46,6 +91,7 @@ export function SettingsView() {
                     <button
                       key={level}
                       type="button"
+                      disabled={deviceFont}
                       onClick={() => setFontLevel(id, level)}
                       aria-pressed={active}
                       aria-label={`${label}の文字サイズ ${level}`}
