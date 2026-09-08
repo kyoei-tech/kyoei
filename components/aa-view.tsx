@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { Pencil, X, Plus, Store, Clock } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
+import { ConfirmDeleteInline } from './confirm-delete'
 
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土']
 
