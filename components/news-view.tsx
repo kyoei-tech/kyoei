@@ -160,6 +160,11 @@ export function NewsView() {
           <p className="whitespace-pre-wrap text-base leading-relaxed text-foreground">
             {selected.content || '内容はありません。'}
           </p>
+          {selected.author && (
+            <p className="mt-4 text-right text-sm font-medium text-muted-foreground">
+              {selected.author}
+            </p>
+          )}
         </div>
       </div>
     )
