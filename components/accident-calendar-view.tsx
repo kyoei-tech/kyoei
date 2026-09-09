@@ -2,6 +2,8 @@
 
 import { useMemo, useRef, useState } from 'react'
 import {
+  Calendar,
+  CalendarRange,
   ChevronLeft,
   ChevronRight,
   Pencil,
@@ -13,6 +15,11 @@ import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { ConfirmDeleteInline } from './confirm-delete'
 import { AccidentStreakBadge } from './accident-streak-badge'
 import { usePasswordGate } from './password-prompt'
+import {
+  AccidentCategorySelect,
+  useAccidentCategories,
+} from './accident-category-select'
+import { AccidentYearlyView } from './accident-yearly-view'
 
 // Shared across every browser via the `accident_records` Supabase table.
 type AccidentRow = {
@@ -21,13 +28,14 @@ type AccidentRow = {
   vehicle_class: string
   location: string
   description: string
+  category: string
 }
 
 async function fetchAccidentRows(): Promise<AccidentRow[]> {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('accident_records')
-    .select('id, occurred_on, vehicle_class, location, description')
+    .select('id, occurred_on, vehicle_class, location, description, category')
     .order('occurred_on', { ascending: false })
   if (error) throw error
   return (data as AccidentRow[]) ?? []
@@ -111,6 +119,7 @@ function MonthNav({
 function emptyForm() {
   return {
     occurredOn: todayISO(),
+    category: '',
     vehicleClass: '',
     location: '',
     description: '',
@@ -118,6 +127,7 @@ function emptyForm() {
 }
 
 export function AccidentCalendarView() {
+  const [periodMode, setPeriodMode] = useState<'month' | 'year'>('month')
   const [viewMonth, setViewMonth] = useState(() => {
     const t = new Date()
     return new Date(t.getFullYear(), t.getMonth(), 1)
@@ -141,6 +151,8 @@ export function AccidentCalendarView() {
     'accident_records',
     fetchAccidentRows,
   )
+  const { data: categories, mutate: refetchCategories } =
+    useAccidentCategories()
 
   function prevMonth() {
     setSelectedDate(null)
@@ -206,6 +218,7 @@ export function AccidentCalendarView() {
       const supabase = createClient()
       const { error } = await supabase.from('accident_records').insert({
         occurred_on: form.occurredOn,
+        category: form.category,
         vehicle_class: form.vehicleClass.trim(),
         location: form.location.trim(),
         description: form.description.trim(),
@@ -222,6 +235,7 @@ export function AccidentCalendarView() {
     setHistoryEditId(row.id)
     setHistoryForm({
       occurredOn: row.occurred_on,
+      category: row.category,
       vehicleClass: row.vehicle_class,
       location: row.location,
       description: row.description,
@@ -235,6 +249,7 @@ export function AccidentCalendarView() {
       .from('accident_records')
       .update({
         occurred_on: historyForm.occurredOn,
+        category: historyForm.category,
         vehicle_class: historyForm.vehicleClass.trim(),
         location: historyForm.location.trim(),
         description: historyForm.description.trim(),
@@ -254,98 +269,145 @@ export function AccidentCalendarView() {
 
   return (
     <div className="flex flex-col gap-5 pb-6">
-      <div>
-        <h2 className="text-xl font-bold text-foreground">無事故カレンダー</h2>
-        <p className="mt-1 text-sm text-muted-foreground">目指せ無事故！</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-bold text-foreground">無事故カレンダー</h2>
+          <p className="mt-1 text-sm text-muted-foreground">目指せ無事故！</p>
+        </div>
+        <div className="flex shrink-0 rounded-full border border-border p-0.5">
+          <button
+            type="button"
+            onClick={() => setPeriodMode('month')}
+            className={`flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+              periodMode === 'month'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Calendar className="h-3.5 w-3.5" aria-hidden="true" />
+            月間
+          </button>
+          <button
+            type="button"
+            onClick={() => setPeriodMode('year')}
+            className={`flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+              periodMode === 'year'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <CalendarRange className="h-3.5 w-3.5" aria-hidden="true" />
+            年間
+          </button>
+        </div>
       </div>
 
       <section className="rounded-2xl border border-border bg-card px-5 py-5">
         <AccidentStreakBadge size="lg" />
       </section>
 
-      <section
-        className="rounded-2xl border border-border bg-card p-4"
-        onTouchStart={calendarSwipe.onTouchStart}
-        onTouchEnd={calendarSwipe.onTouchEnd}
-      >
-        <MonthNav date={viewMonth} onPrev={prevMonth} onNext={nextMonth} />
-        <div className="mt-3 grid grid-cols-7 gap-1 text-center">
-          {WEEKDAYS.map((d, i) => (
-            <span
-              key={d}
-              className={`text-xs font-semibold ${weekdayColor(i)}`}
-            >
-              {d}
-            </span>
-          ))}
-          {cells.map((cell, idx) => {
-            if (!cell.iso) return <span key={`blank-${idx}`} />
-            const count = countsByDate.get(cell.iso) ?? 0
-            const isSelected = cell.iso === selectedDate
-            const weekdayIdx = idx % 7
-            return (
-              <button
-                key={cell.iso}
-                type="button"
-                onClick={() =>
-                  setSelectedDate((cur) => (cur === cell.iso ? null : cell.iso))
-                }
-                className={`flex flex-col items-center gap-0.5 rounded-lg py-1.5 transition-colors active:scale-95 ${
-                  isSelected
-                    ? 'bg-primary/20 ring-1 ring-primary'
-                    : 'hover:bg-accent'
-                }`}
-              >
+      {periodMode === 'year' ? (
+        <AccidentYearlyView rows={rows} categories={categories} />
+      ) : (
+        <>
+          <section
+            className="rounded-2xl border border-border bg-card p-4"
+            onTouchStart={calendarSwipe.onTouchStart}
+            onTouchEnd={calendarSwipe.onTouchEnd}
+          >
+            <MonthNav date={viewMonth} onPrev={prevMonth} onNext={nextMonth} />
+            <div className="mt-3 grid grid-cols-7 gap-1 text-center">
+              {WEEKDAYS.map((d, i) => (
                 <span
-                  className={`text-sm font-medium ${weekdayColor(weekdayIdx)}`}
+                  key={d}
+                  className={`text-xs font-semibold ${weekdayColor(i)}`}
                 >
-                  {cell.day}
+                  {d}
                 </span>
-                <span
-                  className={`text-[0.65rem] font-bold tabular-nums ${
-                    count > 0 ? 'text-destructive' : 'text-muted-foreground/40'
-                  }`}
-                >
-                  {count}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-      </section>
-
-      {selectedDate && (
-        <section className="flex flex-col gap-2 rounded-2xl border border-border bg-card px-5 py-4">
-          <h3 className="text-sm font-bold text-foreground">
-            {selectedDate} の事故詳細
-          </h3>
-          {selectedAccidents.length === 0 ? (
-            <p className="text-sm text-muted-foreground">事故はありません。</p>
-          ) : (
-            <ul className="flex flex-col gap-2">
-              {selectedAccidents.map((a) => (
-                <li
-                  key={a.id}
-                  className="rounded-xl border border-border/60 bg-background px-3 py-2.5"
-                >
-                  {a.vehicle_class && (
-                    <span className="text-xs font-semibold text-primary">
-                      {a.vehicle_class}
-                    </span>
-                  )}
-                  {a.location && (
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      発生場所：{a.location}
-                    </p>
-                  )}
-                  <p className="mt-0.5 text-sm text-foreground">
-                    {a.description || '詳細なし'}
-                  </p>
-                </li>
               ))}
-            </ul>
+              {cells.map((cell, idx) => {
+                if (!cell.iso) return <span key={`blank-${idx}`} />
+                const count = countsByDate.get(cell.iso) ?? 0
+                const isSelected = cell.iso === selectedDate
+                const weekdayIdx = idx % 7
+                return (
+                  <button
+                    key={cell.iso}
+                    type="button"
+                    onClick={() =>
+                      setSelectedDate((cur) =>
+                        cur === cell.iso ? null : cell.iso,
+                      )
+                    }
+                    className={`flex flex-col items-center gap-0.5 rounded-lg py-1.5 transition-colors active:scale-95 ${
+                      isSelected
+                        ? 'bg-primary/20 ring-1 ring-primary'
+                        : 'hover:bg-accent'
+                    }`}
+                  >
+                    <span
+                      className={`text-sm font-medium ${weekdayColor(weekdayIdx)}`}
+                    >
+                      {cell.day}
+                    </span>
+                    <span
+                      className={`text-[0.65rem] font-bold tabular-nums ${
+                        count > 0
+                          ? 'text-destructive'
+                          : 'text-muted-foreground/40'
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </section>
+
+          {selectedDate && (
+            <section className="flex flex-col gap-2 rounded-2xl border border-border bg-card px-5 py-4">
+              <h3 className="text-sm font-bold text-foreground">
+                {selectedDate} の事故詳細
+              </h3>
+              {selectedAccidents.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  事故はありません。
+                </p>
+              ) : (
+                <ul className="flex flex-col gap-2">
+                  {selectedAccidents.map((a) => (
+                    <li
+                      key={a.id}
+                      className="rounded-xl border border-border/60 bg-background px-3 py-2.5"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        {a.category && (
+                          <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-foreground">
+                            {a.category}
+                          </span>
+                        )}
+                        {a.vehicle_class && (
+                          <span className="text-xs font-semibold text-primary">
+                            {a.vehicle_class}
+                          </span>
+                        )}
+                      </div>
+                      {a.location && (
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          発生場所：{a.location}
+                        </p>
+                      )}
+                      <p className="mt-0.5 text-sm text-foreground">
+                        {a.description || '詳細なし'}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
           )}
-        </section>
+        </>
       )}
 
       {prompt}
@@ -394,6 +456,19 @@ export function AccidentCalendarView() {
                   setForm((p) => ({ ...p, occurredOn: e.target.value }))
                 }
                 className="w-full rounded-2xl border border-border bg-background px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary/60"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs font-medium text-muted-foreground">
+                カテゴリー
+              </span>
+              <AccidentCategorySelect
+                categories={categories}
+                value={form.category}
+                onChange={(value) =>
+                  setForm((p) => ({ ...p, category: value }))
+                }
+                onCategoryCreated={refetchCategories}
               />
             </label>
             <label className="flex flex-col gap-1">
@@ -491,6 +566,17 @@ export function AccidentCalendarView() {
                             }
                             className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary/60"
                           />
+                          <AccidentCategorySelect
+                            categories={categories}
+                            value={historyForm.category}
+                            onChange={(value) =>
+                              setHistoryForm((p) => ({
+                                ...p,
+                                category: value,
+                              }))
+                            }
+                            onCategoryCreated={refetchCategories}
+                          />
                           <input
                             type="text"
                             value={historyForm.vehicleClass}
@@ -571,11 +657,18 @@ export function AccidentCalendarView() {
                             <span className="text-xs font-semibold text-muted-foreground">
                               {row.occurred_on}
                             </span>
-                            {row.vehicle_class && (
-                              <span className="text-xs font-semibold text-primary">
-                                {row.vehicle_class}
-                              </span>
-                            )}
+                            <span className="flex items-center gap-1.5">
+                              {row.category && (
+                                <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-foreground">
+                                  {row.category}
+                                </span>
+                              )}
+                              {row.vehicle_class && (
+                                <span className="text-xs font-semibold text-primary">
+                                  {row.vehicle_class}
+                                </span>
+                              )}
+                            </span>
                           </span>
                           {row.location && (
                             <span className="text-xs text-muted-foreground">
