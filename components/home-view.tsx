@@ -227,8 +227,8 @@ export function HomeView({
   }
 
   return (
-    <div className="flex flex-1 flex-col justify-evenly gap-3">
-      <div className="flex flex-col gap-2">
+    <div className="flex flex-1 flex-col justify-evenly gap-1.5">
+      <div className="flex flex-col gap-1">
         <LiveClock
           parts={formatClock(now, clockOpts)}
           hour12={hour12}
@@ -254,33 +254,33 @@ export function HomeView({
         onOpenStatus={handleOpenStatus}
       />
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-2">
         <button
           type="button"
           onClick={() =>
             setPendingHomeAction(isSplitRestEligible ? 'split-rest' : 'departure')
           }
           aria-pressed={mode === 'departure'}
-          className={`flex flex-col items-center justify-center gap-1.5 rounded-3xl border py-6 text-lg font-bold transition-all active:scale-[0.97] ${
+          className={`flex flex-col items-center justify-center gap-1 rounded-3xl border py-3 text-sm font-bold leading-tight transition-all active:scale-[0.97] ${
             mode === 'departure'
               ? 'border-secondary bg-secondary text-secondary-foreground shadow-lg shadow-secondary/20'
               : 'border-border bg-card text-secondary hover:border-secondary/60'
           }`}
         >
-          <LogOut className="h-6 w-6" aria-hidden="true" />
+          <LogOut className="h-5 w-5" aria-hidden="true" />
           {isSplitRestEligible ? '分割休息による出庫' : '出庫'}
         </button>
         <button
           type="button"
           onClick={() => setPendingHomeAction('return')}
           aria-pressed={mode === 'return'}
-          className={`flex flex-col items-center justify-center gap-1.5 rounded-3xl border py-6 text-lg font-bold transition-all active:scale-[0.97] ${
+          className={`flex flex-col items-center justify-center gap-1 rounded-3xl border py-3 text-sm font-bold leading-tight transition-all active:scale-[0.97] ${
             mode === 'return'
               ? 'border-primary bg-primary text-primary-foreground shadow-lg shadow-primary/20'
               : 'border-border bg-card text-primary hover:border-primary/60'
           }`}
         >
-          <LogIn className="h-6 w-6" aria-hidden="true" />
+          <LogIn className="h-5 w-5" aria-hidden="true" />
           帰庫
         </button>
       </div>

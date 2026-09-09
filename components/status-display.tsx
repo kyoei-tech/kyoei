@@ -29,25 +29,25 @@ export function StatusDisplay({
   return (
     <section
       aria-label="連動表示"
-      className="rounded-3xl border border-border bg-card px-6 py-5"
+      className="rounded-3xl border border-border bg-card px-5 py-2.5"
     >
-      <div className="mb-2 flex items-center justify-between">
-        <span className={`text-2xl font-bold tracking-wide ${ACCENT[mode]}`}>
+      <div className="mb-1 flex items-center justify-between">
+        <span className={`text-base font-bold tracking-wide ${ACCENT[mode]}`}>
           {LABELS[mode]}
         </span>
         <FormatToggle hour12={hour12} onToggle={onToggleFormat} />
       </div>
-      <p className="text-lg font-medium text-muted-foreground">
+      <p className="text-xs font-medium text-muted-foreground">
         {parts.date}
         <span className="ml-2 text-foreground">{parts.weekday}</span>
       </p>
       <p
-        className={`my-4 text-center font-mono text-4xl font-semibold tabular-nums tracking-tight ${
+        className={`my-1 text-center font-mono text-3xl font-semibold tabular-nums tracking-tight ${
           mode === 'idle' ? 'text-foreground' : ACCENT[mode]
         }`}
       >
         {parts.meridiem && (
-          <span className="mr-1 text-xl font-medium text-muted-foreground">
+          <span className="mr-1 text-sm font-medium text-muted-foreground">
             {parts.meridiem}
           </span>
         )}

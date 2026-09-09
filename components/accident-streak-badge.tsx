@@ -63,11 +63,12 @@ export function AccidentStreakBadge({
   )
 
   if (onClick) {
+    const buttonPadding = size === 'sm' ? 'px-3 py-1' : 'px-4 py-1.5'
     return (
       <button
         type="button"
         onClick={onClick}
-        className="mx-auto flex w-fit items-center gap-1.5 rounded-full border border-secondary/30 bg-secondary/10 px-4 py-1.5 text-center transition-colors active:scale-95 hover:bg-secondary/15"
+        className={`mx-auto flex w-fit items-center gap-1.5 rounded-full border border-secondary/30 bg-secondary/10 text-center transition-colors active:scale-95 hover:bg-secondary/15 ${buttonPadding}`}
       >
         {content}
         <ChevronRight

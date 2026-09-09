@@ -51,11 +51,11 @@ export function ShiftTimer({
   return (
     <section
       aria-label="シフトタイマー"
-      className="rounded-3xl border border-border bg-card px-6 py-6 text-center"
+      className="rounded-3xl border border-border bg-card px-5 py-3 text-center"
     >
-      <div className="mb-2 flex items-center justify-center gap-1.5">
-        <Timer className={`h-5 w-5 ${LABEL_ACCENT[mode]}`} aria-hidden="true" />
-        <span className={`text-2xl font-bold tracking-wide ${LABEL_ACCENT[mode]}`}>
+      <div className="mb-1 flex items-center justify-center gap-1">
+        <Timer className={`h-4 w-4 ${LABEL_ACCENT[mode]}`} aria-hidden="true" />
+        <span className={`text-base font-bold tracking-wide ${LABEL_ACCENT[mode]}`}>
           {LABELS[mode]}
         </span>
       </div>
@@ -66,8 +66,8 @@ export function ShiftTimer({
           const [hh, mm, ss] = text.split(':')
           return (
             <>
-              <span className="text-6xl">{`${hh}:${mm}`}</span>
-              <span className="ml-1 text-2xl">{`:${ss}`}</span>
+              <span className="text-4xl">{`${hh}:${mm}`}</span>
+              <span className="ml-1 text-lg">{`:${ss}`}</span>
             </>
           )
         })()}
@@ -77,7 +77,7 @@ export function ShiftTimer({
         <button
           type="button"
           onClick={onOpenStatus}
-          className="mx-auto mt-3 flex items-center gap-1 rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground active:scale-95"
+          className="mx-auto mt-1.5 flex items-center gap-1 rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground active:scale-95"
         >
           {STATUS_PAGE_LABELS[mode]}
           <ChevronRight className="h-3 w-3" aria-hidden="true" />
@@ -85,7 +85,7 @@ export function ShiftTimer({
       )}
 
       {mode === 'return' ? (
-        <div className="mt-4 flex items-center justify-center gap-2">
+        <div className="mt-1.5 flex items-center justify-center gap-2">
           {COUNTDOWN_OPTIONS.map((h) => {
             const active = h === countdownOffset
             return (
@@ -106,13 +106,13 @@ export function ShiftTimer({
           })}
         </div>
       ) : mode === 'idle' ? (
-        <p className="mt-4 text-xs text-muted-foreground">
+        <p className="mt-1.5 text-xs text-muted-foreground">
           出庫・帰庫ボタンで開始します
         </p>
       ) : null}
 
       {finished && (
-        <p className="mt-3 text-sm font-semibold text-destructive">
+        <p className="mt-1.5 text-sm font-semibold text-destructive">
           出庫可能時刻になりました
         </p>
       )}
