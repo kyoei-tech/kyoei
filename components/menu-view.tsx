@@ -10,22 +10,28 @@ import {
   Car,
   ChevronRight,
   MapPin,
+  MapPinned,
   MessageCircleQuestion,
   Phone,
   Settings,
+  Tag,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { HighValueCarsView } from './high-value-cars-view'
 import { QAView } from './qa-view'
 import { LolView } from './lol-view'
+import { LolMapView } from './lol-map-view'
 import { BeginnerNotesView } from './beginner-notes-view'
 import { AAView } from './aa-view'
 import { EmergencyContactsView } from './emergency-contacts-view'
 import { AccidentCalendarView } from './accident-calendar-view'
 import { DriverTermsView } from './driver-terms-view'
 import { SettingsView } from './settings-view'
+import { VersionView } from './version-view'
+import { CURRENT_VERSION } from '@/lib/changelog'
 
 export type MenuItemId =
+  | 'lolmap'
   | 'lol'
   | 'aa'
   | 'qa'
@@ -35,6 +41,7 @@ export type MenuItemId =
   | 'terms'
   | 'emergency'
   | 'settings'
+  | 'version'
 
 const MENU_ITEMS: {
   id: MenuItemId
@@ -42,6 +49,12 @@ const MENU_ITEMS: {
   description: string
   Icon: LucideIcon
 }[] = [
+  {
+    id: 'lolmap',
+    label: 'LoL MAP',
+    description: '各ボタンを押すとGoogleマップを開きます。',
+    Icon: MapPinned,
+  },
   {
     id: 'lol',
     label: 'LoL',
@@ -96,6 +109,12 @@ const MENU_ITEMS: {
     description: 'フォントサイズや背景色を変更できます。',
     Icon: Settings,
   },
+  {
+    id: 'version',
+    label: 'Version',
+    description: `現在のバージョン：${CURRENT_VERSION}`,
+    Icon: Tag,
+  },
 ]
 
 export function MenuView({
@@ -118,6 +137,7 @@ export function MenuView({
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           メニューへ戻る
         </button>
+        {item?.id === 'lolmap' && <LolMapView />}
         {item?.id === 'lol' && <LolView />}
         {item?.id === 'aa' && <AAView />}
         {item?.id === 'qa' && <QAView />}
@@ -127,6 +147,7 @@ export function MenuView({
         {item?.id === 'terms' && <DriverTermsView />}
         {item?.id === 'emergency' && <EmergencyContactsView />}
         {item?.id === 'settings' && <SettingsView />}
+        {item?.id === 'version' && <VersionView />}
       </div>
     )
   }

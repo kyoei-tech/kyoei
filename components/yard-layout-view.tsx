@@ -67,6 +67,17 @@ function formatUpdated(iso: string): string {
   })
 }
 
+// Compares local calendar dates, so the badge naturally resets at local
+// midnight without needing a timer.
+function isSameLocalDay(iso: string, reference: Date): boolean {
+  const d = new Date(iso)
+  return (
+    d.getFullYear() === reference.getFullYear() &&
+    d.getMonth() === reference.getMonth() &&
+    d.getDate() === reference.getDate()
+  )
+}
+
 export function YardLayoutView() {
   const [editingYardId, setEditingYardId] = useState<string | null>(null)
   const [yardNameInput, setYardNameInput] = useState('')
@@ -334,6 +345,12 @@ export function YardLayoutView() {
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold text-foreground">ヤード配置</h2>
+          {latestUpdate &&
+            (isSameLocalDay(latestUpdate, new Date()) ? (
+              <p className="mt-1 text-sm font-bold text-secondary">更新済み</p>
+            ) : (
+              <p className="mt-1 text-xs font-normal text-primary">未更新</p>
+            ))}
           {latestUpdate && (
             <p className="mt-1 text-sm font-medium text-primary">
               最終更新：{formatUpdated(latestUpdate)}
