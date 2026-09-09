@@ -292,7 +292,7 @@ function DayCellEditor({
             onChange={(e) => onChange(`${e.target.value}〜${parsed.end}`)}
             className={SELECT_CLASS}
           >
-            <option value="">（空白）</option>
+            <option value="">��空白）</option>
             {TIME_OPTIONS.map((t) => (
               <option key={t} value={t}>
                 {t}
@@ -502,7 +502,7 @@ function VehiclePermissionEditor({
               >
                 <option value="">未設定</option>
                 <option value="〇">〇</option>
-                <option value="条件あり">〇(条件あり)</option>
+                <option value="条件あり">△(条件あり)</option>
                 <option value="✕">✕</option>
               </select>
             </div>
@@ -538,7 +538,7 @@ function VehiclePermissionDisplay({ value }: { value: VehiclePermission }) {
           <div key={v.key} className="flex flex-col">
             <span className="text-xs text-muted-foreground">{v.label}</span>
             <span className="text-sm font-medium text-foreground">
-              {entry.status === '条件あり' ? '〇(条件あり)' : entry.status}
+              {entry.status === '条件あり' ? '△(条件あり)' : entry.status}
             </span>
             {entry.status === '条件あり' && entry.condition && (
               <span className="text-xs text-muted-foreground">

@@ -1,10 +1,11 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Clock, Pencil, Phone, Plus, Trash2, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { ConfirmDeleteInline } from './confirm-delete'
+import { usePasswordGate } from './password-prompt'
 
 // Shared across every browser via the `emergency_contacts` Supabase table.
 type ContactRow = {
@@ -12,22 +13,159 @@ type ContactRow = {
   name: string
   hours: string
   phone: string
+  summary: string | null
   sort_order: number
 }
+
+// Shared across every browser via the `emergency_contacts_memo` table (single row).
+type MemoRow = { id: string; content: string; updated_at: string }
+
+const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
+  const hour = Math.floor(i / 2)
+  const minute = i % 2 === 0 ? '00' : '30'
+  return `${String(hour).padStart(2, '0')}:${minute}`
+})
+
+const DOUBLE_TAP_MS = 350
 
 async function fetchContactRows(): Promise<ContactRow[]> {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('emergency_contacts')
-    .select('id, name, hours, phone, sort_order')
+    .select('id, name, hours, phone, summary, sort_order')
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: true })
   if (error) throw error
   return (data as ContactRow[]) ?? []
 }
 
+async function fetchMemo(): Promise<MemoRow[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('emergency_contacts_memo')
+    .select('id, content, updated_at')
+    .eq('id', 'current')
+  if (error) throw error
+  return (data as MemoRow[]) ?? []
+}
+
+function parseHours(hours: string) {
+  if (!hours) return { is24h: false, startTime: '09:00', endTime: '18:00' }
+  if (hours.includes('24')) {
+    return { is24h: true, startTime: '09:00', endTime: '18:00' }
+  }
+  const match = hours.match(/(\d{1,2}):(\d{2}).*?(\d{1,2}):(\d{2})/)
+  if (match) {
+    const start = `${match[1].padStart(2, '0')}:${match[2]}`
+    const end = `${match[3].padStart(2, '0')}:${match[4]}`
+    if (TIME_OPTIONS.includes(start) && TIME_OPTIONS.includes(end)) {
+      return { is24h: false, startTime: start, endTime: end }
+    }
+  }
+  return { is24h: false, startTime: '09:00', endTime: '18:00' }
+}
+
 function emptyForm() {
-  return { name: '', hours: '', phone: '' }
+  return {
+    name: '',
+    phone: '',
+    summary: '',
+    is24h: false,
+    startTime: '09:00',
+    endTime: '18:00',
+  }
+}
+
+function MemoBox() {
+  const { data: rows, mutate: refetch } = useRealtimeTable<MemoRow>(
+    'emergency_contacts_memo',
+    fetchMemo,
+  )
+  const memo = rows[0]?.content ?? ''
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState('')
+  const [saving, setSaving] = useState(false)
+  const lastTapRef = useRef(0)
+  const { guard, prompt } = usePasswordGate('2486')
+
+  function startEditing() {
+    setDraft(memo)
+    setEditing(true)
+  }
+
+  function handleTap() {
+    if (editing) return
+    const now = Date.now()
+    if (now - lastTapRef.current < DOUBLE_TAP_MS) {
+      lastTapRef.current = 0
+      guard(startEditing)
+    } else {
+      lastTapRef.current = now
+    }
+  }
+
+  async function save() {
+    setSaving(true)
+    try {
+      const supabase = createClient()
+      await supabase
+        .from('emergency_contacts_memo')
+        .update({
+          content: draft,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', 'current')
+      await refetch()
+      setEditing(false)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div
+      onClick={handleTap}
+      className="min-h-[3rem] rounded-2xl border border-border px-4 py-3"
+    >
+      {editing ? (
+        <div
+          className="flex flex-col gap-2"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            rows={3}
+            autoFocus
+            placeholder="メモを入力"
+            className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60"
+          />
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              className="rounded-full border border-border px-3.5 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground active:scale-95"
+            >
+              キャンセル
+            </button>
+            <button
+              type="button"
+              onClick={save}
+              disabled={saving}
+              className="rounded-full bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95 disabled:opacity-40"
+            >
+              {saving ? '保存中…' : '保存'}
+            </button>
+          </div>
+        </div>
+      ) : memo ? (
+        <p className="whitespace-pre-wrap text-sm font-bold text-orange-500">
+          {memo}
+        </p>
+      ) : null}
+      {prompt}
+    </div>
+  )
 }
 
 export function EmergencyContactsView() {
@@ -54,7 +192,12 @@ export function EmergencyContactsView() {
   }
 
   function openEdit(contact: ContactRow) {
-    setForm({ name: contact.name, hours: contact.hours, phone: contact.phone })
+    setForm({
+      name: contact.name,
+      phone: contact.phone,
+      summary: contact.summary ?? '',
+      ...parseHours(contact.hours),
+    })
     setEditingId(contact.id)
     setAdding(true)
   }
@@ -68,21 +211,26 @@ export function EmergencyContactsView() {
   async function saveContact() {
     const name = form.name.trim()
     if (!name) return
+    const hours = form.is24h
+      ? '24時間対応'
+      : `${form.startTime}〜${form.endTime}`
     const supabase = createClient()
     if (editingId) {
       await supabase
         .from('emergency_contacts')
         .update({
           name,
-          hours: form.hours.trim(),
+          hours,
           phone: form.phone.trim(),
+          summary: form.summary.trim() || null,
         })
         .eq('id', editingId)
     } else {
       await supabase.from('emergency_contacts').insert({
         name,
-        hours: form.hours.trim(),
+        hours,
         phone: form.phone.trim(),
+        summary: form.summary.trim() || null,
         sort_order: contacts.length,
       })
     }
@@ -128,6 +276,8 @@ export function EmergencyContactsView() {
         </button>
       </div>
 
+      <MemoBox />
+
       {editMode && !adding && (
         <button
           type="button"
@@ -158,20 +308,57 @@ export function EmergencyContactsView() {
               className="w-full rounded-2xl border border-border bg-background px-4 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60"
             />
           </label>
-          <label className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1.5">
             <span className="text-xs font-medium text-muted-foreground">
               営業時間
             </span>
-            <input
-              type="text"
-              value={form.hours}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, hours: e.target.value }))
-              }
-              placeholder="例：9:00〜18:00"
-              className="w-full rounded-2xl border border-border bg-background px-4 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60"
-            />
-          </label>
+            <label className="flex items-center gap-2 text-sm text-foreground">
+              <input
+                type="checkbox"
+                checked={form.is24h}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, is24h: e.target.checked }))
+                }
+                className="h-4 w-4 rounded border-border accent-primary"
+              />
+              24時間対応
+            </label>
+            {!form.is24h && (
+              <div className="flex items-center gap-2">
+                <select
+                  value={form.startTime}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, startTime: e.target.value }))
+                  }
+                  aria-label="開始時刻"
+                  className="w-full rounded-2xl border border-border bg-background px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary/60"
+                >
+                  {TIME_OPTIONS.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+                <span className="shrink-0 text-sm text-muted-foreground">
+                  〜
+                </span>
+                <select
+                  value={form.endTime}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, endTime: e.target.value }))
+                  }
+                  aria-label="終了時刻"
+                  className="w-full rounded-2xl border border-border bg-background px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary/60"
+                >
+                  {TIME_OPTIONS.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
           <label className="flex flex-col gap-1">
             <span className="text-xs font-medium text-muted-foreground">
               電話番号
@@ -184,6 +371,20 @@ export function EmergencyContactsView() {
               }
               placeholder="例：03-0000-0000"
               className="w-full rounded-2xl border border-border bg-background px-4 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60"
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-muted-foreground">
+              概要（どんな時に使うのか）
+            </span>
+            <textarea
+              value={form.summary}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, summary: e.target.value }))
+              }
+              rows={2}
+              placeholder="例：事故発生時の一報先"
+              className="w-full resize-none rounded-2xl border border-border bg-background px-4 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60"
             />
           </label>
           <div className="flex items-center justify-between gap-2">
@@ -256,6 +457,11 @@ export function EmergencyContactsView() {
                     <Phone className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                     {contact.phone}
                   </a>
+                )}
+                {contact.summary && (
+                  <span className="text-xs text-muted-foreground">
+                    {contact.summary}
+                  </span>
                 )}
               </div>
               {editMode && (
