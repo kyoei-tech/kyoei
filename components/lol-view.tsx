@@ -1074,20 +1074,6 @@ export function LolView() {
                             />
                           </div>
                         )}
-                        {!isAA &&
-                          f.key === 'phone' &&
-                          hasVehiclePermission(e.vehiclePermission) && (
-                            <div className="grid grid-cols-[6.5rem_1fr] gap-2 text-sm">
-                              <dt className="text-muted-foreground">
-                                荷扱車格
-                              </dt>
-                              <dd>
-                                <VehiclePermissionDisplay
-                                  value={e.vehiclePermission!}
-                                />
-                              </dd>
-                            </div>
-                          )}
                       </Fragment>
                     ))}
                   {isAA &&
@@ -1105,6 +1091,16 @@ export function LolView() {
                         />
                       </div>
                     )}
+                  {!isAA && hasVehiclePermission(e.vehiclePermission) && (
+                    <div className="grid grid-cols-[6.5rem_1fr] gap-2 text-sm">
+                      <dt className="text-muted-foreground">荷扱車格</dt>
+                      <dd>
+                        <VehiclePermissionDisplay
+                          value={e.vehiclePermission!}
+                        />
+                      </dd>
+                    </div>
+                  )}
                 </dl>
 
                 {!isAA && (
