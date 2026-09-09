@@ -39,10 +39,49 @@ type FieldConfig = {
   weekday?: boolean
 }
 
+// Whether trailers/5t-loaders/compacts/loaders can access a destination.
+type VehicleKey = 'trailer' | 'fiveLoad' | 'compact' | 'loader'
+type VehicleStatus = '' | '〇' | '条件あり' | '✕'
+type VehiclePermission = Record<
+  VehicleKey,
+  { status: VehicleStatus; condition: string }
+>
+
+const VEHICLE_TYPES: { key: VehicleKey; label: string }[] = [
+  { key: 'trailer', label: 'トレーラー' },
+  { key: 'fiveLoad', label: '5積み' },
+  { key: 'compact', label: '小型' },
+  { key: 'loader', label: 'ローダー' },
+]
+
+function emptyVehiclePermission(): VehiclePermission {
+  return VEHICLE_TYPES.reduce((acc, v) => {
+    acc[v.key] = { status: '', condition: '' }
+    return acc
+  }, {} as VehiclePermission)
+}
+
+function hasVehiclePermission(vp?: VehiclePermission | null): boolean {
+  if (!vp) return false
+  return VEHICLE_TYPES.some((v) => vp[v.key]?.status)
+}
+
+// People who have already visited a destination, added one name at a time.
+type VisitedPerson = { id: string; name: string }
+
+function makeId(): string {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID()
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
+
 type InfoEntry = {
   id: string
   calOut?: string[]
   calIn?: string[]
+  vehiclePermission?: VehiclePermission
+  visitedBy?: VisitedPerson[]
 } & Record<FieldKey, string>
 
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土']
@@ -52,7 +91,7 @@ const FIELDS: FieldConfig[] = [
   { key: 'shopName', label: '店舗名' },
   { key: 'address', label: '住所' },
   { key: 'phone', label: '電話番号' },
-  { key: 'hours', label: '搬入可能時間' },
+  { key: 'hours', label: '搬入出可能時間' },
   { key: 'breakTime', label: '休憩時間' },
   { key: 'place', label: '搬入場所' },
   { key: 'method', label: '搬入方法', multiline: true },
@@ -120,6 +159,8 @@ type LolRow = {
   notes: string
   cal_out: string[] | null
   cal_in: string[] | null
+  vehicle_permission: VehiclePermission | null
+  visited_by: VisitedPerson[] | null
 }
 
 function rowToEntry(r: LolRow): InfoEntry {
@@ -137,6 +178,8 @@ function rowToEntry(r: LolRow): InfoEntry {
     notes: r.notes,
     calOut: r.cal_out ?? emptyWeek(),
     calIn: r.cal_in ?? emptyWeek(),
+    vehiclePermission: r.vehicle_permission ?? emptyVehiclePermission(),
+    visitedBy: r.visited_by ?? [],
   }
 }
 
@@ -145,7 +188,7 @@ async function fetchLolRows(): Promise<LolRow[]> {
   const { data, error } = await supabase
     .from('lol_entries')
     .select(
-      'id, destination_id, shop_name, address, phone, hours, break_time, place, event_day, memo, method, notes, cal_out, cal_in',
+      'id, destination_id, shop_name, address, phone, hours, break_time, place, event_day, memo, method, notes, cal_out, cal_in, vehicle_permission, visited_by',
     )
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: true })
@@ -192,10 +235,21 @@ function parseCell(v: string): { mode: CellMode; start: string; end: string } {
 
 function cellText(v: string): string {
   const t = (v ?? '').trim()
-  if (t === '〇') return '〇'
+  if (t === '〇') return '24h'
   if (t.includes('〜')) return t
   return '—'
 }
+
+// 0:00 〜 24:00 in 30-minute steps, used for 搬入出可能時間 / 休憩時間.
+const HALF_HOUR_OPTIONS: string[] = (() => {
+  const arr: string[] = []
+  for (let m = 0; m <= 24 * 60; m += 30) {
+    const h = Math.floor(m / 60)
+    const mm = m % 60
+    arr.push(`${h}:${mm === 0 ? '00' : mm}`)
+  }
+  return arr
+})()
 
 const SELECT_CLASS =
   'rounded-lg border border-border bg-background px-2 py-1.5 text-xs text-foreground outline-none focus:border-primary/60'
@@ -345,6 +399,159 @@ function WeeklyCalendar({
   )
 }
 
+// Generic "未設定 / 特殊値 / 時間指定" dropdown, used for 搬入出可能時間 and
+// 休憩時間 — e.g. specialLabel="夜間OK" or "なし".
+function TimeRangeFieldEditor({
+  value,
+  specialLabel,
+  timeOptions,
+  onChange,
+}: {
+  value: string
+  specialLabel: string
+  timeOptions: string[]
+  onChange: (v: string) => void
+}) {
+  const t = (value ?? '').trim()
+  const mode: CellMode =
+    t === specialLabel ? 'allday' : t.includes('〜') ? 'time' : 'none'
+  const [start, end] = t.includes('〜') ? t.split('〜') : ['', '']
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <select
+        value={mode}
+        onChange={(e) => {
+          const m = e.target.value as CellMode
+          if (m === 'none') onChange('')
+          else if (m === 'allday') onChange(specialLabel)
+          else onChange(`${start ?? ''}〜${end ?? ''}`)
+        }}
+        className={SELECT_CLASS}
+      >
+        <option value="none">未設定</option>
+        <option value="allday">{specialLabel}</option>
+        <option value="time">時間指定（30分刻み）</option>
+      </select>
+      {mode === 'time' && (
+        <div className="flex items-center gap-1">
+          <select
+            value={start ?? ''}
+            aria-label="開始時間"
+            onChange={(e) => onChange(`${e.target.value}〜${end ?? ''}`)}
+            className={SELECT_CLASS}
+          >
+            <option value="">（空白）</option>
+            {timeOptions.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </select>
+          <span className="text-xs text-muted-foreground">〜</span>
+          <select
+            value={end ?? ''}
+            aria-label="終了時間"
+            onChange={(e) => onChange(`${start ?? ''}〜${e.target.value}`)}
+            className={SELECT_CLASS}
+          >
+            <option value="">（空白）</option>
+            {timeOptions.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function VehiclePermissionEditor({
+  value,
+  onChange,
+}: {
+  value: VehiclePermission
+  onChange: (next: VehiclePermission) => void
+}) {
+  return (
+    <div className="flex flex-col gap-2.5 rounded-2xl border border-border bg-background px-3 py-2.5">
+      {VEHICLE_TYPES.map((v) => {
+        const entry = value[v.key] ?? { status: '', condition: '' }
+        return (
+          <div key={v.key} className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-2">
+              <span className="w-16 shrink-0 text-xs font-medium text-muted-foreground">
+                {v.label}
+              </span>
+              <select
+                value={entry.status}
+                aria-label={`${v.label}の可否`}
+                onChange={(e) => {
+                  const status = e.target.value as VehicleStatus
+                  onChange({
+                    ...value,
+                    [v.key]: {
+                      status,
+                      condition: status === '条件あり' ? entry.condition : '',
+                    },
+                  })
+                }}
+                className={SELECT_CLASS}
+              >
+                <option value="">未設定</option>
+                <option value="〇">〇</option>
+                <option value="条件あり">〇(条件あり)</option>
+                <option value="✕">✕</option>
+              </select>
+            </div>
+            {entry.status === '条件あり' && (
+              <input
+                type="text"
+                value={entry.condition}
+                onChange={(e) =>
+                  onChange({
+                    ...value,
+                    [v.key]: { ...entry, condition: e.target.value },
+                  })
+                }
+                placeholder="条件を入力（例：荷降ろし場所指定など）"
+                aria-label={`${v.label}の条件`}
+                className="ml-[4.5rem] rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/60"
+              />
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function VehiclePermissionDisplay({ value }: { value: VehiclePermission }) {
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      {VEHICLE_TYPES.map((v) => {
+        const entry = value[v.key]
+        if (!entry?.status) return null
+        return (
+          <div key={v.key} className="flex flex-col">
+            <span className="text-xs text-muted-foreground">{v.label}</span>
+            <span className="text-sm font-medium text-foreground">
+              {entry.status === '条件あり' ? '〇(条件あり)' : entry.status}
+            </span>
+            {entry.status === '条件あり' && entry.condition && (
+              <span className="text-xs text-muted-foreground">
+                {entry.condition}
+              </span>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export function LolView() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [focusedEntryId, setFocusedEntryId] = useState<string | null>(null)
@@ -355,6 +562,17 @@ export function LolView() {
   const [form, setForm] = useState<Record<FieldKey, string>>(emptyForm)
   const [calOut, setCalOut] = useState<string[]>(emptyWeek)
   const [calIn, setCalIn] = useState<string[]>(emptyWeek)
+  const [vehiclePermission, setVehiclePermission] = useState<VehiclePermission>(
+    emptyVehiclePermission,
+  )
+  const [visitedBy, setVisitedBy] = useState<VisitedPerson[]>([])
+  const [visitedNameInput, setVisitedNameInput] = useState('')
+  // Lets 既訪者 be edited directly from an entry's detail card, without
+  // opening the full edit form.
+  const [editingVisitedEntryId, setEditingVisitedEntryId] = useState<
+    string | null
+  >(null)
+  const [visitedNameDraft, setVisitedNameDraft] = useState('')
 
   // Shared across every browser: fetched from Supabase and kept live via
   // Postgres Changes, so an edit made anywhere shows up here automatically.
@@ -414,6 +632,11 @@ export function LolView() {
     setForm(emptyForm())
     setCalOut(emptyWeek())
     setCalIn(emptyWeek())
+    setVehiclePermission(emptyVehiclePermission())
+    setVisitedBy([])
+    setVisitedNameInput('')
+    setEditingVisitedEntryId(null)
+    setVisitedNameDraft('')
   }
 
   function startAdd() {
@@ -421,15 +644,28 @@ export function LolView() {
     setForm(emptyForm())
     setCalOut(emptyWeek())
     setCalIn(emptyWeek())
+    setVehiclePermission(emptyVehiclePermission())
+    setVisitedBy([])
+    setVisitedNameInput('')
     setAdding(true)
   }
 
   function startEdit(entry: InfoEntry) {
-    const { id: _id, calOut: eOut, calIn: eIn, ...values } = entry
+    const {
+      id: _id,
+      calOut: eOut,
+      calIn: eIn,
+      vehiclePermission: eVp,
+      visitedBy: eVb,
+      ...values
+    } = entry
     setEditingId(entry.id)
     setForm(values)
     setCalOut(eOut ?? emptyWeek())
     setCalIn(eIn ?? emptyWeek())
+    setVehiclePermission(eVp ?? emptyVehiclePermission())
+    setVisitedBy(eVb ?? [])
+    setVisitedNameInput('')
     setAdding(true)
   }
 
@@ -439,6 +675,9 @@ export function LolView() {
     setForm(emptyForm())
     setCalOut(emptyWeek())
     setCalIn(emptyWeek())
+    setVehiclePermission(emptyVehiclePermission())
+    setVisitedBy([])
+    setVisitedNameInput('')
   }
 
   async function saveEntry() {
@@ -464,7 +703,10 @@ export function LolView() {
             cal_out: calOut.map((v) => v.trim()),
             cal_in: calIn.map((v) => v.trim()),
           }
-        : {}),
+        : {
+            vehicle_permission: vehiclePermission,
+            visited_by: visitedBy,
+          }),
     }
     const supabase = createClient()
     if (editingId) {
@@ -482,6 +724,34 @@ export function LolView() {
     await supabase.from('lol_entries').delete().eq('id', entryId)
     await refetch()
     setConfirmDeleteId(null)
+  }
+
+  // Adds/removes a 既訪者 directly from an entry's detail card, independent
+  // of the full add/edit form.
+  async function addVisitedPersonToEntry(entry: InfoEntry) {
+    const name = visitedNameDraft.trim()
+    if (!name) return
+    const next = [...(entry.visitedBy ?? []), { id: makeId(), name }]
+    const supabase = createClient()
+    await supabase
+      .from('lol_entries')
+      .update({ visited_by: next })
+      .eq('id', entry.id)
+    await refetch()
+    setVisitedNameDraft('')
+  }
+
+  async function removeVisitedPersonFromEntry(
+    entry: InfoEntry,
+    personId: string,
+  ) {
+    const next = (entry.visitedBy ?? []).filter((p) => p.id !== personId)
+    const supabase = createClient()
+    await supabase
+      .from('lol_entries')
+      .update({ visited_by: next })
+      .eq('id', entry.id)
+    await refetch()
   }
 
   if (selected) {
@@ -537,6 +807,13 @@ export function LolView() {
 
         {adding && (
           <section className="flex flex-col gap-3 rounded-3xl border border-border bg-card px-5 py-5">
+            {!isAA && (
+              <p className="rounded-2xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm font-bold leading-relaxed text-destructive">
+                鍵番号や鍵のセット場所は記載禁止
+                <br />
+                盗難に繋がる恐れのある情報は記載しないでください。
+              </p>
+            )}
             {activeFields.map((f) => (
               <Fragment key={f.key}>
                 <label className="flex flex-col gap-1">
@@ -561,6 +838,24 @@ export function LolView() {
                         </option>
                       ))}
                     </select>
+                  ) : !isAA && f.key === 'hours' ? (
+                    <TimeRangeFieldEditor
+                      value={form.hours}
+                      specialLabel="夜間OK"
+                      timeOptions={HALF_HOUR_OPTIONS}
+                      onChange={(v) =>
+                        setForm((p) => ({ ...p, hours: v }))
+                      }
+                    />
+                  ) : !isAA && f.key === 'breakTime' ? (
+                    <TimeRangeFieldEditor
+                      value={form.breakTime}
+                      specialLabel="なし"
+                      timeOptions={HALF_HOUR_OPTIONS}
+                      onChange={(v) =>
+                        setForm((p) => ({ ...p, breakTime: v }))
+                      }
+                    />
                   ) : f.multiline ? (
                     <textarea
                       value={form[f.key]}
@@ -597,6 +892,92 @@ export function LolView() {
                         setCalIn((p) => p.map((x, j) => (j === i ? v : x)))
                       }
                     />
+                  </div>
+                )}
+                {!isAA && f.key === 'phone' && (
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">
+                      荷扱車格可否
+                    </span>
+                    <VehiclePermissionEditor
+                      value={vehiclePermission}
+                      onChange={setVehiclePermission}
+                    />
+                  </div>
+                )}
+                {!isAA && f.key === 'notes' && (
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">
+                      既訪者
+                    </span>
+                    {visitedBy.length > 0 && (
+                      <ul className="flex flex-col gap-1.5">
+                        {visitedBy.map((p) => (
+                          <li
+                            key={p.id}
+                            className="flex items-center justify-between rounded-xl border border-border bg-background px-3 py-1.5"
+                          >
+                            <span className="text-sm text-foreground">
+                              {p.name}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setVisitedBy((prev) =>
+                                  prev.filter((x) => x.id !== p.id),
+                                )
+                              }
+                              aria-label={`${p.name}を削除`}
+                              className="rounded-lg p-1 text-muted-foreground/50 transition-colors hover:text-destructive active:scale-90"
+                            >
+                              <X className="h-3.5 w-3.5" aria-hidden="true" />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        value={visitedNameInput}
+                        onChange={(e) => setVisitedNameInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (
+                            e.key === 'Enter' &&
+                            !e.nativeEvent.isComposing
+                          ) {
+                            e.preventDefault()
+                            const name = visitedNameInput.trim()
+                            if (name) {
+                              setVisitedBy((prev) => [
+                                ...prev,
+                                { id: makeId(), name },
+                              ])
+                              setVisitedNameInput('')
+                            }
+                          }
+                        }}
+                        placeholder="名前を入力して追加"
+                        aria-label="既訪者の名前"
+                        className="flex-1 rounded-2xl border border-border bg-background px-4 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/60"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const name = visitedNameInput.trim()
+                          if (!name) return
+                          setVisitedBy((prev) => [
+                            ...prev,
+                            { id: makeId(), name },
+                          ])
+                          setVisitedNameInput('')
+                        }}
+                        disabled={!visitedNameInput.trim()}
+                        className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95 disabled:opacity-40"
+                      >
+                        追加
+                      </button>
+                    </div>
                   </div>
                 )}
               </Fragment>
@@ -693,6 +1074,20 @@ export function LolView() {
                             />
                           </div>
                         )}
+                        {!isAA &&
+                          f.key === 'phone' &&
+                          hasVehiclePermission(e.vehiclePermission) && (
+                            <div className="grid grid-cols-[6.5rem_1fr] gap-2 text-sm">
+                              <dt className="text-muted-foreground">
+                                荷扱車格
+                              </dt>
+                              <dd>
+                                <VehiclePermissionDisplay
+                                  value={e.vehiclePermission!}
+                                />
+                              </dd>
+                            </div>
+                          )}
                       </Fragment>
                     ))}
                   {isAA &&
@@ -711,6 +1106,104 @@ export function LolView() {
                       </div>
                     )}
                 </dl>
+
+                {!isAA && (
+                  <div className="mt-3 border-t border-border pt-3">
+                    <div className="mb-1.5 flex items-center justify-between">
+                      <span className="text-xs font-semibold text-muted-foreground">
+                        既訪者
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setEditingVisitedEntryId((cur) =>
+                            cur === e.id ? null : e.id,
+                          )
+                        }
+                        className="flex items-center gap-1 rounded-full border border-border bg-card px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground active:scale-95"
+                      >
+                        <Pencil className="h-3 w-3" aria-hidden="true" />
+                        {editingVisitedEntryId === e.id ? '閉じる' : '編集'}
+                      </button>
+                    </div>
+
+                    {editingVisitedEntryId === e.id ? (
+                      <div className="flex flex-col gap-2">
+                        {(e.visitedBy ?? []).length > 0 && (
+                          <ul className="flex flex-col gap-1.5">
+                            {(e.visitedBy ?? []).map((p) => (
+                              <li
+                                key={p.id}
+                                className="flex items-center justify-between rounded-xl border border-border bg-background px-3 py-1.5"
+                              >
+                                <span className="text-sm text-foreground">
+                                  {p.name}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    removeVisitedPersonFromEntry(e, p.id)
+                                  }
+                                  aria-label={`${p.name}を削除`}
+                                  className="rounded-lg p-1 text-muted-foreground/50 transition-colors hover:text-destructive active:scale-90"
+                                >
+                                  <X
+                                    className="h-3.5 w-3.5"
+                                    aria-hidden="true"
+                                  />
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="text"
+                            value={visitedNameDraft}
+                            onChange={(ev) =>
+                              setVisitedNameDraft(ev.target.value)
+                            }
+                            onKeyDown={(ev) => {
+                              if (
+                                ev.key === 'Enter' &&
+                                !ev.nativeEvent.isComposing
+                              ) {
+                                ev.preventDefault()
+                                addVisitedPersonToEntry(e)
+                              }
+                            }}
+                            placeholder="名前を入力"
+                            aria-label="既訪者の名前"
+                            className="flex-1 rounded-xl border border-border bg-background px-3 py-1.5 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/60"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => addVisitedPersonToEntry(e)}
+                            disabled={!visitedNameDraft.trim()}
+                            className="rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95 disabled:opacity-40"
+                          >
+                            追加
+                          </button>
+                        </div>
+                      </div>
+                    ) : (e.visitedBy ?? []).length > 0 ? (
+                      <ul className="flex flex-col gap-1">
+                        {(e.visitedBy ?? []).map((p) => (
+                          <li
+                            key={p.id}
+                            className="rounded-xl bg-muted px-3 py-1.5 text-sm text-foreground"
+                          >
+                            {p.name}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        登録なし
+                      </p>
+                    )}
+                  </div>
+                )}
               </li>
             ))}
           </ul>
