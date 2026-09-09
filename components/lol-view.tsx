@@ -538,10 +538,14 @@ function VehiclePermissionDisplay({ value }: { value: VehiclePermission }) {
           <div key={v.key} className="flex flex-col">
             <span className="text-xs text-muted-foreground">{v.label}</span>
             <span className="text-sm font-medium text-foreground">
-              {entry.status === '条件あり' ? '△(条件あり)' : entry.status}
+              {entry.status === '条件あり'
+                ? entry.condition
+                  ? '△'
+                  : '△(条件あり)'
+                : entry.status}
             </span>
             {entry.status === '条件あり' && entry.condition && (
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs font-bold text-destructive">
                 {entry.condition}
               </span>
             )}
@@ -1183,11 +1187,11 @@ export function LolView() {
                         </div>
                       </div>
                     ) : (e.visitedBy ?? []).length > 0 ? (
-                      <ul className="flex flex-col gap-1">
+                      <ul className="flex flex-wrap gap-1">
                         {(e.visitedBy ?? []).map((p) => (
                           <li
                             key={p.id}
-                            className="rounded-xl bg-muted px-3 py-1.5 text-sm text-foreground"
+                            className="rounded-full bg-muted px-2 py-0.5 text-xs text-foreground"
                           >
                             {p.name}
                           </li>
