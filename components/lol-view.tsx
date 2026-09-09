@@ -915,11 +915,11 @@ export function LolView() {
                       既訪者
                     </span>
                     {visitedBy.length > 0 && (
-                      <ul className="flex flex-col gap-1.5">
+                      <ul className="grid grid-cols-[repeat(4,max-content)] justify-start gap-1.5">
                         {visitedBy.map((p) => (
                           <li
                             key={p.id}
-                            className="flex items-center justify-between rounded-xl border border-border bg-background px-3 py-1.5"
+                            className="flex w-fit items-center gap-1 rounded-full border border-border bg-background px-2.5 py-1"
                           >
                             <span className="text-sm text-foreground">
                               {p.name}
@@ -932,7 +932,7 @@ export function LolView() {
                                 )
                               }
                               aria-label={`${p.name}を削除`}
-                              className="rounded-lg p-1 text-muted-foreground/50 transition-colors hover:text-destructive active:scale-90"
+                              className="rounded-lg p-0.5 text-muted-foreground/50 transition-colors hover:text-destructive active:scale-90"
                             >
                               <X className="h-3.5 w-3.5" aria-hidden="true" />
                             </button>
@@ -1130,11 +1130,11 @@ export function LolView() {
                     {editingVisitedEntryId === e.id ? (
                       <div className="flex flex-col gap-2">
                         {(e.visitedBy ?? []).length > 0 && (
-                          <ul className="flex flex-col gap-1.5">
+                          <ul className="grid grid-cols-[repeat(4,max-content)] justify-start gap-1.5">
                             {(e.visitedBy ?? []).map((p) => (
                               <li
                                 key={p.id}
-                                className="flex items-center justify-between rounded-xl border border-border bg-background px-3 py-1.5"
+                                className="flex w-fit items-center gap-1 rounded-full border border-border bg-background px-2.5 py-1"
                               >
                                 <span className="text-sm text-foreground">
                                   {p.name}
@@ -1145,7 +1145,7 @@ export function LolView() {
                                     removeVisitedPersonFromEntry(e, p.id)
                                   }
                                   aria-label={`${p.name}を削除`}
-                                  className="rounded-lg p-1 text-muted-foreground/50 transition-colors hover:text-destructive active:scale-90"
+                                  className="rounded-lg p-0.5 text-muted-foreground/50 transition-colors hover:text-destructive active:scale-90"
                                 >
                                   <X
                                     className="h-3.5 w-3.5"
@@ -1187,11 +1187,11 @@ export function LolView() {
                         </div>
                       </div>
                     ) : (e.visitedBy ?? []).length > 0 ? (
-                      <ul className="flex flex-wrap gap-1">
+                      <ul className="grid grid-cols-[repeat(4,max-content)] justify-start gap-1">
                         {(e.visitedBy ?? []).map((p) => (
                           <li
                             key={p.id}
-                            className="rounded-full bg-muted px-2 py-0.5 text-xs text-foreground"
+                            className="w-fit rounded-full bg-muted px-2 py-0.5 text-xs text-foreground"
                           >
                             {p.name}
                           </li>
