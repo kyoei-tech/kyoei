@@ -17,6 +17,24 @@ export type ChangelogVersion = {
 
 export const CHANGELOG: ChangelogVersion[] = [
   {
+    version: '1.5.0',
+    date: '2026-09-10',
+    entries: [
+      {
+        page: '出勤簿',
+        kind: '変更',
+        description:
+          '役職者以外の並び順を、勤続年数が長い人から順番に並ぶように修正しました。',
+      },
+      {
+        page: 'Version',
+        kind: '追加',
+        description:
+          '更新内容の項目を4回連続でタップすると削除できるようになりました。',
+      },
+    ],
+  },
+  {
     version: '1.4.0',
     date: '2026-09-10',
     entries: [
@@ -37,12 +55,6 @@ export const CHANGELOG: ChangelogVersion[] = [
         kind: '追加',
         description:
           'タイトルの下に「更新済み」「未更新」の表示を追加。今日中に更新していれば緑の太字、していなければオレンジの表示になります（毎日0時にリセット）。',
-      },
-      {
-        page: '出勤簿',
-        kind: '変更',
-        description:
-          '役職者以外の並び順を、勤続年数が短い人から順番に並ぶように調整しました。',
       },
     ],
   },

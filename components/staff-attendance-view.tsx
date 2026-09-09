@@ -104,8 +104,8 @@ export function StaffAttendanceView() {
   )
 
   // 役職者（role holders）keep their manual/creation order. Staff with no
-  // role are shown below a divider, ordered by tenure ascending (newest
-  // hires first) since they have no manual position to preserve.
+  // role are shown below a divider, ordered by tenure descending (longest
+  // serving first) since they have no manual position to preserve.
   const roleHolders = useMemo(
     () => staff.filter((m) => m.role.trim()),
     [staff],
@@ -114,7 +114,7 @@ export function StaffAttendanceView() {
     return [...staff.filter((m) => !m.role.trim())].sort((a, b) => {
       const ta = tenureYears(a.hire_date) ?? -1
       const tb = tenureYears(b.hire_date) ?? -1
-      if (ta !== tb) return ta - tb
+      if (ta !== tb) return tb - ta
       return a.sort_order - b.sort_order
     })
   }, [staff])
