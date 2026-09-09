@@ -277,7 +277,7 @@ export function QAView() {
             ) : (
               <Plus className="h-4 w-4" aria-hidden="true" />
             )}
-            {addingQuestion ? '閉じる' : '質問を追加'}
+            {addingQuestion ? '閉じ��' : '質問を追加'}
           </button>
         )}
       </div>
@@ -543,16 +543,6 @@ export function QAView() {
 
           {answering && (
             <div className="flex flex-col gap-2.5 rounded-2xl border border-border/60 bg-background px-4 py-4">
-              <input
-                type="text"
-                value={answerForm.title}
-                onChange={(e) =>
-                  setAnswerForm((p) => ({ ...p, title: e.target.value }))
-                }
-                placeholder="回答タイトル（任意）"
-                aria-label="回答タイトル"
-                className="w-full rounded-xl border border-border bg-card px-3.5 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60"
-              />
               <textarea
                 value={answerForm.body}
                 onChange={(e) =>
