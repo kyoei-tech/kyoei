@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { LogIn, LogOut } from 'lucide-react'
 import {
   addHours,
@@ -40,6 +40,7 @@ type PersistedState = {
   countdownOffset: number
   hour12: boolean
   trip: TripState | null
+  screen: Screen
 }
 
 function loadState(): PersistedState | null {
@@ -55,8 +56,10 @@ function loadState(): PersistedState | null {
 
 export function HomeView({
   onOpenAccidentCalendar,
+  homeSignal,
 }: {
   onOpenAccidentCalendar?: () => void
+  homeSignal?: number
 }) {
   const [now, setNow] = useState(() => new Date())
   const [mode, setMode] = useState<Mode>('idle')
@@ -82,6 +85,7 @@ export function HomeView({
       setCountdownOffset(saved.countdownOffset)
       setHour12(saved.hour12)
       setTrip(saved.trip ?? null)
+      setScreen(saved.screen ?? 'home')
     }
     setHydrated(true)
   }, [])
@@ -95,9 +99,23 @@ export function HomeView({
       countdownOffset,
       hour12,
       trip,
+      screen,
     }
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
-  }, [hydrated, mode, startedAt, countdownOffset, hour12, trip])
+  }, [hydrated, mode, startedAt, countdownOffset, hour12, trip, screen])
+
+  // Tapping the home tab (even while already on it) always jumps back to
+  // the top-level home screen, out of 運行状況/休息状況. Only react when the
+  // signal's value actually changes from what we last saw, so mounting (or
+  // Strict Mode's dev-only double-invoke of this effect) never overrides the
+  // screen we just restored from storage.
+  const lastHomeSignal = useRef(homeSignal)
+  useEffect(() => {
+    if (homeSignal === undefined) return
+    if (lastHomeSignal.current === homeSignal) return
+    lastHomeSignal.current = homeSignal
+    setScreen('home')
+  }, [homeSignal])
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 250)
