@@ -134,7 +134,7 @@ export function DrivingStatusView({
         className="flex items-center gap-1 self-start text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
       >
         <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-        ホームへ戻る
+        出庫
       </button>
 
       <div className="flex flex-1 flex-col justify-evenly gap-3">

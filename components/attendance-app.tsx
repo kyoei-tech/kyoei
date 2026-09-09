@@ -20,6 +20,9 @@ export function AttendanceApp() {
   const [menuInitialItem, setMenuInitialItem] = useState<MenuItemId | null>(
     null,
   )
+  // Bumped every time the home tab is tapped (even while already on it), so
+  // HomeView can jump back to its top-level screen out of 運行状況/休息状況.
+  const [homeSignal, setHomeSignal] = useState(0)
   const { fontScaleFor } = useSettings()
 
   // Font size is configured per bottom tab in Settings (メニュー > 設定).
@@ -34,6 +37,9 @@ export function AttendanceApp() {
     if (id === 'menu') {
       setMenuInitialItem(null)
       setMenuResetKey((k) => k + 1)
+    }
+    if (id === 'home') {
+      setHomeSignal((k) => k + 1)
     }
     setTab(id)
   }
