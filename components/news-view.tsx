@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
+import { usePasswordGate } from './password-prompt'
 
 type NewsPost = {
   id: string
@@ -69,6 +70,7 @@ export function NewsView() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm())
+  const { guard, prompt } = usePasswordGate('2486')
 
   // Shared across every browser: fetched from Supabase and kept live via
   // Postgres Changes, so a post made anywhere shows up here automatically.
@@ -270,6 +272,7 @@ export function NewsView() {
         <h2 className="text-xl font-bold text-foreground">
           過去の投稿を編集
         </h2>
+        {prompt}
         {sorted.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-border px-5 py-10 text-center text-sm text-muted-foreground">
             まだ投稿がありません。
@@ -293,7 +296,7 @@ export function NewsView() {
                   <div className="flex shrink-0 items-center gap-0.5">
                     <button
                       type="button"
-                      onClick={() => openEdit(p)}
+                      onClick={() => guard(() => openEdit(p))}
                       aria-label={`${p.title}を編集`}
                       className="rounded-lg p-1.5 text-muted-foreground/60 transition-colors hover:text-foreground active:scale-90"
                     >
@@ -351,13 +354,15 @@ export function NewsView() {
         </div>
         <button
           type="button"
-          onClick={openCreate}
+          onClick={() => guard(openCreate)}
           className="flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95"
         >
           <Plus className="h-4 w-4" aria-hidden="true" />
           投稿
         </button>
       </div>
+
+      {prompt}
 
       {sorted.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-border px-5 py-10 text-center text-sm text-muted-foreground">

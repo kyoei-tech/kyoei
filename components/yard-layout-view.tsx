@@ -5,6 +5,7 @@ import { Check, Pencil, Plus, Settings2, Trash2, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { ConfirmDeleteInline, DeleteIconButton } from './confirm-delete'
+import { usePasswordGate } from './password-prompt'
 
 // Shared across every browser via the `yards` / `yard_rows` Supabase tables.
 type YardRow = { id: string; name: string; sort_order: number; updated_at: string }
@@ -97,6 +98,7 @@ export function YardLayoutView() {
   const [destinationEditName, setDestinationEditName] = useState('')
   const [confirmDeleteDestinationId, setConfirmDeleteDestinationId] =
     useState<string | null>(null)
+  const { guard, prompt } = usePasswordGate('5789')
 
   const { data: yardRows, mutate: refetchYards } = useRealtimeTable<YardRow>(
     'yards',
@@ -340,7 +342,11 @@ export function YardLayoutView() {
         </div>
         <button
           type="button"
-          onClick={() => setManagingDestinations((v) => !v)}
+          onClick={() =>
+            managingDestinations
+              ? setManagingDestinations(false)
+              : guard(() => setManagingDestinations(true))
+          }
           className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors active:scale-95 ${
             managingDestinations
               ? 'bg-primary text-primary-foreground'
@@ -351,6 +357,8 @@ export function YardLayoutView() {
           行き先を管理
         </button>
       </div>
+
+      {prompt}
 
       {managingDestinations && (
         <section className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
@@ -697,7 +705,11 @@ export function YardLayoutView() {
               )}
               <button
                 type="button"
-                onClick={() => (editing ? stopEditYard() : startEditYard(yard))}
+                onClick={() =>
+                  editing
+                    ? stopEditYard()
+                    : guard(() => startEditYard(yard))
+                }
                 className={`flex shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors active:scale-95 ${
                   editing
                     ? 'bg-primary text-primary-foreground'

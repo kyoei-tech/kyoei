@@ -12,6 +12,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { ConfirmDeleteInline } from './confirm-delete'
 import { AccidentStreakBadge } from './accident-streak-badge'
+import { usePasswordGate } from './password-prompt'
 
 // Shared across every browser via the `accident_records` Supabase table.
 type AccidentRow = {
@@ -134,6 +135,7 @@ export function AccidentCalendarView() {
   const [historyForm, setHistoryForm] = useState(emptyForm)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const { guard, prompt } = usePasswordGate('2486')
 
   const { data: rows, mutate: refetch } = useRealtimeTable<AccidentRow>(
     'accident_records',
@@ -346,12 +348,22 @@ export function AccidentCalendarView() {
         </section>
       )}
 
+      {prompt}
+
       <button
         type="button"
         onClick={() => {
-          setEditingNew((v) => !v)
-          setShowHistory(false)
-          setForm(emptyForm())
+          if (editingNew) {
+            setEditingNew(false)
+            setShowHistory(false)
+            setForm(emptyForm())
+            return
+          }
+          guard(() => {
+            setEditingNew(true)
+            setShowHistory(false)
+            setForm(emptyForm())
+          })
         }}
         className={`flex items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-semibold transition-colors active:scale-95 ${
           editingNew

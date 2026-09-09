@@ -1,4 +1,4 @@
-import { Timer } from 'lucide-react'
+import { ChevronRight, Timer } from 'lucide-react'
 
 type Mode = 'idle' | 'departure' | 'return'
 
@@ -6,6 +6,12 @@ const LABELS: Record<Mode, string> = {
   idle: 'タイマー',
   departure: '運行時間',
   return: '出庫可能時刻まで残り',
+}
+
+const STATUS_PAGE_LABELS: Record<Mode, string> = {
+  idle: '',
+  departure: '運行状況を見る',
+  return: '休息状況を見る',
 }
 
 const COUNTDOWN_OPTIONS = [3, 9, 33]
@@ -24,12 +30,14 @@ export function ShiftTimer({
   finished,
   countdownOffset,
   onSelectCountdown,
+  onOpenStatus,
 }: {
   mode: Mode
   text: string
   finished: boolean
   countdownOffset: number
   onSelectCountdown: (hours: number) => void
+  onOpenStatus?: () => void
 }) {
   const accent =
     mode === 'departure'
@@ -64,6 +72,17 @@ export function ShiftTimer({
           )
         })()}
       </p>
+
+      {mode !== 'idle' && onOpenStatus && (
+        <button
+          type="button"
+          onClick={onOpenStatus}
+          className="mx-auto mt-3 flex items-center gap-1 rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground active:scale-95"
+        >
+          {STATUS_PAGE_LABELS[mode]}
+          <ChevronRight className="h-3 w-3" aria-hidden="true" />
+        </button>
+      )}
 
       {mode === 'return' ? (
         <div className="mt-4 flex items-center justify-center gap-2">
