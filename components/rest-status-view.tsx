@@ -28,6 +28,8 @@ export function RestStatusView({
     new Date(returnedAt + countdownOffset * 3600 * 1000),
     { hour12: false, seconds: false },
   )
+  const returnDateLabel = `${returnParts.date} ${returnParts.weekday}`
+  const departableDateLabel = `${departableParts.date} ${departableParts.weekday}`
 
   return (
     <div className="flex flex-1 flex-col gap-3">
@@ -56,11 +58,17 @@ export function RestStatusView({
           <p className="font-mono text-xl font-bold tabular-nums text-primary">
             {returnParts.time}
           </p>
+          <p className="mt-0.5 text-[0.65rem] font-medium text-muted-foreground">
+            {returnDateLabel}
+          </p>
         </div>
         <div className="rounded-2xl border border-border bg-card px-3 py-3 text-center">
           <p className="text-xs font-bold text-primary">出庫可能時刻</p>
           <p className="font-mono text-xl font-bold tabular-nums text-primary">
             {departableParts.time}
+          </p>
+          <p className="mt-0.5 text-[0.65rem] font-medium text-muted-foreground">
+            {departableDateLabel}
           </p>
         </div>
       </div>

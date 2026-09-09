@@ -1,7 +1,15 @@
 'use client'
 
+import type { ComponentType } from 'react'
 import { useState } from 'react'
-import { ArrowLeft, Boxes, Coffee, PackageCheck, PackageOpen } from 'lucide-react'
+import {
+  ArrowDownToLine,
+  ArrowLeft,
+  ArrowUpFromLine,
+  Boxes,
+  CarFront,
+  Coffee,
+} from 'lucide-react'
 import { formatClock, formatDuration, type ClockParts } from '@/lib/shift-time'
 import {
   FOUR_HOURS_MS,
@@ -19,9 +27,40 @@ import {
 } from '@/lib/trip-log'
 import { ConfirmActionModal } from './confirm-action-modal'
 
-const BREAK_BUTTONS: { id: BreakCategory; label: string; icon: typeof Boxes }[] = [
-  { id: 'loading', label: '荷積', icon: PackageCheck },
-  { id: 'unloading', label: '荷卸', icon: PackageOpen },
+type IconProps = { className?: string; 'aria-hidden'?: boolean | 'true' | 'false' }
+type IconComponent = ComponentType<IconProps>
+
+/** Car being driven up onto the carrier bed — represents 荷積 (loading). */
+const LoadCarIcon: IconComponent = ({ className }) => (
+  <span
+    className={`relative inline-flex items-center justify-center ${className ?? ''}`}
+    aria-hidden="true"
+  >
+    <CarFront className="h-full w-full" />
+    <ArrowUpFromLine
+      className="absolute -top-1.5 left-1/2 h-2.5 w-2.5 -translate-x-1/2"
+      strokeWidth={3}
+    />
+  </span>
+)
+
+/** Car being driven down off the carrier bed — represents 荷卸 (unloading). */
+const UnloadCarIcon: IconComponent = ({ className }) => (
+  <span
+    className={`relative inline-flex items-center justify-center ${className ?? ''}`}
+    aria-hidden="true"
+  >
+    <CarFront className="h-full w-full" />
+    <ArrowDownToLine
+      className="absolute -bottom-1.5 left-1/2 h-2.5 w-2.5 -translate-x-1/2"
+      strokeWidth={3}
+    />
+  </span>
+)
+
+const BREAK_BUTTONS: { id: BreakCategory; label: string; icon: IconComponent }[] = [
+  { id: 'loading', label: '荷積', icon: LoadCarIcon },
+  { id: 'unloading', label: '荷卸', icon: UnloadCarIcon },
   { id: 'waiting', label: '待機', icon: Boxes },
   { id: 'resting', label: '休憩', icon: Coffee },
 ]
@@ -76,6 +115,7 @@ export function DrivingStatusView({
     hour12: false,
     seconds: false,
   })
+  const departureDateLabel = `${departureParts.date} ${departureParts.weekday}`
 
   const isDriving = trip.activeCategory === 'driving'
 
@@ -113,6 +153,9 @@ export function DrivingStatusView({
           <p className="text-xs font-bold text-secondary">出庫時刻</p>
           <p className="font-mono text-xl font-bold tabular-nums text-secondary">
             {departureParts.time}
+          </p>
+          <p className="mt-0.5 text-[0.65rem] font-medium text-muted-foreground">
+            {departureDateLabel}
           </p>
         </div>
         <div className="rounded-2xl border border-border bg-card px-3 py-3.5 text-center">
