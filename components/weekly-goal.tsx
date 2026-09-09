@@ -7,33 +7,42 @@ import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { usePasswordGate } from './password-prompt'
 
 // Shared across every browser via the `weekly_goal` Supabase table (single row).
-type GoalRow = { id: string; content: string; updated_at: string }
+type GoalRow = {
+  id: string
+  title: string
+  content: string
+  updated_at: string
+}
 
 async function fetchGoal(): Promise<GoalRow[]> {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('weekly_goal')
-    .select('id, content, updated_at')
+    .select('id, title, content, updated_at')
     .eq('id', 'current')
   if (error) throw error
   return (data as GoalRow[]) ?? []
 }
 
 const DOUBLE_TAP_MS = 350
+const DEFAULT_TITLE = '今週の目標'
 
 export function WeeklyGoal() {
   const { data: rows, mutate: refetch } = useRealtimeTable<GoalRow>(
     'weekly_goal',
     fetchGoal,
   )
+  const title = rows[0]?.title ?? DEFAULT_TITLE
   const goal = rows[0]?.content ?? ''
   const [editing, setEditing] = useState(false)
+  const [titleDraft, setTitleDraft] = useState('')
   const [draft, setDraft] = useState('')
   const [saving, setSaving] = useState(false)
   const lastTapRef = useRef(0)
   const { guard, prompt } = usePasswordGate('2486')
 
   function startEditing() {
+    setTitleDraft(title)
     setDraft(goal)
     setEditing(true)
   }
@@ -55,7 +64,11 @@ export function WeeklyGoal() {
       const supabase = createClient()
       await supabase
         .from('weekly_goal')
-        .update({ content: draft.trim(), updated_at: new Date().toISOString() })
+        .update({
+          title: titleDraft.trim() || DEFAULT_TITLE,
+          content: draft.trim(),
+          updated_at: new Date().toISOString(),
+        })
         .eq('id', 'current')
       await refetch()
       setEditing(false)
@@ -73,7 +86,7 @@ export function WeeklyGoal() {
       <div className="flex items-center gap-1">
         <Target className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
         <span className="text-xs font-bold tracking-wide text-primary">
-          今週の目標
+          {title}
         </span>
       </div>
 
@@ -82,6 +95,14 @@ export function WeeklyGoal() {
           className="mt-2 flex flex-col gap-2"
           onClick={(e) => e.stopPropagation()}
         >
+          <input
+            type="text"
+            value={titleDraft}
+            onChange={(e) => setTitleDraft(e.target.value)}
+            placeholder="タイトルを入力"
+            aria-label="今週の目標のタイトル"
+            className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-primary outline-none placeholder:text-muted-foreground focus:border-primary/60"
+          />
           <textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
