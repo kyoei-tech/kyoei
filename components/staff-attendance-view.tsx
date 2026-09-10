@@ -183,9 +183,11 @@ export function StaffAttendanceView() {
   )
   const noRole = useMemo(() => {
     return [...staff.filter((m) => !m.role.trim())].sort((a, b) => {
-      const ta = tenureYears(a.hire_date) ?? -1
-      const tb = tenureYears(b.hire_date) ?? -1
-      if (ta !== tb) return tb - ta
+      const ta = tenureDuration(a.hire_date)
+      const tb = tenureDuration(b.hire_date)
+      const ma = ta ? ta.years * 12 + ta.months : -1
+      const mb = tb ? tb.years * 12 + tb.months : -1
+      if (ma !== mb) return mb - ma
       return a.sort_order - b.sort_order
     })
   }, [staff])
@@ -454,11 +456,11 @@ export function StaffAttendanceView() {
           {[member.role, member.vehicle_class].filter(Boolean).join(' / ') ||
             '—'}
         </span>
-                  {tenure !== null && (
-                    <span className="text-xs text-muted-foreground">
-                      {formatTenure(tenure)}
-                    </span>
-                  )}
+        {tenure !== null && (
+          <span className="text-xs text-muted-foreground">
+            {formatTenure(tenure)}
+          </span>
+        )}
         <span className="line-clamp-2 min-h-[2rem] w-full whitespace-pre-wrap px-1 text-[11px] leading-4 text-muted-foreground">
           {working ? member.comment : ''}
         </span>
