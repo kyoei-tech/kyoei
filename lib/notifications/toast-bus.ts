@@ -22,12 +22,15 @@ export function emitToast(title: string, message: string): void {
     title,
     message,
   }
+  console.log('[v0] emitToast called, listener count:', listeners.size, event)
   for (const listener of listeners) listener(event)
 }
 
 export function subscribeToast(listener: Listener): () => void {
   listeners.add(listener)
+  console.log('[v0] subscribeToast, listener count now:', listeners.size)
   return () => {
     listeners.delete(listener)
+    console.log('[v0] unsubscribeToast, listener count now:', listeners.size)
   }
 }
