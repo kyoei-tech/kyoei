@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ArrowLeft, Play, Plus, Trash2, X } from 'lucide-react'
+import { ArrowLeft, Loader2, Play, Plus, Trash2, X } from 'lucide-react'
 import type { NotificationTimerType } from '@/lib/notifications/driving-notifications'
 import {
   createPushNotificationRule,
@@ -66,6 +66,7 @@ type RuleForm = {
 }
 
 const EMPTY_FORM: RuleForm = { hours: 0, minutes: 0, title: '', message: '' }
+const PREVIEW_DELAY_MS = 3000
 
 export function PushNotificationEditorView({
   onBack,
@@ -80,6 +81,16 @@ export function PushNotificationEditorView({
   const [form, setForm] = useState<RuleForm>(EMPTY_FORM)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+  const [previewingId, setPreviewingId] = useState<string | null>(null)
+
+  function previewRule(rule: { id: string; title: string; message: string }) {
+    if (previewingId) return
+    setPreviewingId(rule.id)
+    setTimeout(() => {
+      void deliverNotification(rule.title, rule.message)
+      setPreviewingId(null)
+    }, PREVIEW_DELAY_MS)
+  }
 
   function startAdd(type: NotificationTimerType) {
     setEditingId(null)
@@ -361,13 +372,23 @@ export function PushNotificationEditorView({
                       <div className="flex shrink-0 gap-1">
                         <button
                           type="button"
-                          onClick={() =>
-                            deliverNotification(rule.title, rule.message)
+                          onClick={() => previewRule(rule)}
+                          disabled={previewingId === rule.id}
+                          aria-label={
+                            previewingId === rule.id
+                              ? '3秒後にテスト通知を送信します'
+                              : 'テスト通知を送信'
                           }
-                          aria-label="テスト通知を送信"
-                          className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground active:scale-90"
+                          className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground active:scale-90 disabled:opacity-60"
                         >
-                          <Play className="h-4 w-4" aria-hidden="true" />
+                          {previewingId === rule.id ? (
+                            <Loader2
+                              className="h-4 w-4 animate-spin"
+                              aria-hidden="true"
+                            />
+                          ) : (
+                            <Play className="h-4 w-4" aria-hidden="true" />
+                          )}
                         </button>
                         <button
                           type="button"
