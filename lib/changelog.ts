@@ -17,6 +17,18 @@ export type ChangelogVersion = {
 
 export const CHANGELOG: ChangelogVersion[] = [
   {
+    version: '1.7.0',
+    date: '2026-09-10',
+    entries: [
+      {
+        page: 'Version',
+        kind: '変更',
+        description:
+          '4回連続タップでの削除をやめ、各項目に編集ボタンを追加。暗証番号（0525）を入力すると「編集」「非表示」「削除」から選べるようになりました。非表示にした項目は一覧の下にまとめて表示され、いつでも元に戻せます。',
+      },
+    ],
+  },
+  {
     version: '1.6.0',
     date: '2026-09-10',
     entries: [
