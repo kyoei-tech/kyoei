@@ -45,6 +45,10 @@ type StoredSettings = {
   // affordances, and hides the LoL and Version menu entries. Guarded by a
   // shared PIN when toggling either direction.
   partTimeMode: boolean
+  // When true, the fixed 運行状況 timer thresholds (連続走行時間 /
+  // 累計休息時間 / 運行時間) trigger OS-level push notifications. The
+  // conditions and messages themselves are not user-configurable.
+  pushNotificationsEnabled: boolean
 }
 
 function defaultSettings(): StoredSettings {
@@ -60,6 +64,7 @@ function defaultSettings(): StoredSettings {
     deviceFont: false,
     appMode: 'driver',
     partTimeMode: false,
+    pushNotificationsEnabled: false,
   }
 }
 
@@ -76,6 +81,8 @@ function loadSettings(): StoredSettings {
       deviceFont: parsed.deviceFont ?? base.deviceFont,
       appMode: parsed.appMode ?? base.appMode,
       partTimeMode: parsed.partTimeMode ?? base.partTimeMode,
+      pushNotificationsEnabled:
+        parsed.pushNotificationsEnabled ?? base.pushNotificationsEnabled,
     }
   } catch {
     return defaultSettings()
@@ -94,6 +101,8 @@ type SettingsContextValue = {
   setAppMode: (mode: AppMode) => void
   partTimeMode: boolean
   setPartTimeMode: (enabled: boolean) => void
+  pushNotificationsEnabled: boolean
+  setPushNotificationsEnabled: (enabled: boolean) => void
 }
 
 const SettingsContext = createContext<SettingsContextValue | null>(null)
@@ -163,6 +172,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       })),
     [],
   )
+  const setPushNotificationsEnabled = useCallback(
+    (enabled: boolean) =>
+      setSettings((p) => ({ ...p, pushNotificationsEnabled: enabled })),
+    [],
+  )
   const fontScaleFor = useCallback(
     (tab: FontTabId) => {
       if (settings.deviceFont) return 1
@@ -186,6 +200,8 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       setAppMode,
       partTimeMode: settings.partTimeMode,
       setPartTimeMode,
+      pushNotificationsEnabled: settings.pushNotificationsEnabled,
+      setPushNotificationsEnabled,
     }),
     [
       settings.theme,
@@ -193,12 +209,14 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       settings.deviceFont,
       settings.appMode,
       settings.partTimeMode,
+      settings.pushNotificationsEnabled,
       setTheme,
       setFontLevel,
       fontScaleFor,
       setDeviceFont,
       setAppMode,
       setPartTimeMode,
+      setPushNotificationsEnabled,
     ],
   )
 

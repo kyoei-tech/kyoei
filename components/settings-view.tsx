@@ -1,12 +1,19 @@
 'use client'
 
-import { Briefcase, Monitor, Moon, Smartphone, Sun } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Bell, Briefcase, Monitor, Moon, Smartphone, Sun } from 'lucide-react'
 import {
   FONT_SCALES,
   FONT_TABS,
   useSettings,
   type ThemeMode,
 } from '@/lib/settings/settings-context'
+import {
+  ensureServiceWorkerRegistration,
+  getNotificationPermission,
+  isNotificationSupported,
+  requestNotificationPermission,
+} from '@/lib/notifications/push-notifications'
 import { usePasswordGate } from './password-prompt'
 
 const THEME_OPTIONS: { id: ThemeMode; label: string; Icon: typeof Sun }[] = [
@@ -29,8 +36,32 @@ export function SettingsView() {
     setDeviceFont,
     partTimeMode,
     setPartTimeMode,
+    pushNotificationsEnabled,
+    setPushNotificationsEnabled,
   } = useSettings()
   const { guard, prompt } = usePasswordGate(PART_TIME_MODE_PASSCODE)
+
+  const [notificationSupported, setNotificationSupported] = useState(true)
+  const [permission, setPermission] =
+    useState<NotificationPermission | null>(null)
+
+  useEffect(() => {
+    setNotificationSupported(isNotificationSupported())
+    setPermission(getNotificationPermission())
+  }, [])
+
+  async function handleTogglePushNotifications() {
+    if (pushNotificationsEnabled) {
+      setPushNotificationsEnabled(false)
+      return
+    }
+    const result = await requestNotificationPermission()
+    setPermission(result)
+    if (result === 'granted') {
+      await ensureServiceWorkerRegistration()
+      setPushNotificationsEnabled(true)
+    }
+  }
 
   return (
     <div className="flex flex-col gap-6 pb-6">
@@ -193,6 +224,56 @@ export function SettingsView() {
             />
           </span>
         </button>
+      </section>
+
+      <section className="flex flex-col gap-3 rounded-2xl border border-border bg-card px-5 py-5">
+        <h3 className="text-base font-bold text-foreground">プッシュ通知</h3>
+        <p className="text-xs text-muted-foreground">
+          運行状況の連続走行時間・累計休息時間・運行時間が一定の時間を超えると通知でお知らせします。通知の条件は変更できません。
+        </p>
+        <button
+          type="button"
+          onClick={handleTogglePushNotifications}
+          disabled={!notificationSupported}
+          aria-pressed={pushNotificationsEnabled}
+          className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left transition-colors active:scale-[0.99] disabled:opacity-50 ${
+            pushNotificationsEnabled
+              ? 'border-primary bg-primary/15'
+              : 'border-border bg-background'
+          }`}
+        >
+          <span className="flex items-center gap-2.5">
+            <Bell
+              className={`h-5 w-5 ${
+                pushNotificationsEnabled ? 'text-primary' : 'text-muted-foreground'
+              }`}
+              aria-hidden="true"
+            />
+            <span className="text-sm font-semibold text-foreground">
+              プッシュ通知
+            </span>
+          </span>
+          <span
+            className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
+              pushNotificationsEnabled ? 'bg-primary' : 'bg-border'
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 h-5 w-5 rounded-full bg-card transition-transform ${
+                pushNotificationsEnabled ? 'translate-x-5' : 'translate-x-0.5'
+              }`}
+            />
+          </span>
+        </button>
+        {!notificationSupported ? (
+          <p className="text-xs text-muted-foreground">
+            このブラウザは通知に対応していません。
+          </p>
+        ) : permission === 'denied' ? (
+          <p className="text-xs text-destructive">
+            通知がブロックされています。ブラウザの設定から通知を許可してください。
+          </p>
+        ) : null}
       </section>
 
       {prompt}

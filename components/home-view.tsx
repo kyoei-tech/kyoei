@@ -10,6 +10,7 @@ import {
 } from '@/lib/shift-time'
 import { registerSplitRest, resetSplitRestState } from '@/lib/split-rest'
 import {
+  liveContinuousDrivingMs,
   startTrip,
   tapBreakCategory as tapBreakCategoryPure,
   tapResumeDriving as tapResumeDrivingPure,
@@ -17,6 +18,13 @@ import {
   type BreakCategory,
   type TripState,
 } from '@/lib/trip-log'
+import { useSettings } from '@/lib/settings/settings-context'
+import {
+  initialNotifyState,
+  tickNotifyState,
+  type NotifyState,
+} from '@/lib/notifications/driving-notifications'
+import { showAppNotification } from '@/lib/notifications/push-notifications'
 import { LiveClock } from './live-clock'
 import { StatusDisplay } from './status-display'
 import { ShiftTimer } from './shift-timer'
@@ -41,6 +49,7 @@ type PersistedState = {
   hour12: boolean
   trip: TripState | null
   screen: Screen
+  notify?: NotifyState
 }
 
 function loadState(): PersistedState | null {
@@ -71,8 +80,10 @@ export function HomeView({
   const [hydrated, setHydrated] = useState(false)
   const [screen, setScreen] = useState<Screen>('home')
   const [trip, setTrip] = useState<TripState | null>(null)
+  const [notify, setNotify] = useState<NotifyState>(initialNotifyState)
   const [pendingHomeAction, setPendingHomeAction] =
     useState<PendingHomeAction>(null)
+  const { pushNotificationsEnabled } = useSettings()
 
   const toggleFormat = useCallback(() => setHour12((v) => !v), [])
 
@@ -86,6 +97,7 @@ export function HomeView({
       setHour12(saved.hour12)
       setTrip(saved.trip ?? null)
       setScreen(saved.screen ?? 'home')
+      setNotify(saved.notify ?? initialNotifyState())
     }
     setHydrated(true)
   }, [])
@@ -100,9 +112,19 @@ export function HomeView({
       hour12,
       trip,
       screen,
+      notify,
     }
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
-  }, [hydrated, mode, startedAt, countdownOffset, hour12, trip, screen])
+  }, [
+    hydrated,
+    mode,
+    startedAt,
+    countdownOffset,
+    hour12,
+    trip,
+    screen,
+    notify,
+  ])
 
   // Tapping the home tab (even while already on it) always jumps back to
   // the top-level home screen, out of 運行状況/休息状況. Only react when the
@@ -122,10 +144,30 @@ export function HomeView({
     return () => clearInterval(id)
   }, [])
 
-  // Applies the 30-minute 累計休憩時間 auto-reset rule as time passes.
+  // Applies the 30-minute 累計休憩時間 auto-reset rule as time passes, and
+  // (when enabled) checks the fixed push-notification thresholds against
+  // the freshly ticked timers so a reset-driven event (累計休息時間) and the
+  // trip state that caused it stay in sync.
   useEffect(() => {
     if (!trip) return
-    setTrip((cur) => (cur ? tickTrip(cur, now.getTime()) : cur))
+    const nowMs = now.getTime()
+    const tickedTrip = tickTrip(trip, nowMs)
+    if (tickedTrip !== trip) setTrip(tickedTrip)
+
+    if (pushNotificationsEnabled) {
+      const continuousMs = liveContinuousDrivingMs(tickedTrip, nowMs)
+      const drivingMs =
+        mode === 'departure' && startedAt != null ? nowMs - startedAt : 0
+      const { state, events } = tickNotifyState(notify, {
+        continuousMs,
+        drivingMs,
+        breakSatisfied: tickedTrip.breakSatisfied,
+      })
+      setNotify(state)
+      for (const event of events) {
+        void showAppNotification(event.title, event.body)
+      }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-run per tick
   }, [now])
 
@@ -137,6 +179,7 @@ export function HomeView({
     setMode('departure')
     setStartedAt(now)
     setTrip(startTrip(now, splitRestRemainingMs))
+    setNotify(initialNotifyState())
     setScreen('home')
   }
 
