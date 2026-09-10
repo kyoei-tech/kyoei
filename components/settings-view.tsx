@@ -26,7 +26,7 @@ const THEME_OPTIONS: { id: ThemeMode; label: string; Icon: typeof Sun }[] = [
 const LEVELS = [1, 2, 3, 4, 5, 6]
 
 const PART_TIME_MODE_PASSCODE = '2486'
-const PUSH_NOTIFICATION_EDITOR_PASSCODE = '7391'
+const PUSH_NOTIFICATION_EDITOR_PASSCODE = '0525'
 
 // Tapping the bell icon 5 times within this window opens the (otherwise
 // hidden) push-notification rule editor, behind a PIN. Same convention as
