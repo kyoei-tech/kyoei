@@ -24,7 +24,8 @@ import {
   tickNotifyState,
   type NotifyState,
 } from '@/lib/notifications/driving-notifications'
-import { showAppNotification } from '@/lib/notifications/push-notifications'
+import { deliverNotification } from '@/lib/notifications/push-notifications'
+import { usePushNotificationRules } from '@/lib/notifications/push-rules'
 import { LiveClock } from './live-clock'
 import { StatusDisplay } from './status-display'
 import { ShiftTimer } from './shift-timer'
@@ -84,6 +85,7 @@ export function HomeView({
   const [pendingHomeAction, setPendingHomeAction] =
     useState<PendingHomeAction>(null)
   const { pushNotificationsEnabled } = useSettings()
+  const { data: notificationRules } = usePushNotificationRules()
 
   const toggleFormat = useCallback(() => setHour12((v) => !v), [])
 
@@ -145,27 +147,32 @@ export function HomeView({
   }, [])
 
   // Applies the 30-minute 累計休憩時間 auto-reset rule as time passes, and
-  // (when enabled) checks the fixed push-notification thresholds against
-  // the freshly ticked timers so a reset-driven event (累計休息時間) and the
-  // trip state that caused it stay in sync.
+  // (when enabled) checks the editable push-notification rules (see
+  // lib/notifications/push-rules.ts) against the freshly ticked timers so a
+  // reset-driven event (累計休息時間) and the trip state that caused it stay
+  // in sync.
   useEffect(() => {
     if (!trip) return
     const nowMs = now.getTime()
     const tickedTrip = tickTrip(trip, nowMs)
     if (tickedTrip !== trip) setTrip(tickedTrip)
 
-    if (pushNotificationsEnabled) {
+    if (pushNotificationsEnabled && notificationRules.length > 0) {
       const continuousMs = liveContinuousDrivingMs(tickedTrip, nowMs)
       const drivingMs =
         mode === 'departure' && startedAt != null ? nowMs - startedAt : 0
-      const { state, events } = tickNotifyState(notify, {
-        continuousMs,
-        drivingMs,
-        breakSatisfied: tickedTrip.breakSatisfied,
-      })
+      const { state, events } = tickNotifyState(
+        notify,
+        {
+          continuousMs,
+          drivingMs,
+          breakSatisfied: tickedTrip.breakSatisfied,
+        },
+        notificationRules,
+      )
       setNotify(state)
       for (const event of events) {
-        void showAppNotification(event.title, event.body)
+        void deliverNotification(event.title, event.message)
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-run per tick

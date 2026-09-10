@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Bell, Briefcase, Monitor, Moon, Smartphone, Sun } from 'lucide-react'
 import {
   FONT_SCALES,
@@ -15,6 +15,7 @@ import {
   requestNotificationPermission,
 } from '@/lib/notifications/push-notifications'
 import { usePasswordGate } from './password-prompt'
+import { PushNotificationEditorView } from './push-notification-editor-view'
 
 const THEME_OPTIONS: { id: ThemeMode; label: string; Icon: typeof Sun }[] = [
   { id: 'dark', label: 'ダーク', Icon: Moon },
@@ -25,6 +26,13 @@ const THEME_OPTIONS: { id: ThemeMode; label: string; Icon: typeof Sun }[] = [
 const LEVELS = [1, 2, 3, 4, 5, 6]
 
 const PART_TIME_MODE_PASSCODE = '2486'
+const PUSH_NOTIFICATION_EDITOR_PASSCODE = '7391'
+
+// Tapping the bell icon 5 times within this window opens the (otherwise
+// hidden) push-notification rule editor, behind a PIN. Same convention as
+// the home tab's 5-tap 乗務員/タイムカードモード gesture in bottom-tabs.tsx.
+const SECRET_TAP_COUNT = 5
+const SECRET_TAP_WINDOW_MS = 2000
 
 export function SettingsView() {
   const {
@@ -40,6 +48,12 @@ export function SettingsView() {
     setPushNotificationsEnabled,
   } = useSettings()
   const { guard, prompt } = usePasswordGate(PART_TIME_MODE_PASSCODE)
+  const { guard: guardEditor, prompt: editorPrompt } = usePasswordGate(
+    PUSH_NOTIFICATION_EDITOR_PASSCODE,
+  )
+  const [showEditor, setShowEditor] = useState(false)
+  const bellTapCountRef = useRef(0)
+  const bellTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [notificationSupported, setNotificationSupported] = useState(true)
   const [permission, setPermission] =
@@ -48,6 +62,21 @@ export function SettingsView() {
   useEffect(() => {
     setNotificationSupported(isNotificationSupported())
     setPermission(getNotificationPermission())
+  }, [])
+
+  // Push notifications default to ON, but the browser still requires
+  // permission to actually be granted before anything can show. Opportunistically
+  // ask once, the first time this page is opened, if it hasn't been decided yet.
+  useEffect(() => {
+    if (!pushNotificationsEnabled) return
+    if (!isNotificationSupported()) return
+    if (getNotificationPermission() !== 'default') return
+    requestNotificationPermission().then((result) => {
+      setPermission(result)
+      if (result === 'granted') void ensureServiceWorkerRegistration()
+      else setPushNotificationsEnabled(false)
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount only
   }, [])
 
   async function handleTogglePushNotifications() {
@@ -61,6 +90,28 @@ export function SettingsView() {
       await ensureServiceWorkerRegistration()
       setPushNotificationsEnabled(true)
     }
+  }
+
+  function handleBellTap() {
+    bellTapCountRef.current += 1
+    if (bellTapTimerRef.current) clearTimeout(bellTapTimerRef.current)
+    if (bellTapCountRef.current >= SECRET_TAP_COUNT) {
+      bellTapCountRef.current = 0
+      guardEditor(() => setShowEditor(true))
+      return
+    }
+    bellTapTimerRef.current = setTimeout(() => {
+      bellTapCountRef.current = 0
+    }, SECRET_TAP_WINDOW_MS)
+  }
+
+  if (showEditor) {
+    return (
+      <>
+        <PushNotificationEditorView onBack={() => setShowEditor(false)} />
+        {editorPrompt}
+      </>
+    )
   }
 
   return (
@@ -229,7 +280,7 @@ export function SettingsView() {
       <section className="flex flex-col gap-3 rounded-2xl border border-border bg-card px-5 py-5">
         <h3 className="text-base font-bold text-foreground">プッシュ通知</h3>
         <p className="text-xs text-muted-foreground">
-          運行状況の連続走行時間・累計休息時間・運行時間が一定の時間を超えると通知でお知らせします。通知の条件は変更できません。
+          運行状況の連続走行時間・累計休息時間・運行時間が一定の時間を超えると通知でお知らせします。
         </p>
         <button
           type="button"
@@ -244,6 +295,10 @@ export function SettingsView() {
         >
           <span className="flex items-center gap-2.5">
             <Bell
+              onClick={(e) => {
+                e.stopPropagation()
+                handleBellTap()
+              }}
               className={`h-5 w-5 ${
                 pushNotificationsEnabled ? 'text-primary' : 'text-muted-foreground'
               }`}
@@ -277,6 +332,7 @@ export function SettingsView() {
       </section>
 
       {prompt}
+      {editorPrompt}
     </div>
   )
 }

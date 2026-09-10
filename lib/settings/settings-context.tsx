@@ -45,9 +45,10 @@ type StoredSettings = {
   // affordances, and hides the LoL and Version menu entries. Guarded by a
   // shared PIN when toggling either direction.
   partTimeMode: boolean
-  // When true, the fixed 運行状況 timer thresholds (連続走行時間 /
-  // 累計休息時間 / 運行時間) trigger OS-level push notifications. The
-  // conditions and messages themselves are not user-configurable.
+  // When true, the 運行状況 timer thresholds (連続走行時間 / 累計休息時間 /
+  // 運行時間) trigger push notifications (OS-level + in-app toast). The
+  // conditions and messages are editable from Settings' secret editor page
+  // (see push-notification-editor-view.tsx) and stored in Supabase.
   pushNotificationsEnabled: boolean
 }
 
@@ -64,7 +65,7 @@ function defaultSettings(): StoredSettings {
     deviceFont: false,
     appMode: 'driver',
     partTimeMode: false,
-    pushNotificationsEnabled: false,
+    pushNotificationsEnabled: true,
   }
 }
 
