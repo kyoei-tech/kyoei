@@ -281,7 +281,7 @@ export function QAView() {
             ) : (
               <Plus className="h-4 w-4" aria-hidden="true" />
             )}
-            {addingQuestion ? '閉じ���' : '質問を追加'}
+            {addingQuestion ? '閉じる' : '質問を追加'}
           </button>
         )}
       </div>

@@ -292,7 +292,7 @@ function DayCellEditor({
             onChange={(e) => onChange(`${e.target.value}〜${parsed.end}`)}
             className={SELECT_CLASS}
           >
-            <option value="">��空白）</option>
+            <option value="">（空白）</option>
             {TIME_OPTIONS.map((t) => (
               <option key={t} value={t}>
                 {t}
