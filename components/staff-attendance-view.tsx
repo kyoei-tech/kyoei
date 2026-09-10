@@ -485,7 +485,7 @@ export function StaffAttendanceView() {
           />
         )}
         <span className={`text-[0.6rem] font-bold ${statusColor}`}>
-          {checkedIn ? '出勤済み' : '退勤済み'}
+          {checkedIn ? '出勤中' : '退勤済み'}
         </span>
         <span className="line-clamp-1 text-xs font-bold text-foreground">
           {manager.name}
