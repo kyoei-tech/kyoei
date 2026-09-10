@@ -14,23 +14,26 @@ type GoalRow = {
   updated_at: string
 }
 
-async function fetchGoal(): Promise<GoalRow[]> {
-  const supabase = createClient()
-  const { data, error } = await supabase
-    .from('weekly_goal')
-    .select('id, title, content, updated_at')
-    .eq('id', 'current')
-  if (error) throw error
-  return (data as GoalRow[]) ?? []
+function fetchGoal(goalId: string) {
+  return async (): Promise<GoalRow[]> => {
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from('weekly_goal')
+      .select('id, title, content, updated_at')
+      .eq('id', goalId)
+    if (error) throw error
+    return (data as GoalRow[]) ?? []
+  }
 }
 
 const DOUBLE_TAP_MS = 350
 const DEFAULT_TITLE = '今週の目標'
 
-export function WeeklyGoal() {
+export function WeeklyGoal({ goalId = 'current' }: { goalId?: string }) {
   const { data: rows, mutate: refetch } = useRealtimeTable<GoalRow>(
     'weekly_goal',
-    fetchGoal,
+    fetchGoal(goalId),
+    { cacheKey: goalId },
   )
   const title = rows[0]?.title ?? DEFAULT_TITLE
   const goal = rows[0]?.content ?? ''
@@ -69,7 +72,7 @@ export function WeeklyGoal() {
           content: draft.trim(),
           updated_at: new Date().toISOString(),
         })
-        .eq('id', 'current')
+        .eq('id', goalId)
       await refetch()
       setEditing(false)
     } finally {

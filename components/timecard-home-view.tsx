@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Coffee, LogIn, LogOut, Play, Square } from 'lucide-react'
+import { ChevronRight, Stamp, Timer } from 'lucide-react'
 import { formatClock, formatDuration } from '@/lib/shift-time'
 import {
   clockIn as clockInPure,
@@ -10,7 +10,6 @@ import {
   endBreak as endBreakPure,
   liveBreakTotalMs,
   liveShiftElapsedMs,
-  formatHoursMinutes,
   defaultTimecardState,
   type TimecardState,
 } from '@/lib/timecard-log'
@@ -19,25 +18,34 @@ import { FormatToggle } from './format-toggle'
 import { AccidentStreakBadge } from './accident-streak-badge'
 import { WeeklyGoal } from './weekly-goal'
 import { ConfirmActionModal } from './confirm-action-modal'
+import { TimecardWorkStatusView } from './timecard-work-status-view'
 
+type Screen = 'home' | 'status'
 type PendingAction = 'clock-in' | 'clock-out' | null
 
 const STORAGE_KEY = 'kyoei-timecard-state'
 
-function loadState(): TimecardState | null {
+type PersistedState = {
+  timecard: TimecardState
+  hour12: boolean
+  screen: Screen
+}
+
+function loadState(): PersistedState | null {
   if (typeof window === 'undefined') return null
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY)
     if (!raw) return null
-    return JSON.parse(raw) as TimecardState
+    return JSON.parse(raw) as PersistedState
   } catch {
     return null
   }
 }
 
 // Parallel to HomeView, but for タイムカードモード: simple 出勤/退勤 + a single
-// break timer. No 連続走行時間, 累計休憩時間 (10分/30分 rule), or 9/33時間
-// legal rest countdown — those are 乗務員モード (driver mode) only concepts.
+// break timer, plus a 勤務状況 sub-page. No 連続走行時間, 累計休憩時間
+// (10分/30分 rule), or 9/33時間 legal rest countdown — those are 乗務員
+// モード (driver mode) only concepts and live in trip-log.ts/shift-time.ts.
 export function TimecardHomeView({
   onOpenAccidentCalendar,
   homeSignal,
@@ -49,28 +57,35 @@ export function TimecardHomeView({
   const [state, setState] = useState<TimecardState>(defaultTimecardState)
   const [hour12, setHour12] = useState(false)
   const [hydrated, setHydrated] = useState(false)
+  const [screen, setScreen] = useState<Screen>('home')
   const [pendingAction, setPendingAction] = useState<PendingAction>(null)
 
   const toggleFormat = useCallback(() => setHour12((v) => !v), [])
 
   useEffect(() => {
     const saved = loadState()
-    if (saved) setState(saved)
+    if (saved) {
+      setState(saved.timecard)
+      setHour12(saved.hour12)
+      setScreen(saved.screen ?? 'home')
+    }
     setHydrated(true)
   }, [])
 
   useEffect(() => {
     if (!hydrated) return
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
-  }, [hydrated, state])
+    const persisted: PersistedState = { timecard: state, hour12, screen }
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted))
+  }, [hydrated, state, hour12, screen])
 
-  // Tapping the home tab always resets any transient UI; timecard mode has
-  // no sub-screens, but this keeps behavior consistent with HomeView.
+  // Tapping the home tab (even while already on it) always jumps back to
+  // the top-level home screen, out of 勤務状況をみる, matching HomeView.
   const lastHomeSignal = useRef(homeSignal)
   useEffect(() => {
     if (homeSignal === undefined) return
     if (lastHomeSignal.current === homeSignal) return
     lastHomeSignal.current = homeSignal
+    setScreen('home')
   }, [homeSignal])
 
   useEffect(() => {
@@ -85,19 +100,44 @@ export function TimecardHomeView({
 
   function confirmClockIn() {
     setState(clockInPure(Date.now()))
+    setScreen('home')
     setPendingAction(null)
   }
 
   function confirmClockOut() {
     setState((cur) => clockOutPure(cur, Date.now()))
+    setScreen('home')
     setPendingAction(null)
   }
 
-  function handleToggleBreak() {
-    setState((cur) =>
-      cur.onBreak
-        ? endBreakPure(cur, Date.now())
-        : startBreakPure(cur, Date.now()),
+  const handleStartBreak = useCallback(() => {
+    setState((cur) => startBreakPure(cur, Date.now()))
+  }, [])
+
+  const handleEndBreak = useCallback(() => {
+    setState((cur) => endBreakPure(cur, Date.now()))
+  }, [])
+
+  // Second (linked) display parts (no seconds)
+  const statusParts = state.clockedIn
+    ? formatClock(new Date(state.shiftStartedAt ?? nowMs), clockOpts)
+    : formatClock(now, clockOpts)
+
+  const timerText = state.clockedIn
+    ? formatDuration(shiftElapsedMs)
+    : '00:00:00'
+
+  if (screen === 'status' && state.clockedIn && state.shiftStartedAt != null) {
+    return (
+      <TimecardWorkStatusView
+        now={nowMs}
+        nowParts={formatClock(now, { hour12: false, seconds: false })}
+        workStartedAt={state.shiftStartedAt}
+        timecardState={state}
+        onStartBreak={handleStartBreak}
+        onEndBreak={handleEndBreak}
+        onBack={() => setScreen('home')}
+      />
     )
   }
 
@@ -110,11 +150,11 @@ export function TimecardHomeView({
           onToggleFormat={toggleFormat}
         />
         <AccidentStreakBadge size="sm" onClick={onOpenAccidentCalendar} />
-        <WeeklyGoal />
+        <WeeklyGoal goalId="timecard" />
       </div>
 
       <section
-        aria-label="勤務状況"
+        aria-label="連動表示"
         className="rounded-3xl border border-border bg-card px-5 py-2.5"
       >
         <div className="mb-1 flex items-center justify-between">
@@ -123,73 +163,77 @@ export function TimecardHomeView({
               state.clockedIn ? 'text-secondary' : 'text-muted-foreground'
             }`}
           >
-            {state.clockedIn ? '出勤中' : '未出勤'}
+            {state.clockedIn ? '出勤時刻' : 'タイムカード'}
           </span>
           <FormatToggle hour12={hour12} onToggle={toggleFormat} />
         </div>
+        <p className="text-xs font-medium text-muted-foreground">
+          {statusParts.date}
+          <span className="ml-2 text-foreground">{statusParts.weekday}</span>
+        </p>
         <p
           className={`my-1 text-center font-mono text-3xl font-semibold tabular-nums tracking-tight ${
             state.clockedIn ? 'text-secondary' : 'text-foreground'
           }`}
         >
-          {formatDuration(shiftElapsedMs)}
+          {statusParts.meridiem && (
+            <span className="mr-1 text-sm font-medium text-muted-foreground">
+              {statusParts.meridiem}
+            </span>
+          )}
+          {statusParts.time}
         </p>
-        {state.clockedIn && (
-          <p className="text-center text-xs font-medium text-muted-foreground">
-            休憩時間：{formatHoursMinutes(breakTotalMs)}
-          </p>
-        )}
       </section>
 
       <section
-        aria-label="休憩"
+        aria-label="タイマー"
         className="rounded-3xl border border-border bg-card px-5 py-3 text-center"
       >
         <div className="mb-1 flex items-center justify-center gap-1">
-          <Coffee
+          <Timer
             className={`h-4 w-4 ${
-              state.onBreak ? 'text-primary' : 'text-muted-foreground'
+              state.clockedIn ? 'text-secondary' : 'text-muted-foreground'
             }`}
             aria-hidden="true"
           />
           <span
             className={`text-base font-bold tracking-wide ${
-              state.onBreak ? 'text-primary' : 'text-muted-foreground'
+              state.clockedIn ? 'text-secondary' : 'text-muted-foreground'
             }`}
           >
-            休憩時間
+            {state.clockedIn ? '勤務時間' : 'タイマー'}
           </span>
         </div>
         <p
-          className={`font-mono text-4xl font-bold tabular-nums tracking-tight ${
-            state.onBreak ? 'text-primary' : 'text-foreground'
+          className={`font-mono font-bold tabular-nums tracking-tight ${
+            state.clockedIn ? 'text-secondary' : 'text-muted-foreground'
           }`}
         >
-          {formatHoursMinutes(breakTotalMs)}
+          {(() => {
+            const [hh, mm, ss] = timerText.split(':')
+            return (
+              <>
+                <span className="text-4xl">{`${hh}:${mm}`}</span>
+                <span className="ml-1 text-lg">{`:${ss}`}</span>
+              </>
+            )
+          })()}
         </p>
-        <button
-          type="button"
-          onClick={handleToggleBreak}
-          disabled={!state.clockedIn}
-          aria-pressed={state.onBreak}
-          className={`mx-auto mt-2 flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-semibold transition-colors active:scale-95 disabled:opacity-40 ${
-            state.onBreak
-              ? 'bg-primary text-primary-foreground'
-              : 'border border-border bg-muted text-foreground hover:border-primary/60'
-          }`}
-        >
-          {state.onBreak ? (
-            <>
-              <Square className="h-3.5 w-3.5" aria-hidden="true" />
-              休憩終了
-            </>
-          ) : (
-            <>
-              <Play className="h-3.5 w-3.5" aria-hidden="true" />
-              休憩開始
-            </>
-          )}
-        </button>
+
+        {state.clockedIn ? (
+          <button
+            type="button"
+            onClick={() => setScreen('status')}
+            className="mx-auto mt-1.5 flex items-center gap-1 rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground active:scale-95"
+          >
+            勤務状況をみる
+            <ChevronRight className="h-3 w-3" aria-hidden="true" />
+          </button>
+        ) : (
+          <p className="mt-1.5 text-xs text-muted-foreground">
+            出勤ボタンで開始します
+          </p>
+        )}
       </section>
 
       <div className="grid grid-cols-2 gap-2">
@@ -204,7 +248,7 @@ export function TimecardHomeView({
               : 'border-border bg-card text-secondary hover:border-secondary/60'
           }`}
         >
-          <LogIn className="h-5 w-5" aria-hidden="true" />
+          <Stamp className="h-5 w-5" aria-hidden="true" />
           出勤
         </button>
         <button
@@ -213,21 +257,21 @@ export function TimecardHomeView({
           disabled={!state.clockedIn}
           className="flex flex-col items-center justify-center gap-1 rounded-3xl border border-border bg-card py-3 text-sm font-bold leading-tight text-primary transition-all hover:border-primary/60 active:scale-[0.97] disabled:opacity-40"
         >
-          <LogOut className="h-5 w-5" aria-hidden="true" />
+          <Stamp className="h-5 w-5" aria-hidden="true" />
           退勤
         </button>
       </div>
 
       {pendingAction === 'clock-in' && (
         <ConfirmActionModal
-          message="出勤しますか？"
+          message="タイムカードを押しましたか？"
           onConfirm={confirmClockIn}
           onCancel={() => setPendingAction(null)}
         />
       )}
       {pendingAction === 'clock-out' && (
         <ConfirmActionModal
-          message="退勤しますか？"
+          message="タイムカードを押しましたか？"
           onConfirm={confirmClockOut}
           onCancel={() => setPendingAction(null)}
         />

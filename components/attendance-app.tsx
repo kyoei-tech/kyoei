@@ -24,7 +24,7 @@ export function AttendanceApp() {
   // Bumped every time the home tab is tapped (even while already on it), so
   // HomeView can jump back to its top-level screen out of 運行状況/休息状況.
   const [homeSignal, setHomeSignal] = useState(0)
-  const { fontScaleFor, appMode } = useSettings()
+  const { fontScaleFor, appMode, setAppMode } = useSettings()
 
   // Font size is configured per bottom tab in Settings (メニュー > 設定).
   // Since only one tab is mounted at a time, scaling the document root's
@@ -75,7 +75,13 @@ export function AttendanceApp() {
           <MenuView key={menuResetKey} initialItem={menuInitialItem} />
         )}
       </main>
-      <BottomTabs active={tab} onChange={handleTabChange} />
+      <BottomTabs
+        active={tab}
+        onChange={handleTabChange}
+        onSecretHomeGesture={() =>
+          setAppMode(appMode === 'driver' ? 'timecard' : 'driver')
+        }
+      />
     </div>
   )
 }

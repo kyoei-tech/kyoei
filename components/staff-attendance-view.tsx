@@ -31,6 +31,32 @@ async function fetchStaffRows(): Promise<StaffRow[]> {
   return (data as StaffRow[]) ?? []
 }
 
+// Shared across every browser via the `yard_managers` Supabase table.
+// Separate from `staff_members` since a yard manager can be anyone on duty
+// that day (including a driver), not necessarily a registered employee.
+type YardManagerRow = {
+  id: string
+  name: string
+  employment_type: 'regular' | 'parttime'
+  checked_in: boolean
+  sort_order: number
+}
+
+async function fetchYardManagers(): Promise<YardManagerRow[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('yard_managers')
+    .select('id, name, employment_type, checked_in, sort_order')
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: true })
+  if (error) throw error
+  return (data as YardManagerRow[]) ?? []
+}
+
+function emptyYardManagerForm() {
+  return { name: '', employmentType: 'regular' as 'regular' | 'parttime' }
+}
+
 function emptyForm() {
   return {
     name: '',
@@ -93,9 +119,23 @@ export function StaffAttendanceView() {
     >
   >({})
 
+  const [yardAdding, setYardAdding] = useState(false)
+  const [yardEditingId, setYardEditingId] = useState<string | null>(null)
+  const [yardConfirmDeleteId, setYardConfirmDeleteId] = useState<
+    string | null
+  >(null)
+  const [yardForm, setYardForm] = useState(emptyYardManagerForm)
+
   const { data: rows, mutate: refetch } = useRealtimeTable<StaffRow>(
     'staff_members',
     fetchStaffRows,
+  )
+  const { data: yardManagerRows, mutate: refetchYardManagers } =
+    useRealtimeTable<YardManagerRow>('yard_managers', fetchYardManagers)
+
+  const yardManagers = useMemo(
+    () => [...yardManagerRows].sort((a, b) => a.sort_order - b.sort_order),
+    [yardManagerRows],
   )
 
   const staff = useMemo(
@@ -187,6 +227,72 @@ export function StaffAttendanceView() {
       .update({ status: next })
       .eq('id', member.id)
     await refetch()
+  }
+
+  function openYardAdd() {
+    setYardForm(emptyYardManagerForm())
+    setYardEditingId(null)
+    setYardAdding(true)
+  }
+
+  function openYardEdit(manager: YardManagerRow) {
+    setYardForm({
+      name: manager.name,
+      employmentType: manager.employment_type,
+    })
+    setYardEditingId(manager.id)
+    setYardAdding(true)
+  }
+
+  function closeYardForm() {
+    setYardAdding(false)
+    setYardEditingId(null)
+    setYardConfirmDeleteId(null)
+    setYardForm(emptyYardManagerForm())
+  }
+
+  async function saveYardManager() {
+    const name = yardForm.name.trim()
+    if (!name) return
+    const supabase = createClient()
+    if (yardEditingId) {
+      await supabase
+        .from('yard_managers')
+        .update({ name, employment_type: yardForm.employmentType })
+        .eq('id', yardEditingId)
+    } else {
+      await supabase.from('yard_managers').insert({
+        name,
+        employment_type: yardForm.employmentType,
+        checked_in: false,
+        sort_order: yardManagers.length,
+      })
+    }
+    await refetchYardManagers()
+    closeYardForm()
+  }
+
+  async function deleteYardManager(id: string) {
+    const supabase = createClient()
+    await supabase.from('yard_managers').delete().eq('id', id)
+    await refetchYardManagers()
+    closeYardForm()
+  }
+
+  async function toggleYardCheckedIn(manager: YardManagerRow) {
+    if (editMode) {
+      openYardEdit(manager)
+      return
+    }
+    const supabase = createClient()
+    await supabase
+      .from('yard_managers')
+      .update({
+        checked_in: !manager.checked_in,
+        checked_in_at: manager.checked_in ? null : new Date().toISOString(),
+      })
+      .eq('id', manager.id)
+    await refetchYardManagers()
   }
 
   function openCommentEdit(member: StaffRow) {
@@ -282,6 +388,28 @@ export function StaffAttendanceView() {
     )
   }
 
+  function renderYardManagerCard(manager: YardManagerRow) {
+    const checkedIn = manager.checked_in
+    const accent = checkedIn
+      ? manager.employment_type === 'regular'
+        ? 'border-secondary bg-secondary/15 text-secondary'
+        : 'border-blue-500 bg-blue-500/15 text-blue-500'
+      : 'border-primary/50 bg-primary/10 text-primary'
+    return (
+      <button
+        key={manager.id}
+        type="button"
+        onClick={() => toggleYardCheckedIn(manager)}
+        className={`flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-xl border-2 px-2 py-2 text-center transition-colors active:scale-[0.97] ${accent}`}
+      >
+        {editMode && (
+          <Pencil className="h-3 w-3 shrink-0" aria-hidden="true" />
+        )}
+        <span className="line-clamp-1 text-xs font-bold">{manager.name}</span>
+      </button>
+    )
+  }
+
   return (
     <div className="flex flex-col gap-4 pb-6">
       <div className="flex items-start justify-between gap-3">
@@ -297,6 +425,7 @@ export function StaffAttendanceView() {
             setEditMode((v) => !v)
             closeForm()
             closeCommentEdit()
+            closeYardForm()
           }}
           className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors active:scale-95 ${
             editMode
@@ -312,6 +441,95 @@ export function StaffAttendanceView() {
           {editMode ? '完了' : '編集'}
         </button>
       </div>
+
+      {editMode && !yardAdding && (
+        <button
+          type="button"
+          onClick={openYardAdd}
+          className="flex items-center justify-center gap-1.5 rounded-2xl border border-dashed border-primary/50 bg-primary/5 px-4 py-3 text-sm font-semibold text-primary transition-colors hover:bg-primary/10 active:scale-[0.99]"
+        >
+          <Plus className="h-4 w-4" aria-hidden="true" />
+          ヤード管理者を追加
+        </button>
+      )}
+
+      {yardAdding && (
+        <section className="flex flex-col gap-3 rounded-2xl border border-border bg-card px-5 py-5">
+          <h3 className="text-sm font-bold text-foreground">
+            {yardEditingId ? 'ヤード管理者を編集' : 'ヤード管理者を追加'}
+          </h3>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-muted-foreground">
+              名前
+            </span>
+            <input
+              type="text"
+              value={yardForm.name}
+              onChange={(e) =>
+                setYardForm((p) => ({ ...p, name: e.target.value }))
+              }
+              placeholder="例：山田 太郎"
+              className="w-full rounded-2xl border border-border bg-background px-4 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60"
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-muted-foreground">
+              雇用形態
+            </span>
+            <select
+              value={yardForm.employmentType}
+              onChange={(e) =>
+                setYardForm((p) => ({
+                  ...p,
+                  employmentType: e.target.value as 'regular' | 'parttime',
+                }))
+              }
+              className="w-full rounded-2xl border border-border bg-background px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary/60"
+            >
+              <option value="regular">正社員</option>
+              <option value="parttime">アルバイト</option>
+            </select>
+          </label>
+          <div className="flex items-center justify-between gap-2">
+            {yardEditingId ? (
+              yardConfirmDeleteId === yardEditingId ? (
+                <ConfirmDeleteInline
+                  onConfirm={() => deleteYardManager(yardEditingId)}
+                  onCancel={() => setYardConfirmDeleteId(null)}
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setYardConfirmDeleteId(yardEditingId)}
+                  className="flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium text-destructive/80 transition-colors hover:text-destructive"
+                >
+                  <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                  削除
+                </button>
+              )
+            ) : (
+              <span />
+            )}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={closeYardForm}
+                className="rounded-full border border-border px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-accent active:scale-95"
+              >
+                キャンセル
+              </button>
+              <button
+                type="button"
+                onClick={saveYardManager}
+                disabled={!yardForm.name.trim()}
+                className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95 disabled:opacity-40"
+              >
+                保存
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
 
       {editMode && !adding && (
         <button
@@ -511,6 +729,23 @@ export function StaffAttendanceView() {
             </section>
           )
         })()}
+
+      {(yardManagers.length > 0 || editMode) && (
+        <div className="flex flex-col gap-3">
+          <h3 className="text-sm font-bold text-muted-foreground">
+            本日のヤード管理者
+          </h3>
+          {yardManagers.length === 0 ? (
+            <p className="rounded-2xl border border-dashed border-border px-5 py-6 text-center text-xs text-muted-foreground">
+              まだヤード管理者が登録されていません。
+            </p>
+          ) : (
+            <div className="grid grid-cols-4 gap-2">
+              {yardManagers.map(renderYardManagerCard)}
+            </div>
+          )}
+        </div>
+      )}
 
       {staff.length === 0 && !adding ? (
         <p className="rounded-2xl border border-dashed border-border px-5 py-10 text-center text-sm text-muted-foreground">

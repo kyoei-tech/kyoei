@@ -1,11 +1,10 @@
 'use client'
 
-import { Clock, Monitor, Moon, Smartphone, Sun, Truck } from 'lucide-react'
+import { Monitor, Moon, Smartphone, Sun } from 'lucide-react'
 import {
   FONT_SCALES,
   FONT_TABS,
   useSettings,
-  type AppMode,
   type ThemeMode,
 } from '@/lib/settings/settings-context'
 
@@ -15,39 +14,11 @@ const THEME_OPTIONS: { id: ThemeMode; label: string; Icon: typeof Sun }[] = [
   { id: 'system', label: 'デバイスに合わせる', Icon: Monitor },
 ]
 
-const APP_MODE_OPTIONS: {
-  id: AppMode
-  label: string
-  description: string
-  Icon: typeof Truck
-}[] = [
-  {
-    id: 'driver',
-    label: '乗務員モード',
-    description: '出庫・帰庫と運行状況・休息状況を管理します。',
-    Icon: Truck,
-  },
-  {
-    id: 'timecard',
-    label: 'タイムカードモード',
-    description: '出勤・退勤と休憩時間のみを記録する簡易モードです。',
-    Icon: Clock,
-  },
-]
-
 const LEVELS = [1, 2, 3, 4, 5, 6]
 
 export function SettingsView() {
-  const {
-    theme,
-    setTheme,
-    fontLevels,
-    setFontLevel,
-    deviceFont,
-    setDeviceFont,
-    appMode,
-    setAppMode,
-  } = useSettings()
+  const { theme, setTheme, fontLevels, setFontLevel, deviceFont, setDeviceFont } =
+    useSettings()
 
   return (
     <div className="flex flex-col gap-6 pb-6">
@@ -57,46 +28,6 @@ export function SettingsView() {
           フォントサイズや背景色をこの端末用に変更できます。
         </p>
       </div>
-
-      <section className="flex flex-col gap-3 rounded-2xl border border-border bg-card px-5 py-5">
-        <h3 className="text-base font-bold text-foreground">利用モード</h3>
-        <p className="text-xs text-muted-foreground">
-          ホーム画面の表示方法をこの端末用に切り替えます。
-        </p>
-        <div className="flex flex-col gap-2">
-          {APP_MODE_OPTIONS.map(({ id, label, description, Icon }) => {
-            const active = appMode === id
-            return (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setAppMode(id)}
-                aria-pressed={active}
-                className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-colors active:scale-[0.99] ${
-                  active
-                    ? 'border-primary bg-primary/15'
-                    : 'border-border bg-background'
-                }`}
-              >
-                <Icon
-                  className={`h-5 w-5 shrink-0 ${
-                    active ? 'text-primary' : 'text-muted-foreground'
-                  }`}
-                  aria-hidden="true"
-                />
-                <span className="flex flex-col">
-                  <span className="text-sm font-semibold text-foreground">
-                    {label}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {description}
-                  </span>
-                </span>
-              </button>
-            )
-          })}
-        </div>
-      </section>
 
       <section className="flex flex-col gap-4 rounded-2xl border border-border bg-card px-5 py-5">
         <h3 className="text-base font-bold text-foreground">フォント</h3>
