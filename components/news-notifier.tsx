@@ -25,14 +25,17 @@ export function NewsNotifier() {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'news_posts' },
-        () => {
+        (payload) => {
+          console.log('[v0] news_posts INSERT received', payload)
           void deliverNotification(
             NEWS_NOTIFICATION_TITLE,
             NEWS_NOTIFICATION_MESSAGE,
           )
         },
       )
-      .subscribe()
+      .subscribe((status) => {
+        console.log('[v0] news_posts channel status', status)
+      })
 
     return () => {
       supabase.removeChannel(channel)
