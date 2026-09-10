@@ -26,16 +26,54 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 }
 
 /**
+ * True when running on iOS/iPadOS Safari that has NOT been added to the
+ * home screen. Apple only allows Web Push inside an installed ("standalone")
+ * PWA — a regular Safari tab can never receive push, no matter what
+ * permissions are granted. This is the most common real-world reason a
+ * device never ends up with a saved subscription.
+ */
+export function isIosBrowserTabWithoutInstall(): boolean {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return false
+  }
+  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent)
+  if (!isIos) return false
+  const isStandalone =
+    window.matchMedia?.('(display-mode: standalone)').matches ||
+    (navigator as unknown as { standalone?: boolean }).standalone === true
+  return !isStandalone
+}
+
+export type PushSubscriptionResult =
+  | { ok: true }
+  | { ok: false; reason: string }
+
+/**
  * Subscribes this browser to Web Push and saves the subscription to
  * Supabase. Safe to call repeatedly (e.g. every time Settings mounts with
  * notifications already granted) — re-subscribing returns the existing
  * subscription and the upsert just refreshes its row.
+ *
+ * Unlike a fire-and-forget best-effort helper, this reports back exactly
+ * why a subscription failed so Settings can show the driver something
+ * actionable instead of silently doing nothing.
  */
-export async function ensurePushSubscription(): Promise<void> {
-  if (typeof window === 'undefined' || !('PushManager' in window)) return
+export async function ensurePushSubscription(): Promise<PushSubscriptionResult> {
+  if (isIosBrowserTabWithoutInstall()) {
+    return {
+      ok: false,
+      reason:
+        'iPhone/iPadでは、ホーム画面に追加したアプリからのみプッシュ通知を受け取れます（Safariのタブでは届きません）。',
+    }
+  }
+  if (typeof window === 'undefined' || !('PushManager' in window)) {
+    return { ok: false, reason: 'このブラウザはプッシュ通知に対応していません。' }
+  }
   try {
     const registration = await ensureServiceWorkerRegistration()
-    if (!registration) return
+    if (!registration) {
+      return { ok: false, reason: 'サービスワーカーの登録に失敗しました。' }
+    }
 
     let subscription = await registration.pushManager.getSubscription()
     if (!subscription) {
@@ -46,10 +84,12 @@ export async function ensurePushSubscription(): Promise<void> {
     }
 
     const keys = subscription.toJSON().keys
-    if (!keys?.p256dh || !keys?.auth) return
+    if (!keys?.p256dh || !keys?.auth) {
+      return { ok: false, reason: '購読情報の取得に失敗しました。' }
+    }
 
     const supabase = createClient()
-    await supabase.from('push_subscriptions').upsert(
+    const { error } = await supabase.from('push_subscriptions').upsert(
       {
         endpoint: subscription.endpoint,
         p256dh: keys.p256dh,
@@ -57,8 +97,13 @@ export async function ensurePushSubscription(): Promise<void> {
       },
       { onConflict: 'endpoint' },
     )
-  } catch {
-    // Best-effort; ignore subscription failures (e.g. blocked permission).
+    if (error) {
+      return { ok: false, reason: `保存に失敗しました: ${error.message}` }
+    }
+    return { ok: true }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { ok: false, reason: `登録に失敗しました: ${message}` }
   }
 }
 

@@ -62,6 +62,21 @@ export function SettingsView() {
   const [notificationSupported, setNotificationSupported] = useState(true)
   const [permission, setPermission] =
     useState<NotificationPermission | null>(null)
+  const [pushSubscriptionError, setPushSubscriptionError] = useState<
+    string | null
+  >(null)
+  const [pushSubscribed, setPushSubscribed] = useState(false)
+
+  async function syncPushSubscription() {
+    const result = await ensurePushSubscription()
+    if (result.ok) {
+      setPushSubscribed(true)
+      setPushSubscriptionError(null)
+    } else {
+      setPushSubscribed(false)
+      setPushSubscriptionError(result.reason)
+    }
+  }
 
   useEffect(() => {
     setNotificationSupported(isNotificationSupported())
@@ -79,7 +94,7 @@ export function SettingsView() {
       setPermission(result)
       if (result === 'granted') {
         void ensureServiceWorkerRegistration().then(() =>
-          ensurePushSubscription(),
+          syncPushSubscription(),
         )
       } else {
         setPushNotificationsEnabled(false)
@@ -93,7 +108,7 @@ export function SettingsView() {
   // the browser cleared a stale subscription.
   useEffect(() => {
     if (pushNotificationsEnabled && getNotificationPermission() === 'granted') {
-      void ensurePushSubscription()
+      void syncPushSubscription()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount only
   }, [])
@@ -101,6 +116,8 @@ export function SettingsView() {
   async function handleTogglePushNotifications() {
     if (pushNotificationsEnabled) {
       setPushNotificationsEnabled(false)
+      setPushSubscribed(false)
+      setPushSubscriptionError(null)
       void removePushSubscription()
       return
     }
@@ -108,7 +125,7 @@ export function SettingsView() {
     setPermission(result)
     if (result === 'granted') {
       await ensureServiceWorkerRegistration()
-      await ensurePushSubscription()
+      await syncPushSubscription()
       setPushNotificationsEnabled(true)
     }
   }
@@ -348,6 +365,12 @@ export function SettingsView() {
         ) : permission === 'denied' ? (
           <p className="text-xs text-destructive">
             通知がブロックされています。ブラウザの設定から通知を許可してください。
+          </p>
+        ) : pushSubscriptionError ? (
+          <p className="text-xs text-destructive">{pushSubscriptionError}</p>
+        ) : pushNotificationsEnabled && pushSubscribed ? (
+          <p className="text-xs text-muted-foreground">
+            この端末はプッシュ通知の登録済みです。アプリを閉じていても届きます。
           </p>
         ) : null}
       </section>
