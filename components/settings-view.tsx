@@ -14,6 +14,10 @@ import {
   isNotificationSupported,
   requestNotificationPermission,
 } from '@/lib/notifications/push-notifications'
+import {
+  ensurePushSubscription,
+  removePushSubscription,
+} from '@/lib/notifications/web-push-subscription'
 import { usePasswordGate } from './password-prompt'
 import { PushNotificationEditorView } from './push-notification-editor-view'
 
@@ -73,21 +77,38 @@ export function SettingsView() {
     if (getNotificationPermission() !== 'default') return
     requestNotificationPermission().then((result) => {
       setPermission(result)
-      if (result === 'granted') void ensureServiceWorkerRegistration()
-      else setPushNotificationsEnabled(false)
+      if (result === 'granted') {
+        void ensureServiceWorkerRegistration().then(() =>
+          ensurePushSubscription(),
+        )
+      } else {
+        setPushNotificationsEnabled(false)
+      }
     })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount only
+  }, [])
+
+  // Also (re)confirm the subscription whenever notifications are already
+  // granted and enabled on mount, e.g. after the service worker updates or
+  // the browser cleared a stale subscription.
+  useEffect(() => {
+    if (pushNotificationsEnabled && getNotificationPermission() === 'granted') {
+      void ensurePushSubscription()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount only
   }, [])
 
   async function handleTogglePushNotifications() {
     if (pushNotificationsEnabled) {
       setPushNotificationsEnabled(false)
+      void removePushSubscription()
       return
     }
     const result = await requestNotificationPermission()
     setPermission(result)
     if (result === 'granted') {
       await ensureServiceWorkerRegistration()
+      await ensurePushSubscription()
       setPushNotificationsEnabled(true)
     }
   }
