@@ -40,13 +40,14 @@ type YardManagerRow = {
   employment_type: 'regular' | 'parttime'
   checked_in: boolean
   sort_order: number
+  comment: string
 }
 
 async function fetchYardManagers(): Promise<YardManagerRow[]> {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('yard_managers')
-    .select('id, name, employment_type, checked_in, sort_order')
+    .select('id, name, employment_type, checked_in, sort_order, comment')
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: true })
   if (error) throw error
@@ -125,6 +126,16 @@ export function StaffAttendanceView() {
     string | null
   >(null)
   const [yardForm, setYardForm] = useState(emptyYardManagerForm)
+  const [yardCommentEditId, setYardCommentEditId] = useState<string | null>(
+    null,
+  )
+  const [yardCommentDraft, setYardCommentDraft] = useState('')
+  const [yardTapState, setYardTapState] = useState<
+    Record<
+      string,
+      { count: number; timer: ReturnType<typeof setTimeout> | null }
+    >
+  >({})
 
   const { data: rows, mutate: refetch } = useRealtimeTable<StaffRow>(
     'staff_members',
@@ -280,10 +291,6 @@ export function StaffAttendanceView() {
   }
 
   async function toggleYardCheckedIn(manager: YardManagerRow) {
-    if (editMode) {
-      openYardEdit(manager)
-      return
-    }
     const supabase = createClient()
     await supabase
       .from('yard_managers')
@@ -293,6 +300,54 @@ export function StaffAttendanceView() {
       })
       .eq('id', manager.id)
     await refetchYardManagers()
+  }
+
+  function openYardCommentEdit(manager: YardManagerRow) {
+    setYardCommentEditId(manager.id)
+    setYardCommentDraft(manager.comment ?? '')
+  }
+
+  function closeYardCommentEdit() {
+    setYardCommentEditId(null)
+    setYardCommentDraft('')
+  }
+
+  async function saveYardComment() {
+    if (!yardCommentEditId) return
+    const supabase = createClient()
+    await supabase
+      .from('yard_managers')
+      .update({ comment: yardCommentDraft.trim() })
+      .eq('id', yardCommentEditId)
+    await refetchYardManagers()
+    closeYardCommentEdit()
+  }
+
+  // Mirrors handleTap for staff: a rapid triple tap toggles attendance
+  // immediately, while a tap sequence that stops at exactly two opens the
+  // comment-only editor after the pause.
+  function handleYardTap(manager: YardManagerRow) {
+    if (editMode) {
+      openYardEdit(manager)
+      return
+    }
+    setYardTapState((prev) => {
+      const current = prev[manager.id]
+      const count = (current?.count ?? 0) + 1
+      if (current?.timer) clearTimeout(current.timer)
+      if (count >= 3) {
+        toggleYardCheckedIn(manager)
+        return { ...prev, [manager.id]: { count: 0, timer: null } }
+      }
+      const timer = setTimeout(() => {
+        setYardTapState((p) => ({
+          ...p,
+          [manager.id]: { count: 0, timer: null },
+        }))
+        if (count === 2) openYardCommentEdit(manager)
+      }, 500)
+      return { ...prev, [manager.id]: { count, timer } }
+    })
   }
 
   function openCommentEdit(member: StaffRow) {
@@ -399,13 +454,18 @@ export function StaffAttendanceView() {
       <button
         key={manager.id}
         type="button"
-        onClick={() => toggleYardCheckedIn(manager)}
+        onClick={() => handleYardTap(manager)}
         className={`flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-xl border-2 px-2 py-2 text-center transition-colors active:scale-[0.97] ${accent}`}
       >
         {editMode && (
           <Pencil className="h-3 w-3 shrink-0" aria-hidden="true" />
         )}
         <span className="line-clamp-1 text-xs font-bold">{manager.name}</span>
+        {checkedIn && manager.comment && (
+          <span className="line-clamp-2 w-full whitespace-pre-wrap text-[0.6rem] leading-3 opacity-80">
+            {manager.comment}
+          </span>
+        )}
       </button>
     )
   }
@@ -426,6 +486,7 @@ export function StaffAttendanceView() {
             closeForm()
             closeCommentEdit()
             closeYardForm()
+            closeYardCommentEdit()
           }}
           className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors active:scale-95 ${
             editMode
@@ -721,6 +782,42 @@ export function StaffAttendanceView() {
                 <button
                   type="button"
                   onClick={saveComment}
+                  className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95"
+                >
+                  保存
+                </button>
+              </div>
+            </section>
+          )
+        })()}
+
+      {yardCommentEditId &&
+        (() => {
+          const manager = yardManagers.find((m) => m.id === yardCommentEditId)
+          if (!manager) return null
+          return (
+            <section className="flex flex-col gap-3 rounded-2xl border border-border bg-card px-5 py-5">
+              <h3 className="text-sm font-bold text-foreground">
+                {manager.name}さんのコメントを編集
+              </h3>
+              <textarea
+                value={yardCommentDraft}
+                onChange={(e) => setYardCommentDraft(e.target.value)}
+                rows={3}
+                placeholder="出勤中のみ表示されるコメントを入力（改行できます）"
+                className="w-full resize-none rounded-2xl border border-border bg-background px-4 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60"
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={closeYardCommentEdit}
+                  className="rounded-full border border-border px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-accent active:scale-95"
+                >
+                  キャンセル
+                </button>
+                <button
+                  type="button"
+                  onClick={saveYardComment}
                   className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95"
                 >
                   保存

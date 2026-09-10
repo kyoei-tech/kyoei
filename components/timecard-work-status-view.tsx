@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { ArrowLeft, Coffee, Pause, Play } from 'lucide-react'
+import { ArrowLeft, Coffee, Pause, Pencil, Play, Trash2 } from 'lucide-react'
 import { formatClock, formatDuration, type ClockParts } from '@/lib/shift-time'
 import {
   liveBreakTotalMs,
@@ -11,10 +11,11 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { ConfirmActionModal } from './confirm-action-modal'
+import { ConfirmDeleteInline } from './confirm-delete'
 
-// Shared across every browser via the `timecard_shared_memos` table. This is
-// an append-only log (no edit/delete) — each entry stays exactly as its
-// author wrote it, and new entries are added to the bottom.
+// Shared across every browser via the `timecard_shared_memos` table.
+// Any entry can be edited or deleted by anyone — changes sync to every
+// browser in real time.
 type SharedMemoRow = {
   id: string
   author_name: string
@@ -81,6 +82,13 @@ export function TimecardWorkStatusView({
   const [sharedContentDraft, setSharedContentDraft] = useState('')
   const [sharedSaving, setSharedSaving] = useState(false)
 
+  const [memoEditingId, setMemoEditingId] = useState<string | null>(null)
+  const [memoEditAuthor, setMemoEditAuthor] = useState('')
+  const [memoEditContent, setMemoEditContent] = useState('')
+  const [memoDeleteConfirmId, setMemoDeleteConfirmId] = useState<
+    string | null
+  >(null)
+
   const [personalMemo, setPersonalMemo] = useState('')
   const [personalEditing, setPersonalEditing] = useState(false)
   const [personalDraft, setPersonalDraft] = useState('')
@@ -100,7 +108,7 @@ export function TimecardWorkStatusView({
   const workStartedDateLabel = `${workStartedParts.date} ${workStartedParts.weekday}`
 
   function handleSharedMemoTap() {
-    if (sharedEditing) return
+    if (sharedEditing || memoEditingId) return
     setSharedTapCount((prev) => {
       const count = prev + 1
       if (sharedTapTimerRef.current) clearTimeout(sharedTapTimerRef.current)
@@ -132,6 +140,40 @@ export function TimecardWorkStatusView({
     } finally {
       setSharedSaving(false)
     }
+  }
+
+  function openMemoEdit(memo: SharedMemoRow) {
+    setMemoDeleteConfirmId(null)
+    setMemoEditingId(memo.id)
+    setMemoEditAuthor(memo.author_name)
+    setMemoEditContent(memo.content)
+  }
+
+  function closeMemoEdit() {
+    setMemoEditingId(null)
+    setMemoEditAuthor('')
+    setMemoEditContent('')
+  }
+
+  async function saveMemoEdit() {
+    if (!memoEditingId) return
+    const author = memoEditAuthor.trim()
+    const content = memoEditContent.trim()
+    if (!author || !content) return
+    const supabase = createClient()
+    await supabase
+      .from('timecard_shared_memos')
+      .update({ author_name: author, content })
+      .eq('id', memoEditingId)
+    await refetchSharedMemos()
+    closeMemoEdit()
+  }
+
+  async function deleteMemo(id: string) {
+    const supabase = createClient()
+    await supabase.from('timecard_shared_memos').delete().eq('id', id)
+    await refetchSharedMemos()
+    setMemoDeleteConfirmId(null)
   }
 
   function handlePersonalMemoTap() {
@@ -246,6 +288,9 @@ export function TimecardWorkStatusView({
             <span className="text-xs font-bold tracking-wide text-primary">
               共有メモ
             </span>
+            <span className="text-[0.65rem] font-medium text-muted-foreground">
+              リアルタイムで共有されます
+            </span>
           </div>
 
           {sharedEditing ? (
@@ -296,24 +341,96 @@ export function TimecardWorkStatusView({
             </p>
           ) : (
             <div className="flex flex-col gap-2.5">
-              {sharedMemos.map((memo) => (
-                <div
-                  key={memo.id}
-                  className="rounded-xl border border-border bg-background px-3 py-2"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-bold text-foreground">
-                      {memo.author_name}
-                    </span>
-                    <span className="text-[0.65rem] text-muted-foreground">
-                      {formatMemoTimestamp(memo.created_at)}
-                    </span>
+              {sharedMemos.map((memo) =>
+                memoEditingId === memo.id ? (
+                  <div
+                    key={memo.id}
+                    className="flex flex-col gap-2 rounded-xl border border-border bg-background px-3 py-2"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <input
+                      type="text"
+                      value={memoEditAuthor}
+                      onChange={(e) => setMemoEditAuthor(e.target.value)}
+                      placeholder="入力者の名前"
+                      className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60"
+                    />
+                    <textarea
+                      value={memoEditContent}
+                      onChange={(e) => setMemoEditContent(e.target.value)}
+                      rows={3}
+                      autoFocus
+                      className="w-full resize-none rounded-xl border border-border bg-card px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60"
+                    />
+                    <div className="flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={closeMemoEdit}
+                        className="rounded-full border border-border px-3.5 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground active:scale-95"
+                      >
+                        キャンセル
+                      </button>
+                      <button
+                        type="button"
+                        onClick={saveMemoEdit}
+                        disabled={
+                          !memoEditAuthor.trim() || !memoEditContent.trim()
+                        }
+                        className="rounded-full bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95 disabled:opacity-40"
+                      >
+                        保存
+                      </button>
+                    </div>
                   </div>
-                  <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-foreground">
-                    {memo.content}
-                  </p>
-                </div>
-              ))}
+                ) : (
+                  <div
+                    key={memo.id}
+                    className="rounded-xl border border-border bg-background px-3 py-2"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-bold text-foreground">
+                        {memo.author_name}
+                      </span>
+                      <span className="text-[0.65rem] text-muted-foreground">
+                        {formatMemoTimestamp(memo.created_at)}
+                      </span>
+                    </div>
+                    <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-foreground">
+                      {memo.content}
+                    </p>
+                    <div
+                      className="mt-1.5 flex items-center justify-end gap-3"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {memoDeleteConfirmId === memo.id ? (
+                        <ConfirmDeleteInline
+                          onConfirm={() => deleteMemo(memo.id)}
+                          onCancel={() => setMemoDeleteConfirmId(null)}
+                        />
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => openMemoEdit(memo)}
+                            className="flex items-center gap-1 text-[0.65rem] font-medium text-muted-foreground transition-colors hover:text-foreground"
+                          >
+                            <Pencil className="h-3 w-3" aria-hidden="true" />
+                            編集
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setMemoDeleteConfirmId(memo.id)}
+                            className="flex items-center gap-1 text-[0.65rem] font-medium text-destructive/80 transition-colors hover:text-destructive"
+                          >
+                            <Trash2 className="h-3 w-3" aria-hidden="true" />
+                            削除
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ),
+              )}
             </div>
           )}
         </section>
