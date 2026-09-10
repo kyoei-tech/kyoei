@@ -12,6 +12,7 @@ import { YardLayoutView } from './yard-layout-view'
 import { StaffAttendanceView } from './staff-attendance-view'
 import { NotificationToastContainer } from './notification-toast'
 import { NewsNotifier } from './news-notifier'
+import { PendingNotificationModal } from './pending-notification-modal'
 
 export function AttendanceApp() {
   const [tab, setTab] = useState<TabId>('home')
@@ -61,6 +62,7 @@ export function AttendanceApp() {
     <div className="relative mx-auto flex min-h-[100dvh] w-full max-w-md flex-col bg-background">
       <NotificationToastContainer />
       <NewsNotifier />
+      <PendingNotificationModal />
       <main className="flex flex-1 flex-col px-4 pb-24 pt-6">
         {tab === 'home' &&
           (appMode === 'timecard' ? (

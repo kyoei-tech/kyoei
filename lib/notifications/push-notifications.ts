@@ -7,6 +7,7 @@
 
 import { toPlainText } from './notification-style'
 import { emitToast } from './toast-bus'
+import { savePendingNotification } from './pending-notification'
 
 const SERVICE_WORKER_URL = '/sw.js'
 
@@ -99,11 +100,20 @@ export async function showAppNotification(
  * Delivers a push notification through every channel this app supports:
  * an OS-level notification (plain text only) plus an in-app toast that can
  * render the color/bold markup while the app is open. Always best-effort.
+ *
+ * When the app is backgrounded/closed at delivery time, the toast can't be
+ * seen, so the notification is also saved as a "pending" one — see
+ * pending-notification.ts and its modal in pending-notification-modal.tsx —
+ * so it re-surfaces as a blocking modal the next time the app is opened.
  */
 export async function deliverNotification(
   title: string,
   message: string,
 ): Promise<void> {
-  emitToast(title, message)
+  if (typeof document !== 'undefined' && document.hidden) {
+    savePendingNotification(title, message)
+  } else {
+    emitToast(title, message)
+  }
   await showAppNotification(title, message)
 }
