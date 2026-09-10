@@ -40,6 +40,11 @@ type StoredSettings = {
   // device/browser's own font size setting instead (scale of 1 everywhere).
   deviceFont: boolean
   appMode: AppMode
+  // When true, the app is restricted to a simplified "part-time worker"
+  // experience: always the timecard mode, hides most edit/add/delete
+  // affordances, and hides the LoL and Version menu entries. Guarded by a
+  // shared PIN when toggling either direction.
+  partTimeMode: boolean
 }
 
 function defaultSettings(): StoredSettings {
@@ -54,6 +59,7 @@ function defaultSettings(): StoredSettings {
     },
     deviceFont: false,
     appMode: 'driver',
+    partTimeMode: false,
   }
 }
 
@@ -69,6 +75,7 @@ function loadSettings(): StoredSettings {
       fontLevels: { ...base.fontLevels, ...(parsed.fontLevels ?? {}) },
       deviceFont: parsed.deviceFont ?? base.deviceFont,
       appMode: parsed.appMode ?? base.appMode,
+      partTimeMode: parsed.partTimeMode ?? base.partTimeMode,
     }
   } catch {
     return defaultSettings()
@@ -85,6 +92,8 @@ type SettingsContextValue = {
   setDeviceFont: (enabled: boolean) => void
   appMode: AppMode
   setAppMode: (mode: AppMode) => void
+  partTimeMode: boolean
+  setPartTimeMode: (enabled: boolean) => void
 }
 
 const SettingsContext = createContext<SettingsContextValue | null>(null)
@@ -143,6 +152,17 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     (mode: AppMode) => setSettings((p) => ({ ...p, appMode: mode })),
     [],
   )
+  const setPartTimeMode = useCallback(
+    (enabled: boolean) =>
+      setSettings((p) => ({
+        ...p,
+        partTimeMode: enabled,
+        // Part-time mode's base experience is the timecard mode; switching
+        // back to staff mode returns to the full driver mode.
+        appMode: enabled ? 'timecard' : 'driver',
+      })),
+    [],
+  )
   const fontScaleFor = useCallback(
     (tab: FontTabId) => {
       if (settings.deviceFont) return 1
@@ -164,17 +184,21 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       setDeviceFont,
       appMode: settings.appMode,
       setAppMode,
+      partTimeMode: settings.partTimeMode,
+      setPartTimeMode,
     }),
     [
       settings.theme,
       settings.fontLevels,
       settings.deviceFont,
       settings.appMode,
+      settings.partTimeMode,
       setTheme,
       setFontLevel,
       fontScaleFor,
       setDeviceFont,
       setAppMode,
+      setPartTimeMode,
     ],
   )
 

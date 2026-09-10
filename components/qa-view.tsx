@@ -13,6 +13,8 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { ConfirmDeleteInline, DeleteIconButton } from './confirm-delete'
+import { useSettings } from '@/lib/settings/settings-context'
+import { useScrollToTop } from '@/lib/use-scroll-to-top'
 
 const UNSET_CATEGORY = '未分類'
 
@@ -101,7 +103,9 @@ function emptyAnswerForm() {
 type Level = 'categories' | 'titles' | 'detail'
 
 export function QAView() {
+  const { partTimeMode } = useSettings()
   const [level, setLevel] = useState<Level>('categories')
+  useScrollToTop([level])
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
   const [activeQuestionId, setActiveQuestionId] = useState<string | null>(
     null,
@@ -263,7 +267,7 @@ export function QAView() {
             匿名で質問できます。回答には名前が必要です。
           </p>
         </div>
-        {level === 'categories' && (
+        {level === 'categories' && !partTimeMode && (
           <button
             type="button"
             onClick={() => {
@@ -277,7 +281,7 @@ export function QAView() {
             ) : (
               <Plus className="h-4 w-4" aria-hidden="true" />
             )}
-            {addingQuestion ? '閉じ��' : '質問を追加'}
+            {addingQuestion ? '閉じ���' : '質問を追加'}
           </button>
         )}
       </div>
@@ -310,7 +314,7 @@ export function QAView() {
         </div>
       )}
 
-      {addingQuestion && level === 'categories' && (
+      {!partTimeMode && addingQuestion && level === 'categories' && (
         <section className="flex flex-col gap-3 rounded-3xl border border-border bg-card px-5 py-5">
           <label className="flex flex-col gap-1">
             <span className="text-xs font-medium text-muted-foreground">
@@ -501,47 +505,51 @@ export function QAView() {
               </p>
             )}
 
-            <div className="mt-3 flex justify-end">
-              {confirmDeleteQuestion ? (
-                <ConfirmDeleteInline
-                  message="この質問と回答をすべて削除しますか？"
-                  onConfirm={() => deleteQuestion(activeQuestion.id)}
-                  onCancel={() => setConfirmDeleteQuestion(false)}
-                />
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setConfirmDeleteQuestion(true)}
-                  className="flex items-center gap-1 text-xs font-medium text-muted-foreground/70 transition-colors hover:text-destructive"
-                >
-                  質問を削除
-                </button>
-              )}
-            </div>
+            {!partTimeMode && (
+              <div className="mt-3 flex justify-end">
+                {confirmDeleteQuestion ? (
+                  <ConfirmDeleteInline
+                    message="この質問と回答をすべて削除しますか？"
+                    onConfirm={() => deleteQuestion(activeQuestion.id)}
+                    onCancel={() => setConfirmDeleteQuestion(false)}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDeleteQuestion(true)}
+                    className="flex items-center gap-1 text-xs font-medium text-muted-foreground/70 transition-colors hover:text-destructive"
+                  >
+                    質問を削除
+                  </button>
+                )}
+              </div>
+            )}
           </section>
 
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-bold text-foreground">
               アンサー {activeAnswers.length > 0 && `(${activeAnswers.length})`}
             </h4>
-            <button
-              type="button"
-              onClick={() => {
-                setAnswering((v) => !v)
-                setAnswerForm(emptyAnswerForm())
-              }}
-              className="flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-            >
-              {answering ? (
-                <X className="h-3.5 w-3.5" aria-hidden="true" />
-              ) : (
-                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-              )}
-              {answering ? '閉じる' : '回答を追加'}
-            </button>
+            {!partTimeMode && (
+              <button
+                type="button"
+                onClick={() => {
+                  setAnswering((v) => !v)
+                  setAnswerForm(emptyAnswerForm())
+                }}
+                className="flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+              >
+                {answering ? (
+                  <X className="h-3.5 w-3.5" aria-hidden="true" />
+                ) : (
+                  <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                )}
+                {answering ? '閉じる' : '回答を追加'}
+              </button>
+            )}
           </div>
 
-          {answering && (
+          {!partTimeMode && answering && (
             <div className="flex flex-col gap-2.5 rounded-2xl border border-border/60 bg-background px-4 py-4">
               <textarea
                 value={answerForm.body}
@@ -602,12 +610,14 @@ export function QAView() {
                     <span className="text-xs font-semibold text-primary">
                       {a.responder}
                     </span>
-                    <DeleteIconButton
-                      onClick={() => setConfirmDeleteAnswerId(a.id)}
-                      label={`${a.responder}の回答を削除`}
-                    />
+                    {!partTimeMode && (
+                      <DeleteIconButton
+                        onClick={() => setConfirmDeleteAnswerId(a.id)}
+                        label={`${a.responder}の回答を削除`}
+                      />
+                    )}
                   </div>
-                  {confirmDeleteAnswerId === a.id && (
+                  {!partTimeMode && confirmDeleteAnswerId === a.id && (
                     <div className="mt-2">
                       <ConfirmDeleteInline
                         onConfirm={() => deleteAnswer(a.id)}

@@ -5,6 +5,7 @@ import { Pencil, Plus, Trash2, User, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { ConfirmDeleteInline } from './confirm-delete'
+import { useSettings } from '@/lib/settings/settings-context'
 
 // Shared across every browser via the `staff_members` Supabase table.
 type StaffRow = {
@@ -106,6 +107,7 @@ const YEAR_OPTIONS = Array.from({ length: 61 }, (_, i) => CURRENT_YEAR - i)
 const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => i + 1)
 
 export function StaffAttendanceView() {
+  const { partTimeMode } = useSettings()
   const [editMode, setEditMode] = useState(false)
   const [adding, setAdding] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -362,6 +364,9 @@ export function StaffAttendanceView() {
   }
 
   function openCommentEdit(member: StaffRow) {
+    // Part-time mode only allows editing the yard managers' comments (see
+    // handleYardTap/openYardCommentEdit below), not regular staff comments.
+    if (partTimeMode) return
     setCommentEditId(member.id)
     setCommentDraft(member.comment ?? '')
   }
@@ -500,31 +505,35 @@ export function StaffAttendanceView() {
         <div>
           <h2 className="text-xl font-bold text-foreground">出勤簿</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            ボタンを3回連続でタップすると出勤状況が切り替わります。2回タップでコメントを編集できます。
+            {partTimeMode
+              ? 'ボタンを3回連続でタップすると出勤状況が切り替わります。ヤード管理者は2回タップでコメントを編集できます。'
+              : 'ボタンを3回連続でタップすると出勤状況が切り替わります。2回タップでコメントを編集できます。'}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            setEditMode((v) => !v)
-            closeForm()
-            closeCommentEdit()
-            closeYardForm()
-            closeYardCommentEdit()
-          }}
-          className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors active:scale-95 ${
-            editMode
-              ? 'bg-primary text-primary-foreground'
-              : 'border border-border text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          {editMode ? (
-            <X className="h-4 w-4" aria-hidden="true" />
-          ) : (
-            <Pencil className="h-4 w-4" aria-hidden="true" />
-          )}
-          {editMode ? '完了' : '編集'}
-        </button>
+        {!partTimeMode && (
+          <button
+            type="button"
+            onClick={() => {
+              setEditMode((v) => !v)
+              closeForm()
+              closeCommentEdit()
+              closeYardForm()
+              closeYardCommentEdit()
+            }}
+            className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors active:scale-95 ${
+              editMode
+                ? 'bg-primary text-primary-foreground'
+                : 'border border-border text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {editMode ? (
+              <X className="h-4 w-4" aria-hidden="true" />
+            ) : (
+              <Pencil className="h-4 w-4" aria-hidden="true" />
+            )}
+            {editMode ? '完了' : '編集'}
+          </button>
+        )}
       </div>
 
       {editMode && !yardAdding && (

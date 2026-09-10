@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { ConfirmDeleteInline, DeleteIconButton } from './confirm-delete'
 import { usePasswordGate } from './password-prompt'
+import { useSettings } from '@/lib/settings/settings-context'
 
 // Shared across every browser via the `yards` / `yard_rows` Supabase tables.
 type YardRow = { id: string; name: string; sort_order: number; updated_at: string }
@@ -79,6 +80,7 @@ function isSameLocalDay(iso: string, reference: Date): boolean {
 }
 
 export function YardLayoutView() {
+  const { partTimeMode } = useSettings()
   const [editingYardId, setEditingYardId] = useState<string | null>(null)
   const [yardNameInput, setYardNameInput] = useState('')
   const [rowEdits, setRowEdits] = useState<
@@ -357,25 +359,27 @@ export function YardLayoutView() {
             </p>
           )}
         </div>
-        <button
-          type="button"
-          onClick={() =>
-            managingDestinations
-              ? setManagingDestinations(false)
-              : guard(() => setManagingDestinations(true))
-          }
-          className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors active:scale-95 ${
-            managingDestinations
-              ? 'bg-primary text-primary-foreground'
-              : 'border border-border text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <Settings2 className="h-3.5 w-3.5" aria-hidden="true" />
-          行き先を管理
-        </button>
+        {!partTimeMode && (
+          <button
+            type="button"
+            onClick={() =>
+              managingDestinations
+                ? setManagingDestinations(false)
+                : guard(() => setManagingDestinations(true))
+            }
+            className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors active:scale-95 ${
+              managingDestinations
+                ? 'bg-primary text-primary-foreground'
+                : 'border border-border text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Settings2 className="h-3.5 w-3.5" aria-hidden="true" />
+            行き先を管理
+          </button>
+        )}
       </div>
 
-      {prompt}
+      {!partTimeMode && prompt}
 
       {managingDestinations && (
         <section className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
@@ -720,32 +724,34 @@ export function YardLayoutView() {
               ) : (
                 <span />
               )}
-              <button
-                type="button"
-                onClick={() =>
-                  editing
-                    ? stopEditYard()
-                    : guard(() => startEditYard(yard))
-                }
-                className={`flex shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors active:scale-95 ${
-                  editing
-                    ? 'bg-primary text-primary-foreground'
-                    : 'border border-border text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {editing ? (
-                  <X className="h-3.5 w-3.5" aria-hidden="true" />
-                ) : (
-                  <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-                )}
-                {editing ? '完了' : '編集'}
-              </button>
+              {!partTimeMode && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    editing
+                      ? stopEditYard()
+                      : guard(() => startEditYard(yard))
+                  }
+                  className={`flex shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors active:scale-95 ${
+                    editing
+                      ? 'bg-primary text-primary-foreground'
+                      : 'border border-border text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {editing ? (
+                    <X className="h-3.5 w-3.5" aria-hidden="true" />
+                  ) : (
+                    <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                  )}
+                  {editing ? '完了' : '編集'}
+                </button>
+              )}
             </div>
           </section>
         )
       })}
 
-      {addingYard ? (
+      {!partTimeMode && (addingYard ? (
         <section className="flex items-center gap-2 rounded-2xl border border-dashed border-primary/50 bg-primary/5 p-4">
           <input
             type="text"
@@ -784,7 +790,7 @@ export function YardLayoutView() {
           <Plus className="h-4 w-4" aria-hidden="true" />
           ヤードを追加
         </button>
-      )}
+      ))}
     </div>
   )
 }

@@ -29,6 +29,8 @@ import { DriverTermsView } from './driver-terms-view'
 import { SettingsView } from './settings-view'
 import { VersionView } from './version-view'
 import { CURRENT_VERSION } from '@/lib/changelog'
+import { useScrollToTop } from '@/lib/use-scroll-to-top'
+import { useSettings } from '@/lib/settings/settings-context'
 
 export type MenuItemId =
   | 'lolmap'
@@ -124,6 +126,14 @@ export function MenuView({
   initialItem?: MenuItemId | null
 }) {
   const [selected, setSelected] = useState<MenuItemId | null>(initialItem)
+  const { partTimeMode } = useSettings()
+  useScrollToTop([selected])
+
+  // LoL (delivery destination info) and Version (changelog) are hidden for
+  // part-time staff, who only need the day-to-day reference pages below.
+  const visibleItems = partTimeMode
+    ? MENU_ITEMS.filter((m) => m.id !== 'lol' && m.id !== 'version')
+    : MENU_ITEMS
 
   if (selected) {
     const item = MENU_ITEMS.find((m) => m.id === selected)
@@ -162,7 +172,7 @@ export function MenuView({
       </div>
 
       <ul className="flex flex-col gap-2.5">
-        {MENU_ITEMS.map(({ id, label, description, Icon }) => (
+        {visibleItems.map(({ id, label, description, Icon }) => (
           <li key={id}>
             <button
               type="button"

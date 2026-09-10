@@ -19,6 +19,7 @@ import { AccidentStreakBadge } from './accident-streak-badge'
 import { WeeklyGoal } from './weekly-goal'
 import { ConfirmActionModal } from './confirm-action-modal'
 import { TimecardWorkStatusView } from './timecard-work-status-view'
+import { useScrollToTop } from '@/lib/use-scroll-to-top'
 
 type Screen = 'home' | 'status'
 type PendingAction = 'clock-in' | 'clock-out' | null
@@ -59,6 +60,7 @@ export function TimecardHomeView({
   const [hydrated, setHydrated] = useState(false)
   const [screen, setScreen] = useState<Screen>('home')
   const [pendingAction, setPendingAction] = useState<PendingAction>(null)
+  useScrollToTop([screen])
 
   const toggleFormat = useCallback(() => setHour12((v) => !v), [])
 
@@ -219,15 +221,6 @@ export function TimecardHomeView({
             )
           })()}
         </p>
-
-        <button
-          type="button"
-          onClick={() => setScreen('status')}
-          className="mx-auto mt-1.5 flex items-center gap-1 rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground active:scale-95"
-        >
-          勤務状況をみる
-          <ChevronRight className="h-3 w-3" aria-hidden="true" />
-        </button>
       </section>
 
       <div className="grid grid-cols-2 gap-2">
@@ -255,6 +248,15 @@ export function TimecardHomeView({
           退勤
         </button>
       </div>
+
+      <button
+        type="button"
+        onClick={() => setScreen('status')}
+        className="mx-auto flex items-center gap-1 rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground active:scale-95"
+      >
+        勤務状況/メモ
+        <ChevronRight className="h-3 w-3" aria-hidden="true" />
+      </button>
 
       {pendingAction === 'clock-in' && (
         <ConfirmActionModal

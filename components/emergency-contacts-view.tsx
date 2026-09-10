@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { ConfirmDeleteInline } from './confirm-delete'
 import { usePasswordGate } from './password-prompt'
+import { useSettings } from '@/lib/settings/settings-context'
 
 // Shared across every browser via the `emergency_contacts` Supabase table.
 type ContactRow = {
@@ -77,6 +78,7 @@ function emptyForm() {
 }
 
 function MemoBox() {
+  const { partTimeMode } = useSettings()
   const { data: rows, mutate: refetch } = useRealtimeTable<MemoRow>(
     'emergency_contacts_memo',
     fetchMemo,
@@ -94,7 +96,7 @@ function MemoBox() {
   }
 
   function handleTap() {
-    if (editing) return
+    if (partTimeMode || editing) return
     const now = Date.now()
     if (now - lastTapRef.current < DOUBLE_TAP_MS) {
       lastTapRef.current = 0
@@ -169,6 +171,7 @@ function MemoBox() {
 }
 
 export function EmergencyContactsView() {
+  const { partTimeMode } = useSettings()
   const [editMode, setEditMode] = useState(false)
   const [adding, setAdding] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -255,25 +258,27 @@ export function EmergencyContactsView() {
             緊急時に連絡する連絡先の一覧です。電話番号をタップすると発信できます。
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            setEditMode((v) => !v)
-            closeForm()
-          }}
-          className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors active:scale-95 ${
-            editMode
-              ? 'bg-primary text-primary-foreground'
-              : 'border border-border text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          {editMode ? (
-            <X className="h-4 w-4" aria-hidden="true" />
-          ) : (
-            <Pencil className="h-4 w-4" aria-hidden="true" />
-          )}
-          {editMode ? '完了' : '編集'}
-        </button>
+        {!partTimeMode && (
+          <button
+            type="button"
+            onClick={() => {
+              setEditMode((v) => !v)
+              closeForm()
+            }}
+            className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors active:scale-95 ${
+              editMode
+                ? 'bg-primary text-primary-foreground'
+                : 'border border-border text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {editMode ? (
+              <X className="h-4 w-4" aria-hidden="true" />
+            ) : (
+              <Pencil className="h-4 w-4" aria-hidden="true" />
+            )}
+            {editMode ? '完了' : '編集'}
+          </button>
+        )}
       </div>
 
       <MemoBox />

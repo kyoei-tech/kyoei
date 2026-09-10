@@ -1,12 +1,13 @@
 'use client'
 
-import { Monitor, Moon, Smartphone, Sun } from 'lucide-react'
+import { Briefcase, Monitor, Moon, Smartphone, Sun } from 'lucide-react'
 import {
   FONT_SCALES,
   FONT_TABS,
   useSettings,
   type ThemeMode,
 } from '@/lib/settings/settings-context'
+import { usePasswordGate } from './password-prompt'
 
 const THEME_OPTIONS: { id: ThemeMode; label: string; Icon: typeof Sun }[] = [
   { id: 'dark', label: 'ダーク', Icon: Moon },
@@ -16,9 +17,20 @@ const THEME_OPTIONS: { id: ThemeMode; label: string; Icon: typeof Sun }[] = [
 
 const LEVELS = [1, 2, 3, 4, 5, 6]
 
+const PART_TIME_MODE_PASSCODE = '2486'
+
 export function SettingsView() {
-  const { theme, setTheme, fontLevels, setFontLevel, deviceFont, setDeviceFont } =
-    useSettings()
+  const {
+    theme,
+    setTheme,
+    fontLevels,
+    setFontLevel,
+    deviceFont,
+    setDeviceFont,
+    partTimeMode,
+    setPartTimeMode,
+  } = useSettings()
+  const { guard, prompt } = usePasswordGate(PART_TIME_MODE_PASSCODE)
 
   return (
     <div className="flex flex-col gap-6 pb-6">
@@ -143,6 +155,47 @@ export function SettingsView() {
           })}
         </div>
       </section>
+
+      <section className="flex flex-col gap-3 rounded-2xl border border-border bg-card px-5 py-5">
+        <h3 className="text-base font-bold text-foreground">モード</h3>
+        <p className="text-xs text-muted-foreground">
+          {partTimeMode
+            ? 'アルバイトモード中は編集操作が制限され、シンプルなタイムカード画面のみ利用できます。'
+            : '暗証番号を入力すると、編集操作を制限したシンプルな画面に切り替えられます。'}
+        </p>
+        <button
+          type="button"
+          onClick={() => guard(() => setPartTimeMode(!partTimeMode))}
+          className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left transition-colors active:scale-[0.99] ${
+            partTimeMode
+              ? 'border-primary bg-primary/15'
+              : 'border-border bg-background'
+          }`}
+        >
+          <span className="flex items-center gap-2.5">
+            <Briefcase
+              className={`h-5 w-5 ${partTimeMode ? 'text-primary' : 'text-muted-foreground'}`}
+              aria-hidden="true"
+            />
+            <span className="text-sm font-semibold text-foreground">
+              {partTimeMode ? '社員モードに切り替え' : 'アルバイトモード'}
+            </span>
+          </span>
+          <span
+            className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
+              partTimeMode ? 'bg-primary' : 'bg-border'
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 h-5 w-5 rounded-full bg-card transition-transform ${
+                partTimeMode ? 'translate-x-5' : 'translate-x-0.5'
+              }`}
+            />
+          </span>
+        </button>
+      </section>
+
+      {prompt}
     </div>
   )
 }

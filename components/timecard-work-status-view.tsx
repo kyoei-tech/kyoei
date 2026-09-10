@@ -1,7 +1,15 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { ArrowLeft, Coffee, Pause, Pencil, Play, Trash2 } from 'lucide-react'
+import {
+  ArrowLeft,
+  Coffee,
+  MapPinned,
+  Pause,
+  Pencil,
+  Play,
+  Trash2,
+} from 'lucide-react'
 import { formatClock, formatDuration, type ClockParts } from '@/lib/shift-time'
 import {
   liveBreakTotalMs,
@@ -36,6 +44,8 @@ async function fetchSharedMemos(): Promise<SharedMemoRow[]> {
 const TRIPLE_TAP_MS = 500
 const DOUBLE_TAP_MS = 350
 const PERSONAL_MEMO_KEY = 'kyoei-timecard-personal-memo'
+const KYOEI_YARD_MAP_URL =
+  'https://www.google.com/maps/d/u/0/edit?mid=18TvmwVsmK7OJCelhGjqScBkIlxpXX34&usp=sharing'
 
 function loadPersonalMemo(): string {
   if (typeof window === 'undefined') return ''
@@ -286,6 +296,16 @@ export function TimecardWorkStatusView({
             現在は退勤中です。出勤するとここに勤務時間と休憩ボタンが表示されます。
           </p>
         )}
+
+        <a
+          href={KYOEI_YARD_MAP_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center gap-1.5 rounded-2xl border border-border bg-card py-3 text-sm font-bold text-foreground transition-colors hover:border-primary/60 active:scale-[0.97]"
+        >
+          <MapPinned className="h-4 w-4 text-primary" aria-hidden="true" />
+          共栄ヤード一覧
+        </a>
 
         <section
           aria-label="共有メモ"

@@ -5,6 +5,7 @@ import { Pencil, X, Plus, Store, Clock } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { ConfirmDeleteInline } from './confirm-delete'
+import { useSettings } from '@/lib/settings/settings-context'
 
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土']
 
@@ -90,26 +91,29 @@ function CalendarCard({
   onToggleEdit: () => void
   children: React.ReactNode
 }) {
+  const { partTimeMode } = useSettings()
   return (
     <section className="rounded-2xl border border-border bg-card p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
         <h3 className="text-base font-bold text-foreground">{title}</h3>
-        <button
-          type="button"
-          onClick={onToggleEdit}
-          className={`flex shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors active:scale-95 ${
-            editing
-              ? 'bg-primary text-primary-foreground'
-              : 'border border-border text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          {editing ? (
-            <X className="h-3.5 w-3.5" aria-hidden="true" />
-          ) : (
-            <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-          )}
-          {editing ? '完了' : '編集'}
-        </button>
+        {!partTimeMode && (
+          <button
+            type="button"
+            onClick={onToggleEdit}
+            className={`flex shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors active:scale-95 ${
+              editing
+                ? 'bg-primary text-primary-foreground'
+                : 'border border-border text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {editing ? (
+              <X className="h-3.5 w-3.5" aria-hidden="true" />
+            ) : (
+              <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+            )}
+            {editing ? '完了' : '編集'}
+          </button>
+        )}
       </div>
       {children}
     </section>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useSettings } from '@/lib/settings/settings-context'
+import { useScrollToTop } from '@/lib/use-scroll-to-top'
 import { BottomTabs, type TabId } from './bottom-tabs'
 import { HomeView } from './home-view'
 import { TimecardHomeView } from './timecard-home-view'
@@ -24,7 +25,8 @@ export function AttendanceApp() {
   // Bumped every time the home tab is tapped (even while already on it), so
   // HomeView can jump back to its top-level screen out of 運行状況/休息状況.
   const [homeSignal, setHomeSignal] = useState(0)
-  const { fontScaleFor, appMode, setAppMode } = useSettings()
+  const { fontScaleFor, appMode, setAppMode, partTimeMode } = useSettings()
+  useScrollToTop([tab])
 
   // Font size is configured per bottom tab in Settings (メニュー > 設定).
   // Since only one tab is mounted at a time, scaling the document root's
@@ -78,9 +80,12 @@ export function AttendanceApp() {
       <BottomTabs
         active={tab}
         onChange={handleTabChange}
-        onSecretHomeGesture={() =>
+        onSecretHomeGesture={() => {
+          // Locked out during part-time mode: mode switching there only
+          // happens through 設定 (with its PIN), not this hidden gesture.
+          if (partTimeMode) return
           setAppMode(appMode === 'driver' ? 'timecard' : 'driver')
-        }
+        }}
       />
     </div>
   )

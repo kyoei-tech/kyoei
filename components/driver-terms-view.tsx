@@ -17,6 +17,8 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { ConfirmDeleteInline } from './confirm-delete'
+import { useSettings } from '@/lib/settings/settings-context'
+import { useScrollToTop } from '@/lib/use-scroll-to-top'
 
 const UNSET_CATEGORY = '未分類'
 const NEW_CATEGORY_VALUE = '__new__'
@@ -108,6 +110,7 @@ export function DriverTermsView() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(
     null,
   )
+  const { partTimeMode } = useSettings()
   const [selectedTermId, setSelectedTermId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [adding, setAdding] = useState(false)
@@ -175,6 +178,7 @@ export function DriverTermsView() {
       ? 'terms'
       : 'top'
   const showingSearch = screen === 'top' && q.length > 0
+  useScrollToTop([screen])
 
   function closeForm() {
     setAdding(false)
@@ -413,7 +417,7 @@ export function DriverTermsView() {
           一覧へ戻る
         </button>
 
-        {adding ? (
+        {!partTimeMode && adding ? (
           renderForm()
         ) : (
           <section className="flex flex-col gap-4 rounded-3xl border border-border bg-card px-5 py-5">
@@ -431,27 +435,29 @@ export function DriverTermsView() {
                   </p>
                 )}
               </div>
-              <div className="flex shrink-0 items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => startEdit(selectedTerm)}
-                  aria-label="編集"
-                  className="rounded-lg p-1.5 text-muted-foreground/60 transition-colors hover:text-foreground active:scale-90"
-                >
-                  <Pencil className="h-4 w-4" aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setConfirmDeleteId(selectedTerm.id)}
-                  aria-label="削除"
-                  className="rounded-lg p-1.5 text-muted-foreground/60 transition-colors hover:text-destructive active:scale-90"
-                >
-                  <Trash2 className="h-4 w-4" aria-hidden="true" />
-                </button>
-              </div>
+              {!partTimeMode && (
+                <div className="flex shrink-0 items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => startEdit(selectedTerm)}
+                    aria-label="編集"
+                    className="rounded-lg p-1.5 text-muted-foreground/60 transition-colors hover:text-foreground active:scale-90"
+                  >
+                    <Pencil className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDeleteId(selectedTerm.id)}
+                    aria-label="削除"
+                    className="rounded-lg p-1.5 text-muted-foreground/60 transition-colors hover:text-destructive active:scale-90"
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                </div>
+              )}
             </div>
 
-            {confirmDeleteId === selectedTerm.id && (
+            {!partTimeMode && confirmDeleteId === selectedTerm.id && (
               <ConfirmDeleteInline
                 message="この単語を削除しますか？"
                 onConfirm={() => deleteTerm(selectedTerm.id)}
@@ -523,21 +529,23 @@ export function DriverTermsView() {
               </h2>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => (adding ? closeForm() : startAdd())}
-            className="flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95"
-          >
-            {adding ? (
-              <X className="h-4 w-4" aria-hidden="true" />
-            ) : (
-              <Plus className="h-4 w-4" aria-hidden="true" />
-            )}
-            {adding ? '閉じる' : '登録'}
-          </button>
+          {!partTimeMode && (
+            <button
+              type="button"
+              onClick={() => (adding ? closeForm() : startAdd())}
+              className="flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95"
+            >
+              {adding ? (
+                <X className="h-4 w-4" aria-hidden="true" />
+              ) : (
+                <Plus className="h-4 w-4" aria-hidden="true" />
+              )}
+              {adding ? '閉じる' : '登録'}
+            </button>
+          )}
         </div>
 
-        {adding && renderForm()}
+        {!partTimeMode && adding && renderForm()}
 
         {termsInSelectedCategory.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-border px-5 py-10 text-center text-sm text-muted-foreground">
@@ -592,18 +600,20 @@ export function DriverTermsView() {
             業界用語、隠語を調べられるおもしろ辞典📖
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => (adding ? closeForm() : startAdd())}
-          className="flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95"
-        >
-          {adding ? (
-            <X className="h-4 w-4" aria-hidden="true" />
-          ) : (
-            <Plus className="h-4 w-4" aria-hidden="true" />
-          )}
-          {adding ? '閉じる' : '登録'}
-        </button>
+        {!partTimeMode && (
+          <button
+            type="button"
+            onClick={() => (adding ? closeForm() : startAdd())}
+            className="flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95"
+          >
+            {adding ? (
+              <X className="h-4 w-4" aria-hidden="true" />
+            ) : (
+              <Plus className="h-4 w-4" aria-hidden="true" />
+            )}
+            {adding ? '閉じる' : '登録'}
+          </button>
+        )}
       </div>
 
       <div className="relative">
@@ -641,7 +651,7 @@ export function DriverTermsView() {
         </button>
       )}
 
-      {adding && renderForm()}
+        {!partTimeMode && adding && renderForm()}
 
       {showingSearch ? (
         searchResults && searchResults.length > 0 ? (

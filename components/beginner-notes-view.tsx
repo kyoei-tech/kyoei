@@ -5,6 +5,8 @@ import { ArrowLeft, ChevronRight, Pencil, Plus, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { ConfirmDeleteInline } from './confirm-delete'
+import { useSettings } from '@/lib/settings/settings-context'
+import { useScrollToTop } from '@/lib/use-scroll-to-top'
 
 // Shared across every browser via the `beginner_notes` Supabase table.
 type NoteRow = {
@@ -29,7 +31,9 @@ function emptyForm() {
 }
 
 export function BeginnerNotesView() {
+  const { partTimeMode } = useSettings()
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  useScrollToTop([selectedId])
   const [adding, setAdding] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState(false)
@@ -106,24 +110,26 @@ export function BeginnerNotesView() {
               {selected.body}
             </p>
           )}
-          <div className="mt-4 flex items-center justify-end gap-3">
-            <button
-              type="button"
-              onClick={() => openEdit(selected)}
-              className="flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-              編集
-            </button>
-            <button
-              type="button"
-              onClick={() => setConfirmDeleteId(true)}
-              className="text-xs font-medium text-muted-foreground/70 transition-colors hover:text-destructive"
-            >
-              削除
-            </button>
-          </div>
-          {confirmDeleteId && (
+          {!partTimeMode && (
+            <div className="mt-4 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => openEdit(selected)}
+                className="flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                編集
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteId(true)}
+                className="text-xs font-medium text-muted-foreground/70 transition-colors hover:text-destructive"
+              >
+                削除
+              </button>
+            </div>
+          )}
+          {!partTimeMode && confirmDeleteId && (
             <div className="mt-3">
               <ConfirmDeleteInline
                 onConfirm={() => deleteNote(selected.id)}
@@ -133,7 +139,7 @@ export function BeginnerNotesView() {
           )}
         </section>
 
-        {adding && (
+        {!partTimeMode && adding && (
           <NoteForm
             form={form}
             setForm={setForm}
@@ -155,27 +161,29 @@ export function BeginnerNotesView() {
             新人向けのメモや手順をまとめて共有できます。
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            if (adding) {
-              closeForm()
-            } else {
-              openAdd()
-            }
-          }}
-          className="flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95"
-        >
-          {adding ? (
-            <X className="h-4 w-4" aria-hidden="true" />
-          ) : (
-            <Plus className="h-4 w-4" aria-hidden="true" />
-          )}
-          {adding ? '閉じる' : 'ノートを追加'}
-        </button>
+        {!partTimeMode && (
+          <button
+            type="button"
+            onClick={() => {
+              if (adding) {
+                closeForm()
+              } else {
+                openAdd()
+              }
+            }}
+            className="flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95"
+          >
+            {adding ? (
+              <X className="h-4 w-4" aria-hidden="true" />
+            ) : (
+              <Plus className="h-4 w-4" aria-hidden="true" />
+            )}
+            {adding ? '閉じる' : 'ノートを追加'}
+          </button>
+        )}
       </div>
 
-      {adding && (
+      {!partTimeMode && adding && (
         <NoteForm form={form} setForm={setForm} onSave={saveNote} onCancel={closeForm} />
       )}
 

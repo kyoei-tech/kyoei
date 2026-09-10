@@ -20,6 +20,8 @@ import {
   useAccidentCategories,
 } from './accident-category-select'
 import { AccidentYearlyView } from './accident-yearly-view'
+import { useSettings } from '@/lib/settings/settings-context'
+import { useScrollToTop } from '@/lib/use-scroll-to-top'
 
 // Shared across every browser via the `accident_records` Supabase table.
 type AccidentRow = {
@@ -127,6 +129,7 @@ function emptyForm() {
 }
 
 export function AccidentCalendarView() {
+  const { partTimeMode } = useSettings()
   const [periodMode, setPeriodMode] = useState<'month' | 'year'>('month')
   const [viewMonth, setViewMonth] = useState(() => {
     const t = new Date()
@@ -146,6 +149,7 @@ export function AccidentCalendarView() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const { guard, prompt } = usePasswordGate('2486')
+  useScrollToTop([periodMode, showHistory])
 
   const { data: rows, mutate: refetch } = useRealtimeTable<AccidentRow>(
     'accident_records',
@@ -412,34 +416,36 @@ export function AccidentCalendarView() {
 
       {prompt}
 
-      <button
-        type="button"
-        onClick={() => {
-          if (editingNew) {
-            setEditingNew(false)
-            setShowHistory(false)
-            setForm(emptyForm())
-            return
-          }
-          guard(() => {
-            setEditingNew(true)
-            setShowHistory(false)
-            setForm(emptyForm())
-          })
-        }}
-        className={`flex items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-semibold transition-colors active:scale-95 ${
-          editingNew
-            ? 'bg-primary text-primary-foreground'
-            : 'border border-border text-muted-foreground hover:text-foreground'
-        }`}
-      >
-        {editingNew ? (
-          <X className="h-4 w-4" aria-hidden="true" />
-        ) : (
-          <Pencil className="h-4 w-4" aria-hidden="true" />
-        )}
-        {editingNew ? '編集を終了' : '編集'}
-      </button>
+      {!partTimeMode && (
+        <button
+          type="button"
+          onClick={() => {
+            if (editingNew) {
+              setEditingNew(false)
+              setShowHistory(false)
+              setForm(emptyForm())
+              return
+            }
+            guard(() => {
+              setEditingNew(true)
+              setShowHistory(false)
+              setForm(emptyForm())
+            })
+          }}
+          className={`flex items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-semibold transition-colors active:scale-95 ${
+            editingNew
+              ? 'bg-primary text-primary-foreground'
+              : 'border border-border text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          {editingNew ? (
+            <X className="h-4 w-4" aria-hidden="true" />
+          ) : (
+            <Pencil className="h-4 w-4" aria-hidden="true" />
+          )}
+          {editingNew ? '編集を終了' : '編集'}
+        </button>
+      )}
 
       {editingNew && (
         <>

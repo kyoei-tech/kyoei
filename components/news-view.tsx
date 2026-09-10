@@ -12,6 +12,8 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { usePasswordGate } from './password-prompt'
+import { useSettings } from '@/lib/settings/settings-context'
+import { useScrollToTop } from '@/lib/use-scroll-to-top'
 
 type NewsPost = {
   id: string
@@ -65,7 +67,9 @@ function formatPostDate(createdAt: number) {
 }
 
 export function NewsView() {
+  const { partTimeMode } = useSettings()
   const [view, setView] = useState<ViewMode>('list')
+  useScrollToTop([view])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
@@ -357,17 +361,19 @@ export function NewsView() {
             新しい投稿から順に表示されます。
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => guard(openCreate)}
-          className="flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95"
-        >
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          投稿
-        </button>
+        {!partTimeMode && (
+          <button
+            type="button"
+            onClick={() => guard(openCreate)}
+            className="flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95"
+          >
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            投稿
+          </button>
+        )}
       </div>
 
-      {prompt}
+      {!partTimeMode && prompt}
 
       {sorted.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-border px-5 py-10 text-center text-sm text-muted-foreground">

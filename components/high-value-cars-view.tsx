@@ -13,6 +13,8 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
+import { useSettings } from '@/lib/settings/settings-context'
+import { useScrollToTop } from '@/lib/use-scroll-to-top'
 
 type CarEntry = {
   id: string
@@ -60,6 +62,7 @@ function emptyForm() {
 type View = 'makers' | 'models' | 'detail'
 
 export function HighValueCarsView() {
+  const { partTimeMode } = useSettings()
   const [view, setView] = useState<View>('makers')
   const [selectedMaker, setSelectedMaker] = useState<string | null>(null)
   const [selectedCarId, setSelectedCarId] = useState<string | null>(null)
@@ -68,6 +71,7 @@ export function HighValueCarsView() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm())
+  useScrollToTop([view])
 
   const { data: rows, mutate: refetch } = useRealtimeTable<CarRow>(
     'high_value_cars',
@@ -282,7 +286,7 @@ export function HighValueCarsView() {
           </div>
         </div>
 
-        {adding ? (
+        {!partTimeMode && adding ? (
           renderForm()
         ) : (
           <section className="flex flex-col gap-4 rounded-3xl border border-border bg-card px-5 py-5">
@@ -290,27 +294,29 @@ export function HighValueCarsView() {
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
                 <Car className="h-5 w-5" aria-hidden="true" />
               </span>
-              <div className="flex shrink-0 items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => startEdit(selectedCar)}
-                  aria-label="編集"
-                  className="rounded-lg p-1.5 text-muted-foreground/60 transition-colors hover:text-foreground active:scale-90"
-                >
-                  <Pencil className="h-4 w-4" aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setConfirmDeleteId(selectedCar.id)}
-                  aria-label="削除"
-                  className="rounded-lg p-1.5 text-muted-foreground/60 transition-colors hover:text-destructive active:scale-90"
-                >
-                  <Trash2 className="h-4 w-4" aria-hidden="true" />
-                </button>
-              </div>
+              {!partTimeMode && (
+                <div className="flex shrink-0 items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => startEdit(selectedCar)}
+                    aria-label="編集"
+                    className="rounded-lg p-1.5 text-muted-foreground/60 transition-colors hover:text-foreground active:scale-90"
+                  >
+                    <Pencil className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDeleteId(selectedCar.id)}
+                    aria-label="削除"
+                    className="rounded-lg p-1.5 text-muted-foreground/60 transition-colors hover:text-destructive active:scale-90"
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                </div>
+              )}
             </div>
 
-            {confirmDeleteId === selectedCar.id && (
+            {!partTimeMode && confirmDeleteId === selectedCar.id && (
               <div className="flex flex-col gap-2.5 rounded-2xl border border-destructive/40 bg-destructive/10 px-4 py-3">
                 <p className="text-sm font-medium text-foreground">
                   本当に削除しますか？
@@ -403,27 +409,29 @@ export function HighValueCarsView() {
               </h2>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() =>
-              adding
-                ? closeForm()
-                : startAdd(
-                    selectedMaker === UNSET_MAKER ? '' : selectedMaker,
-                  )
-            }
-            className="flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95"
-          >
-            {adding ? (
-              <X className="h-4 w-4" aria-hidden="true" />
-            ) : (
-              <Plus className="h-4 w-4" aria-hidden="true" />
-            )}
-            {adding ? '閉じる' : '追加'}
-          </button>
+          {!partTimeMode && (
+            <button
+              type="button"
+              onClick={() =>
+                adding
+                  ? closeForm()
+                  : startAdd(
+                      selectedMaker === UNSET_MAKER ? '' : selectedMaker,
+                    )
+              }
+              className="flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95"
+            >
+              {adding ? (
+                <X className="h-4 w-4" aria-hidden="true" />
+              ) : (
+                <Plus className="h-4 w-4" aria-hidden="true" />
+              )}
+              {adding ? '閉じる' : '追加'}
+            </button>
+          )}
         </div>
 
-        {adding && renderForm()}
+        {!partTimeMode && adding && renderForm()}
 
         {modelsForSelectedMaker.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-border px-5 py-10 text-center text-sm text-muted-foreground">
@@ -476,18 +484,20 @@ export function HighValueCarsView() {
             メーカーをタップすると車種一覧が表示されます。
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => (adding ? closeForm() : startAdd())}
-          className="flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95"
-        >
-          {adding ? (
-            <X className="h-4 w-4" aria-hidden="true" />
-          ) : (
-            <Plus className="h-4 w-4" aria-hidden="true" />
-          )}
-          {adding ? '閉じる' : '追加'}
-        </button>
+        {!partTimeMode && (
+          <button
+            type="button"
+            onClick={() => (adding ? closeForm() : startAdd())}
+            className="flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95"
+          >
+            {adding ? (
+              <X className="h-4 w-4" aria-hidden="true" />
+            ) : (
+              <Plus className="h-4 w-4" aria-hidden="true" />
+            )}
+            {adding ? '閉じる' : '追加'}
+          </button>
+        )}
       </div>
 
       <div className="relative">
@@ -505,7 +515,7 @@ export function HighValueCarsView() {
         />
       </div>
 
-      {adding && renderForm()}
+        {!partTimeMode && adding && renderForm()}
 
       {q ? (
         searchResults.length === 0 ? (
