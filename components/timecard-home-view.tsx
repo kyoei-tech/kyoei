@@ -127,7 +127,7 @@ export function TimecardHomeView({
     ? formatDuration(shiftElapsedMs)
     : '00:00:00'
 
-  if (screen === 'status' && state.clockedIn && state.shiftStartedAt != null) {
+  if (screen === 'status') {
     return (
       <TimecardWorkStatusView
         now={nowMs}
@@ -220,20 +220,14 @@ export function TimecardHomeView({
           })()}
         </p>
 
-        {state.clockedIn ? (
-          <button
-            type="button"
-            onClick={() => setScreen('status')}
-            className="mx-auto mt-1.5 flex items-center gap-1 rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground active:scale-95"
-          >
-            勤務状況をみる
-            <ChevronRight className="h-3 w-3" aria-hidden="true" />
-          </button>
-        ) : (
-          <p className="mt-1.5 text-xs text-muted-foreground">
-            出勤ボタンで開始します
-          </p>
-        )}
+        <button
+          type="button"
+          onClick={() => setScreen('status')}
+          className="mx-auto mt-1.5 flex items-center gap-1 rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground active:scale-95"
+        >
+          勤務状況をみる
+          <ChevronRight className="h-3 w-3" aria-hidden="true" />
+        </button>
       </section>
 
       <div className="grid grid-cols-2 gap-2">
@@ -265,6 +259,7 @@ export function TimecardHomeView({
       {pendingAction === 'clock-in' && (
         <ConfirmActionModal
           message="タイムカードを押しましたか？"
+          confirmLabel="押しました"
           onConfirm={confirmClockIn}
           onCancel={() => setPendingAction(null)}
         />
@@ -272,6 +267,7 @@ export function TimecardHomeView({
       {pendingAction === 'clock-out' && (
         <ConfirmActionModal
           message="タイムカードを押しましたか？"
+          confirmLabel="押しました"
           onConfirm={confirmClockOut}
           onCancel={() => setPendingAction(null)}
         />

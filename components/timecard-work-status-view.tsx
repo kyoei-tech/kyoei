@@ -62,7 +62,10 @@ export function TimecardWorkStatusView({
 }: {
   now: number
   nowParts: ClockParts
-  workStartedAt: number
+  /** Epoch ms when today's shift started, or null while clocked out. This
+   * page stays reachable while clocked out so the memos below remain
+   * accessible at all times. */
+  workStartedAt: number | null
   timecardState: TimecardState
   onStartBreak: () => void
   onEndBreak: () => void
@@ -101,11 +104,13 @@ export function TimecardWorkStatusView({
   const breakTotalMs = liveBreakTotalMs(timecardState, now)
   const shiftElapsedMs = liveShiftElapsedMs(timecardState, now)
 
-  const workStartedParts = formatClock(new Date(workStartedAt), {
-    hour12: false,
-    seconds: false,
-  })
-  const workStartedDateLabel = `${workStartedParts.date} ${workStartedParts.weekday}`
+  const workStartedParts =
+    workStartedAt != null
+      ? formatClock(new Date(workStartedAt), { hour12: false, seconds: false })
+      : null
+  const workStartedDateLabel = workStartedParts
+    ? `${workStartedParts.date} ${workStartedParts.weekday}`
+    : ''
 
   function handleSharedMemoTap() {
     if (sharedEditing || memoEditingId) return
@@ -217,66 +222,70 @@ export function TimecardWorkStatusView({
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-2xl border border-border bg-card px-3 py-3.5 text-center">
-            <p className="text-xs font-bold text-secondary">出勤時間</p>
-            <p className="font-mono text-xl font-bold tabular-nums text-secondary">
-              {workStartedParts.time}
-            </p>
-            <p className="mt-0.5 text-[0.65rem] font-medium text-muted-foreground">
-              {workStartedDateLabel}
-            </p>
-          </div>
-          <div className="rounded-2xl border border-border bg-card px-3 py-3.5 text-center">
-            <p className="text-xs font-bold text-secondary">勤務時間</p>
-            <p className="font-mono text-xl font-bold tabular-nums text-secondary">
-              {formatDuration(shiftElapsedMs)}
-            </p>
-          </div>
-        </div>
+        {workStartedAt != null && workStartedParts ? (
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-2xl border border-border bg-card px-3 py-3.5 text-center">
+                <p className="text-xs font-bold text-secondary">出勤時間</p>
+                <p className="font-mono text-xl font-bold tabular-nums text-secondary">
+                  {workStartedParts.time}
+                </p>
+                <p className="mt-0.5 text-[0.65rem] font-medium text-muted-foreground">
+                  {workStartedDateLabel}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-border bg-card px-3 py-3.5 text-center">
+                <p className="text-xs font-bold text-secondary">勤務時間</p>
+                <p className="font-mono text-xl font-bold tabular-nums text-secondary">
+                  {formatDuration(shiftElapsedMs)}
+                </p>
+              </div>
+            </div>
 
-        <div className="rounded-2xl border border-border bg-card px-4 py-3.5">
-          <div className="flex items-center justify-between">
-            <span
-              className={`text-xs font-bold ${
-                timecardState.onBreak ? 'text-primary' : 'text-foreground'
-              }`}
-            >
-              休憩時間
-            </span>
-            <span
-              className={`font-mono text-xl font-bold tabular-nums ${
-                timecardState.onBreak ? 'text-primary' : 'text-foreground'
-              }`}
-            >
-              {formatDuration(breakTotalMs)}
-            </span>
-          </div>
-        </div>
+            <div className="rounded-2xl border border-border bg-card px-4 py-3.5">
+              <div className="flex items-center justify-between">
+                <span
+                  className={`text-xs font-bold ${
+                    timecardState.onBreak ? 'text-primary' : 'text-foreground'
+                  }`}
+                >
+                  休憩時間
+                </span>
+                <span
+                  className={`font-mono text-xl font-bold tabular-nums ${
+                    timecardState.onBreak ? 'text-primary' : 'text-foreground'
+                  }`}
+                >
+                  {formatDuration(breakTotalMs)}
+                </span>
+              </div>
+            </div>
 
-        <button
-          type="button"
-          onClick={() =>
-            setPendingBreakAction(timecardState.onBreak ? 'end' : 'start')
-          }
-          className={`flex items-center justify-center gap-1.5 rounded-2xl border py-3.5 text-base font-bold transition-all active:scale-[0.97] ${
-            timecardState.onBreak
-              ? 'border-primary bg-primary text-primary-foreground'
-              : 'border-primary bg-primary text-primary-foreground'
-          }`}
-        >
-          {timecardState.onBreak ? (
-            <>
-              <Pause className="h-5 w-5" aria-hidden="true" />
-              休憩終了
-            </>
-          ) : (
-            <>
-              <Play className="h-5 w-5" aria-hidden="true" />
-              休憩開始
-            </>
-          )}
-        </button>
+            <button
+              type="button"
+              onClick={() =>
+                setPendingBreakAction(timecardState.onBreak ? 'end' : 'start')
+              }
+              className="flex items-center justify-center gap-1.5 rounded-2xl border border-primary bg-primary py-3.5 text-base font-bold text-primary-foreground transition-all active:scale-[0.97]"
+            >
+              {timecardState.onBreak ? (
+                <>
+                  <Pause className="h-5 w-5" aria-hidden="true" />
+                  休憩終了
+                </>
+              ) : (
+                <>
+                  <Play className="h-5 w-5" aria-hidden="true" />
+                  休憩開始
+                </>
+              )}
+            </button>
+          </>
+        ) : (
+          <p className="rounded-2xl border border-dashed border-border bg-card px-4 py-3.5 text-center text-xs text-muted-foreground">
+            現在は退勤中です。出勤するとここに勤務時間と休憩ボタンが表示されます。
+          </p>
+        )}
 
         <section
           aria-label="共有メモ"
@@ -485,6 +494,7 @@ export function TimecardWorkStatusView({
       {pendingBreakAction === 'start' && (
         <ConfirmActionModal
           message="休憩を開始しますか？"
+          confirmLabel="開始する"
           onConfirm={() => {
             onStartBreak()
             setPendingBreakAction(null)
@@ -495,6 +505,7 @@ export function TimecardWorkStatusView({
       {pendingBreakAction === 'end' && (
         <ConfirmActionModal
           message="休憩を終了しますか？"
+          confirmLabel="終了する"
           onConfirm={() => {
             onEndBreak()
             setPendingBreakAction(null)

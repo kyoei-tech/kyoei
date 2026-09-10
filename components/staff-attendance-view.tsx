@@ -149,6 +149,17 @@ export function StaffAttendanceView() {
     [yardManagerRows],
   )
 
+  // A checked-in manager's comment needs more width than a bare name card
+  // has room for at 4-per-row, so drop to 3-per-row whenever any comment is
+  // currently showing.
+  const yardGridCols = useMemo(
+    () =>
+      yardManagers.some((m) => m.checked_in && m.comment.trim())
+        ? 'grid-cols-3'
+        : 'grid-cols-4',
+    [yardManagers],
+  )
+
   const staff = useMemo(
     () => [...rows].sort((a, b) => a.sort_order - b.sort_order),
     [rows],
@@ -447,22 +458,35 @@ export function StaffAttendanceView() {
     const checkedIn = manager.checked_in
     const accent = checkedIn
       ? manager.employment_type === 'regular'
-        ? 'border-secondary bg-secondary/15 text-secondary'
-        : 'border-blue-500 bg-blue-500/15 text-blue-500'
-      : 'border-primary/50 bg-primary/10 text-primary'
+        ? 'border-secondary bg-secondary/15'
+        : 'border-blue-500 bg-blue-500/15'
+      : 'border-primary/50 bg-primary/10'
+    const statusColor = checkedIn
+      ? manager.employment_type === 'regular'
+        ? 'text-secondary'
+        : 'text-blue-500'
+      : 'text-primary'
     return (
       <button
         key={manager.id}
         type="button"
         onClick={() => handleYardTap(manager)}
-        className={`flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-xl border-2 px-2 py-2 text-center transition-colors active:scale-[0.97] ${accent}`}
+        className={`flex min-h-[68px] flex-col items-center justify-center gap-0.5 rounded-xl border-2 px-2 py-2 text-center transition-colors active:scale-[0.97] ${accent}`}
       >
         {editMode && (
-          <Pencil className="h-3 w-3 shrink-0" aria-hidden="true" />
+          <Pencil
+            className="h-3 w-3 shrink-0 text-muted-foreground"
+            aria-hidden="true"
+          />
         )}
-        <span className="line-clamp-1 text-xs font-bold">{manager.name}</span>
+        <span className={`text-[0.6rem] font-bold ${statusColor}`}>
+          {checkedIn ? '出勤済み' : '退勤済み'}
+        </span>
+        <span className="line-clamp-1 text-xs font-bold text-foreground">
+          {manager.name}
+        </span>
         {checkedIn && manager.comment && (
-          <span className="line-clamp-2 w-full whitespace-pre-wrap text-[0.6rem] leading-3 opacity-80">
+          <span className="line-clamp-2 w-full whitespace-pre-wrap text-[0.6rem] leading-3 text-muted-foreground">
             {manager.comment}
           </span>
         )}
@@ -837,7 +861,7 @@ export function StaffAttendanceView() {
               まだヤード管理者が登録されていません。
             </p>
           ) : (
-            <div className="grid grid-cols-4 gap-2">
+            <div className={`grid ${yardGridCols} gap-2`}>
               {yardManagers.map(renderYardManagerCard)}
             </div>
           )}
