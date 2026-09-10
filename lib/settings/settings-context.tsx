@@ -11,6 +11,10 @@ import {
 
 export type FontTabId = 'home' | 'yard' | 'staff' | 'news' | 'menu'
 export type ThemeMode = 'dark' | 'light' | 'system'
+// 'driver' is the default full-featured mode (rest-time countdown, 運行
+// status pages, etc.) for truck drivers. 'timecard' is a stripped-down
+// clock-in/out mode for office staff who don't drive.
+export type AppMode = 'driver' | 'timecard'
 
 export const FONT_TABS: { id: FontTabId; label: string }[] = [
   { id: 'home', label: 'ホーム' },
@@ -35,6 +39,7 @@ type StoredSettings = {
   // When true, per-tab font levels are ignored and text follows the
   // device/browser's own font size setting instead (scale of 1 everywhere).
   deviceFont: boolean
+  appMode: AppMode
 }
 
 function defaultSettings(): StoredSettings {
@@ -48,6 +53,7 @@ function defaultSettings(): StoredSettings {
       menu: DEFAULT_FONT_LEVEL,
     },
     deviceFont: false,
+    appMode: 'driver',
   }
 }
 
@@ -62,6 +68,7 @@ function loadSettings(): StoredSettings {
       theme: parsed.theme ?? base.theme,
       fontLevels: { ...base.fontLevels, ...(parsed.fontLevels ?? {}) },
       deviceFont: parsed.deviceFont ?? base.deviceFont,
+      appMode: parsed.appMode ?? base.appMode,
     }
   } catch {
     return defaultSettings()
@@ -76,6 +83,8 @@ type SettingsContextValue = {
   fontScaleFor: (tab: FontTabId) => number
   deviceFont: boolean
   setDeviceFont: (enabled: boolean) => void
+  appMode: AppMode
+  setAppMode: (mode: AppMode) => void
 }
 
 const SettingsContext = createContext<SettingsContextValue | null>(null)
@@ -130,6 +139,10 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     (enabled: boolean) => setSettings((p) => ({ ...p, deviceFont: enabled })),
     [],
   )
+  const setAppMode = useCallback(
+    (mode: AppMode) => setSettings((p) => ({ ...p, appMode: mode })),
+    [],
+  )
   const fontScaleFor = useCallback(
     (tab: FontTabId) => {
       if (settings.deviceFont) return 1
@@ -149,15 +162,19 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       fontScaleFor,
       deviceFont: settings.deviceFont,
       setDeviceFont,
+      appMode: settings.appMode,
+      setAppMode,
     }),
     [
       settings.theme,
       settings.fontLevels,
       settings.deviceFont,
+      settings.appMode,
       setTheme,
       setFontLevel,
       fontScaleFor,
       setDeviceFont,
+      setAppMode,
     ],
   )
 

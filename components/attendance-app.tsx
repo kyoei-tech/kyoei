@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useSettings } from '@/lib/settings/settings-context'
 import { BottomTabs, type TabId } from './bottom-tabs'
 import { HomeView } from './home-view'
+import { TimecardHomeView } from './timecard-home-view'
 import { NewsView } from './news-view'
 import { MenuView, type MenuItemId } from './menu-view'
 import { YardLayoutView } from './yard-layout-view'
@@ -23,7 +24,7 @@ export function AttendanceApp() {
   // Bumped every time the home tab is tapped (even while already on it), so
   // HomeView can jump back to its top-level screen out of 運行状況/休息状況.
   const [homeSignal, setHomeSignal] = useState(0)
-  const { fontScaleFor } = useSettings()
+  const { fontScaleFor, appMode } = useSettings()
 
   // Font size is configured per bottom tab in Settings (メニュー > 設定).
   // Since only one tab is mounted at a time, scaling the document root's
@@ -55,12 +56,18 @@ export function AttendanceApp() {
   return (
     <div className="relative mx-auto flex min-h-[100dvh] w-full max-w-md flex-col bg-background">
       <main className="flex flex-1 flex-col px-4 pb-24 pt-6">
-        {tab === 'home' && (
-          <HomeView
-            onOpenAccidentCalendar={() => openMenuItem('accidents')}
-            homeSignal={homeSignal}
-          />
-        )}
+        {tab === 'home' &&
+          (appMode === 'timecard' ? (
+            <TimecardHomeView
+              onOpenAccidentCalendar={() => openMenuItem('accidents')}
+              homeSignal={homeSignal}
+            />
+          ) : (
+            <HomeView
+              onOpenAccidentCalendar={() => openMenuItem('accidents')}
+              homeSignal={homeSignal}
+            />
+          ))}
         {tab === 'news' && <NewsView />}
         {tab === 'yard' && <YardLayoutView />}
         {tab === 'staff' && <StaffAttendanceView />}

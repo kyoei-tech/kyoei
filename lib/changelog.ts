@@ -17,6 +17,24 @@ export type ChangelogVersion = {
 
 export const CHANGELOG: ChangelogVersion[] = [
   {
+    version: '1.6.0',
+    date: '2026-09-10',
+    entries: [
+      {
+        page: '設定',
+        kind: '追加',
+        description:
+          '「利用モード」を追加。乗務員モードとタイムカードモードをこの端末用に切り替えられます。',
+      },
+      {
+        page: 'ホーム',
+        kind: '追加',
+        description:
+          'タイムカードモードでは、出勤・退勤と休憩時間だけを記録する簡単な画面になります（運行状況・休息状況などトラック運転手向けの機能は表示されません）。',
+      },
+    ],
+  },
+  {
     version: '1.5.0',
     date: '2026-09-10',
     entries: [
