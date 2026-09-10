@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   ChevronDown,
   Plus,
@@ -10,20 +10,67 @@ import {
   Eye,
   X,
 } from 'lucide-react'
-import {
-  CHANGELOG,
-  type ChangeKind,
-  type ChangelogEntry,
-  type ChangelogVersion,
-} from '@/lib/changelog'
+import { type ChangeKind } from '@/lib/changelog'
 import { usePasswordGate } from '@/components/password-prompt'
+import { createClient } from '@/lib/supabase/client'
+import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 
 const EDIT_PIN = '0525'
 
-type EditableEntry = ChangelogEntry & { hidden?: boolean }
-type EditableVersion = { version: string; date: string; entries: EditableEntry[] }
-
 const KIND_OPTIONS: ChangeKind[] = ['追加', '変更', '削除']
+
+// Persisted in the `changelog_entries` table so edits/hides/deletes survive
+// reloads and stay in sync across every browser, instead of living only in
+// local component state.
+type ChangelogRow = {
+  id: string
+  version: string
+  version_date: string
+  page: string
+  kind: ChangeKind
+  description: string
+  hidden: boolean
+  version_order: number
+  entry_order: number
+}
+
+type GroupedVersion = {
+  version: string
+  date: string
+  versionOrder: number
+  entries: ChangelogRow[]
+}
+
+async function fetchChangelogEntries(): Promise<ChangelogRow[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('changelog_entries')
+    .select(
+      'id, version, version_date, page, kind, description, hidden, version_order, entry_order',
+    )
+    .order('version_order', { ascending: true })
+    .order('entry_order', { ascending: true })
+  if (error) throw error
+  return (data as ChangelogRow[]) ?? []
+}
+
+function groupByVersion(rows: ChangelogRow[]): GroupedVersion[] {
+  const map = new Map<number, GroupedVersion>()
+  for (const row of rows) {
+    const existing = map.get(row.version_order)
+    if (existing) {
+      existing.entries.push(row)
+    } else {
+      map.set(row.version_order, {
+        version: row.version,
+        date: row.version_date,
+        versionOrder: row.version_order,
+        entries: [row],
+      })
+    }
+  }
+  return [...map.values()].sort((a, b) => a.versionOrder - b.versionOrder)
+}
 
 function kindStyle(kind: ChangeKind) {
   switch (kind) {
@@ -49,22 +96,24 @@ function formatDate(iso: string): string {
   })
 }
 
-function keyOf(version: string, index: number): string {
-  return `${version}-${index}`
-}
-
 export function VersionView() {
-  const [versions, setVersions] = useState<EditableVersion[]>(() =>
-    CHANGELOG.map((v: ChangelogVersion) => ({
-      ...v,
-      entries: v.entries.map((e) => ({ ...e, hidden: false })),
-    })),
+  const { data: rows, isLoading, mutate } = useRealtimeTable(
+    'changelog_entries',
+    fetchChangelogEntries,
   )
-  const [openVersion, setOpenVersion] = useState<string | null>(
-    CHANGELOG[0]?.version ?? null,
-  )
-  const [menuKey, setMenuKey] = useState<string | null>(null)
-  const [editingKey, setEditingKey] = useState<string | null>(null)
+  const versions = groupByVersion(rows)
+
+  const [openVersion, setOpenVersion] = useState<string | null>(null)
+  const openVersionInit = useRef(false)
+  useEffect(() => {
+    if (!openVersionInit.current && versions.length > 0) {
+      setOpenVersion(versions[0].version)
+      openVersionInit.current = true
+    }
+  }, [versions])
+
+  const [menuId, setMenuId] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<{
     page: string
     kind: ChangeKind
@@ -72,79 +121,58 @@ export function VersionView() {
   }>({ page: '', kind: '追加', description: '' })
   const { guard, prompt } = usePasswordGate(EDIT_PIN)
 
-  function updateEntry(
-    versionKey: string,
-    index: number,
-    updater: (entry: EditableEntry) => EditableEntry,
-  ) {
-    setVersions((prev) =>
-      prev.map((v) =>
-        v.version === versionKey
-          ? {
-              ...v,
-              entries: v.entries.map((e, i) => (i === index ? updater(e) : e)),
-            }
-          : v,
-      ),
-    )
+  function openMenu(row: ChangelogRow) {
+    guard(() => setMenuId(row.id))
   }
 
-  function deleteEntry(versionKey: string, index: number) {
-    setVersions((prev) =>
-      prev
-        .map((v) =>
-          v.version === versionKey
-            ? { ...v, entries: v.entries.filter((_, i) => i !== index) }
-            : v,
-        )
-        .filter((v) => v.entries.length > 0),
-    )
-  }
-
-  function hideEntry(versionKey: string, index: number) {
-    updateEntry(versionKey, index, (e) => ({ ...e, hidden: true }))
-  }
-
-  function restoreEntry(versionKey: string, index: number) {
-    updateEntry(versionKey, index, (e) => ({ ...e, hidden: false }))
-  }
-
-  function openMenu(versionKey: string, index: number) {
-    guard(() => setMenuKey(keyOf(versionKey, index)))
-  }
-
-  function startEdit(versionKey: string, index: number, entry: EditableEntry) {
+  function startEdit(row: ChangelogRow) {
     setEditForm({
-      page: entry.page,
-      kind: entry.kind,
-      description: entry.description,
+      page: row.page,
+      kind: row.kind,
+      description: row.description,
     })
-    setEditingKey(keyOf(versionKey, index))
-    setMenuKey(null)
+    setEditingId(row.id)
+    setMenuId(null)
   }
 
-  function saveEdit(versionKey: string, index: number) {
-    updateEntry(versionKey, index, (e) => ({
-      ...e,
-      page: editForm.page.trim() || e.page,
-      kind: editForm.kind,
-      description: editForm.description.trim() || e.description,
-    }))
-    setEditingKey(null)
+  async function saveEdit(row: ChangelogRow) {
+    const supabase = createClient()
+    const page = editForm.page.trim() || row.page
+    const description = editForm.description.trim() || row.description
+    const { error } = await supabase
+      .from('changelog_entries')
+      .update({ page, kind: editForm.kind, description })
+      .eq('id', row.id)
+    if (!error) setEditingId(null)
+    await mutate()
   }
 
-  const hiddenEntries = versions.flatMap((v) =>
-    v.entries
-      .map((e, i) => ({ v, e, i }))
-      .filter(({ e }) => e.hidden),
-  )
+  async function hideEntry(id: string) {
+    const supabase = createClient()
+    await supabase
+      .from('changelog_entries')
+      .update({ hidden: true })
+      .eq('id', id)
+    await mutate()
+  }
 
-  const menuVersion = menuKey ? menuKey.slice(0, menuKey.lastIndexOf('-')) : null
-  const menuIndex = menuKey ? Number(menuKey.slice(menuKey.lastIndexOf('-') + 1)) : -1
-  const menuEntry =
-    menuVersion != null
-      ? versions.find((v) => v.version === menuVersion)?.entries[menuIndex]
-      : undefined
+  async function restoreEntry(id: string) {
+    const supabase = createClient()
+    await supabase
+      .from('changelog_entries')
+      .update({ hidden: false })
+      .eq('id', id)
+    await mutate()
+  }
+
+  async function deleteEntry(id: string) {
+    const supabase = createClient()
+    await supabase.from('changelog_entries').delete().eq('id', id)
+    await mutate()
+  }
+
+  const hiddenEntries = rows.filter((r) => r.hidden)
+  const menuEntry = menuId ? rows.find((r) => r.id === menuId) : undefined
 
   return (
     <div className="flex flex-col gap-4 pb-6">
@@ -155,13 +183,16 @@ export function VersionView() {
         </p>
       </div>
 
+      {isLoading && rows.length === 0 && (
+        <p className="text-sm text-muted-foreground">読み込み中です…</p>
+      )}
+
       <ul className="flex flex-col gap-3">
         {versions.map((v, idx) => {
-          const isOpen = openVersion === v.version
+          const isOpen =
+            openVersion !== null ? openVersion === v.version : idx === 0
           const isLatest = idx === 0
-          const visibleEntries = v.entries
-            .map((e, i) => ({ e, i }))
-            .filter(({ e }) => !e.hidden)
+          const visibleEntries = v.entries.filter((e) => !e.hidden)
           return (
             <li
               key={v.version}
@@ -170,7 +201,11 @@ export function VersionView() {
               <button
                 type="button"
                 onClick={() =>
-                  setOpenVersion((cur) => (cur === v.version ? null : v.version))
+                  setOpenVersion((cur) => {
+                    const currentlyOpen =
+                      cur !== null ? cur === v.version : idx === 0
+                    return currentlyOpen ? '' : v.version
+                  })
                 }
                 aria-expanded={isOpen}
                 className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left transition-colors hover:bg-accent active:scale-[0.99]"
@@ -205,14 +240,13 @@ export function VersionView() {
                       表示できる項目はありません（非表示にした項目のみ）。
                     </li>
                   )}
-                  {visibleEntries.map(({ e: entry, i }) => {
-                    const key = keyOf(v.version, i)
+                  {visibleEntries.map((entry) => {
                     const { Icon, className } = kindStyle(entry.kind)
 
-                    if (editingKey === key) {
+                    if (editingId === entry.id) {
                       return (
                         <li
-                          key={i}
+                          key={entry.id}
                           className="rounded-xl border border-primary/60 bg-background px-3 py-3"
                         >
                           <div className="flex flex-col gap-2">
@@ -272,14 +306,14 @@ export function VersionView() {
                             <div className="mt-1 flex gap-2">
                               <button
                                 type="button"
-                                onClick={() => setEditingKey(null)}
+                                onClick={() => setEditingId(null)}
                                 className="flex-1 rounded-full border border-border px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-accent active:scale-95"
                               >
                                 キャンセル
                               </button>
                               <button
                                 type="button"
-                                onClick={() => saveEdit(v.version, i)}
+                                onClick={() => saveEdit(entry)}
                                 className="flex-1 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95"
                               >
                                 保存
@@ -291,7 +325,7 @@ export function VersionView() {
                     }
 
                     return (
-                      <li key={i}>
+                      <li key={entry.id}>
                         <div className="flex w-full items-start gap-2.5 rounded-xl border border-border/60 bg-background px-3 py-2.5">
                           <span
                             className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${className}`}
@@ -313,7 +347,7 @@ export function VersionView() {
                           </span>
                           <button
                             type="button"
-                            onClick={() => openMenu(v.version, i)}
+                            onClick={() => openMenu(entry)}
                             aria-label="この項目を編集"
                             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground active:scale-90"
                           >
@@ -337,22 +371,22 @@ export function VersionView() {
             非表示にした項目
           </p>
           <ul className="mt-3 flex flex-col gap-2">
-            {hiddenEntries.map(({ v, e, i }) => (
+            {hiddenEntries.map((entry) => (
               <li
-                key={`${v.version}-${i}`}
+                key={entry.id}
                 className="flex items-start gap-2.5 rounded-xl border border-border/60 bg-background px-3 py-2.5 opacity-70"
               >
                 <span className="flex flex-1 flex-col gap-0.5">
                   <span className="text-[0.65rem] font-semibold text-muted-foreground">
-                    Version {v.version} ・ {e.page}
+                    Version {entry.version} ・ {entry.page}
                   </span>
                   <span className="text-sm leading-relaxed text-foreground">
-                    {e.description}
+                    {entry.description}
                   </span>
                 </span>
                 <button
                   type="button"
-                  onClick={() => restoreEntry(v.version, i)}
+                  onClick={() => restoreEntry(entry.id)}
                   aria-label="この項目を再表示"
                   className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground active:scale-90"
                 >
@@ -364,7 +398,7 @@ export function VersionView() {
         </div>
       )}
 
-      {menuKey && menuEntry && (
+      {menuId && menuEntry && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-6">
           <div className="w-full max-w-xs rounded-3xl border border-border bg-card p-6">
             <div className="flex items-start justify-between gap-2">
@@ -373,7 +407,7 @@ export function VersionView() {
               </p>
               <button
                 type="button"
-                onClick={() => setMenuKey(null)}
+                onClick={() => setMenuId(null)}
                 aria-label="閉じる"
                 className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent active:scale-90"
               >
@@ -386,10 +420,7 @@ export function VersionView() {
             <div className="mt-4 flex flex-col gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  if (menuVersion == null) return
-                  startEdit(menuVersion, menuIndex, menuEntry)
-                }}
+                onClick={() => startEdit(menuEntry)}
                 className="flex items-center gap-2.5 rounded-xl border border-border px-4 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-accent active:scale-[0.98]"
               >
                 <Pencil className="h-4 w-4" aria-hidden="true" />
@@ -398,9 +429,8 @@ export function VersionView() {
               <button
                 type="button"
                 onClick={() => {
-                  if (menuVersion == null) return
-                  hideEntry(menuVersion, menuIndex)
-                  setMenuKey(null)
+                  hideEntry(menuEntry.id)
+                  setMenuId(null)
                 }}
                 className="flex items-center gap-2.5 rounded-xl border border-border px-4 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-accent active:scale-[0.98]"
               >
@@ -410,9 +440,8 @@ export function VersionView() {
               <button
                 type="button"
                 onClick={() => {
-                  if (menuVersion == null) return
-                  deleteEntry(menuVersion, menuIndex)
-                  setMenuKey(null)
+                  deleteEntry(menuEntry.id)
+                  setMenuId(null)
                 }}
                 className="flex items-center gap-2.5 rounded-xl border border-destructive/40 px-4 py-3 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/10 active:scale-[0.98]"
               >
@@ -422,7 +451,7 @@ export function VersionView() {
             </div>
             <button
               type="button"
-              onClick={() => setMenuKey(null)}
+              onClick={() => setMenuId(null)}
               className="mt-4 w-full rounded-full border border-border px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent active:scale-95"
             >
               キャンセル
