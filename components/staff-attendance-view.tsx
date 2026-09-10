@@ -88,18 +88,25 @@ function splitIsoDate(iso: string | null) {
   return { hireYear: y ?? '', hireMonth: m ?? '', hireDay: d ?? '' }
 }
 
-// Full years of service as of today, or null if no hire date is on record.
-function tenureYears(iso: string | null): number | null {
+// Full years and months of service as of today, or null if no hire date is
+// on record.
+function tenureDuration(
+  iso: string | null,
+): { years: number; months: number } | null {
   if (!iso) return null
   const hire = new Date(iso)
   if (Number.isNaN(hire.getTime())) return null
   const now = new Date()
-  let years = now.getFullYear() - hire.getFullYear()
-  const anniversaryPassed =
-    now.getMonth() > hire.getMonth() ||
-    (now.getMonth() === hire.getMonth() && now.getDate() >= hire.getDate())
-  if (!anniversaryPassed) years -= 1
-  return Math.max(years, 0)
+  let totalMonths =
+    (now.getFullYear() - hire.getFullYear()) * 12 +
+    (now.getMonth() - hire.getMonth())
+  if (now.getDate() < hire.getDate()) totalMonths -= 1
+  totalMonths = Math.max(totalMonths, 0)
+  return { years: Math.floor(totalMonths / 12), months: totalMonths % 12 }
+}
+
+function formatTenure(duration: { years: number; months: number }): string {
+  return `勤続${duration.years}年${duration.months}ヶ月`
 }
 
 const CURRENT_YEAR = new Date().getFullYear()
@@ -414,7 +421,7 @@ export function StaffAttendanceView() {
 
   function renderCard(member: StaffRow) {
     const working = member.status === 'working'
-    const tenure = tenureYears(member.hire_date)
+    const tenure = tenureDuration(member.hire_date)
     return (
       <button
         key={member.id}
@@ -447,11 +454,11 @@ export function StaffAttendanceView() {
           {[member.role, member.vehicle_class].filter(Boolean).join(' / ') ||
             '—'}
         </span>
-        {tenure !== null && (
-          <span className="text-xs text-muted-foreground">
-            勤続{tenure}年
-          </span>
-        )}
+                  {tenure !== null && (
+                    <span className="text-xs text-muted-foreground">
+                      {formatTenure(tenure)}
+                    </span>
+                  )}
         <span className="line-clamp-2 min-h-[2rem] w-full whitespace-pre-wrap px-1 text-[11px] leading-4 text-muted-foreground">
           {working ? member.comment : ''}
         </span>
@@ -708,14 +715,14 @@ export function StaffAttendanceView() {
               </select>
             </div>
             {(() => {
-              const previewTenure = tenureYears(
-                toIsoDate(form.hireYear, form.hireMonth, form.hireDay),
-              )
-              return previewTenure !== null ? (
-                <span className="mt-0.5 text-xs font-medium text-primary">
-                  勤続{previewTenure}年
-                </span>
-              ) : null
+                    const previewTenure = tenureDuration(
+                      toIsoDate(form.hireYear, form.hireMonth, form.hireDay),
+                    )
+                    return previewTenure !== null ? (
+                      <span className="mt-0.5 text-xs font-medium text-primary">
+                        {formatTenure(previewTenure)}
+                      </span>
+                    ) : null
             })()}
           </div>
 
