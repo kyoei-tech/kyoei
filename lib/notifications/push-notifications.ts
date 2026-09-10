@@ -105,12 +105,21 @@ export async function showAppNotification(
  * seen, so the notification is also saved as a "pending" one — see
  * pending-notification.ts and its modal in pending-notification-modal.tsx —
  * so it re-surfaces as a blocking modal the next time the app is opened.
+ *
+ * Pass `forcePending: true` for notifications about an event the user
+ * missed while away from the app entirely (e.g. a news post caught up on
+ * app open) — those should always surface as the blocking modal, even
+ * though the app happens to be in the foreground at delivery time.
  */
 export async function deliverNotification(
   title: string,
   message: string,
+  options?: { forcePending?: boolean },
 ): Promise<void> {
-  if (typeof document !== 'undefined' && document.hidden) {
+  const shouldShowPending =
+    options?.forcePending ||
+    (typeof document !== 'undefined' && document.hidden)
+  if (shouldShowPending) {
     savePendingNotification(title, message)
   } else {
     emitToast(title, message)

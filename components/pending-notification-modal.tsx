@@ -5,6 +5,7 @@ import { BellRing } from 'lucide-react'
 import {
   clearPendingNotification,
   getPendingNotification,
+  subscribePendingNotification,
   type PendingNotification,
 } from '@/lib/notifications/pending-notification'
 import { StyledNotificationText } from './notification-toast'
@@ -24,8 +25,13 @@ export function PendingNotificationModal() {
       if (!document.hidden) setPending(getPendingNotification())
     }
     document.addEventListener('visibilitychange', checkOnForeground)
-    return () =>
+    // Picks up notifications saved after this mount-time check already
+    // ran, e.g. an async news catch-up query resolving a moment later.
+    const unsubscribe = subscribePendingNotification(setPending)
+    return () => {
       document.removeEventListener('visibilitychange', checkOnForeground)
+      unsubscribe()
+    }
   }, [])
 
   if (!pending) return null

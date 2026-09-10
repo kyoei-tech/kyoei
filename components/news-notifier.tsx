@@ -49,9 +49,13 @@ export function NewsNotifier() {
         .limit(1)
       if (cancelled || error || !data || data.length === 0) return
       setNewsLastSeen(data[0].created_at as string)
+      // Caught up on a post made while this device wasn't watching (app
+      // closed, tab backgrounded, or just opened) — always surface the
+      // blocking "了解しました。" modal, not just a toast.
       void deliverNotification(
         NEWS_NOTIFICATION_TITLE,
         NEWS_NOTIFICATION_MESSAGE,
+        { forcePending: true },
       )
     }
 

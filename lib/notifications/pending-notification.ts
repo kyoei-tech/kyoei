@@ -16,6 +16,22 @@ export type PendingNotification = {
 
 const STORAGE_KEY = 'kyoei-pending-notification'
 
+type Listener = (entry: PendingNotification) => void
+const listeners = new Set<Listener>()
+
+/**
+ * Lets the modal pick up a newly-saved pending notification immediately,
+ * without waiting for a remount or a visibilitychange event — needed
+ * because a notification can be saved well after the modal's mount-time
+ * check already ran (e.g. an async catch-up query resolving later).
+ */
+export function subscribePendingNotification(listener: Listener): () => void {
+  listeners.add(listener)
+  return () => {
+    listeners.delete(listener)
+  }
+}
+
 export function savePendingNotification(title: string, message: string): void {
   if (typeof window === 'undefined') return
   const entry: PendingNotification = {
@@ -29,6 +45,7 @@ export function savePendingNotification(title: string, message: string): void {
   } catch {
     // Best-effort; ignore storage failures (e.g. private browsing quota).
   }
+  for (const listener of listeners) listener(entry)
 }
 
 export function getPendingNotification(): PendingNotification | null {
