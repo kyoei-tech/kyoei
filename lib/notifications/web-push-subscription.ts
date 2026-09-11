@@ -7,6 +7,7 @@
 // page's JS is actually running.
 
 import { createClient } from '@/lib/supabase/client'
+import { getDeviceId } from '@/lib/device-id'
 import { ensureServiceWorkerRegistration } from './push-notifications'
 
 const VAPID_PUBLIC_KEY =
@@ -88,14 +89,21 @@ export async function ensurePushSubscription(): Promise<PushSubscriptionResult> 
       return { ok: false, reason: '購読情報の取得に失敗しました。' }
     }
 
+    const deviceId = getDeviceId()
     const supabase = createClient()
+    // Keyed on device_id (not endpoint) so a browser that gets a new push
+    // endpoint (e.g. after clearing site data or a service worker reset)
+    // updates its existing row instead of leaving a stale duplicate behind
+    // — that stale row is exactly what the server-side driving-timer job
+    // (which targets one device_id at a time) would otherwise push to.
     const { error } = await supabase.from('push_subscriptions').upsert(
       {
+        device_id: deviceId || null,
         endpoint: subscription.endpoint,
         p256dh: keys.p256dh,
         auth: keys.auth,
       },
-      { onConflict: 'endpoint' },
+      { onConflict: deviceId ? 'device_id' : 'endpoint' },
     )
     if (error) {
       return { ok: false, reason: `保存に失敗しました: ${error.message}` }

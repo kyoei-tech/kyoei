@@ -84,6 +84,13 @@ export function liveCategoryMs(
   return base
 }
 
+/** Final per-category totals at 帰庫, folding in whatever segment was still running. */
+export function finalizeTotals(trip: TripState, now: number): CategoryTotals {
+  const totals = { ...trip.totals }
+  totals[trip.activeCategory] += Math.max(0, now - trip.segmentStartedAt)
+  return totals
+}
+
 export function liveContinuousDrivingMs(trip: TripState, now: number): number {
   if (trip.continuousDrivingRunning) {
     return trip.continuousDrivingMs + Math.max(0, now - trip.segmentStartedAt)

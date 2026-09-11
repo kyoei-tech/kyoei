@@ -10,6 +10,7 @@ import {
 } from '@/lib/shift-time'
 import { registerSplitRest, resetSplitRestState } from '@/lib/split-rest'
 import {
+  finalizeTotals,
   liveContinuousDrivingMs,
   startTrip,
   tapBreakCategory as tapBreakCategoryPure,
@@ -18,6 +19,7 @@ import {
   type BreakCategory,
   type TripState,
 } from '@/lib/trip-log'
+import { saveCompletedTrip } from '@/lib/trip-history'
 import { useSettings } from '@/lib/settings/settings-context'
 import {
   initialNotifyState,
@@ -205,9 +207,21 @@ export function HomeView({
   }
 
   function confirmReturn() {
+    const returnedAt = Date.now()
+    // The trip just ended, so this is the one moment its final per-category
+    // totals (including whatever segment was still running) are known —
+    // record it to 運行履歴 before the in-progress trip state is cleared.
+    if (trip && startedAt != null) {
+      void saveCompletedTrip({
+        departedAt: startedAt,
+        returnedAt,
+        totals: finalizeTotals(trip, returnedAt),
+        splitRestRemainingMs: trip.splitRestRemainingMs,
+      })
+    }
     setCountdownOffset(isSaturday(new Date()) ? 33 : 9)
     setMode('return')
-    setStartedAt(Date.now())
+    setStartedAt(returnedAt)
     setTrip(null)
     setScreen('home')
     setPendingHomeAction(null)

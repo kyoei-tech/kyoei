@@ -9,6 +9,7 @@ import {
   CalendarDays,
   Car,
   ChevronRight,
+  History,
   MapPin,
   MapPinned,
   MessageCircleQuestion,
@@ -26,6 +27,7 @@ import { AAView } from './aa-view'
 import { EmergencyContactsView } from './emergency-contacts-view'
 import { AccidentCalendarView } from './accident-calendar-view'
 import { DriverTermsView } from './driver-terms-view'
+import { TripHistoryView } from './trip-history-view'
 import { SettingsView } from './settings-view'
 import { VersionView } from './version-view'
 import { CURRENT_VERSION } from '@/lib/changelog'
@@ -41,6 +43,7 @@ export type MenuItemId =
   | 'notes'
   | 'accidents'
   | 'terms'
+  | 'trip-history'
   | 'emergency'
   | 'settings'
   | 'version'
@@ -100,6 +103,12 @@ const MENU_ITEMS: {
     Icon: BookMarked,
   },
   {
+    id: 'trip-history',
+    label: '運行履歴',
+    description: '過去の出庫・帰庫と休息時間を確認できます。',
+    Icon: History,
+  },
+  {
     id: 'emergency',
     label: '緊急連絡先',
     description: '緊急時に連絡する連絡先一覧です。',
@@ -155,6 +164,7 @@ export function MenuView({
         {item?.id === 'notes' && <BeginnerNotesView />}
         {item?.id === 'accidents' && <AccidentCalendarView />}
         {item?.id === 'terms' && <DriverTermsView />}
+        {item?.id === 'trip-history' && <TripHistoryView />}
         {item?.id === 'emergency' && <EmergencyContactsView />}
         {item?.id === 'settings' && <SettingsView />}
         {item?.id === 'version' && <VersionView />}
