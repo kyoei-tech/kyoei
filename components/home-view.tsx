@@ -329,17 +329,17 @@ export function HomeView({
   }
 
   return (
-    // Not justify-evenly: on a taller viewport that would stretch each
-    // part apart with unequal, layout-dependent gaps instead of the
-    // consistent, tight spacing gap-2 gives everywhere.
-    <div className="flex flex-1 flex-col gap-2">
-      <div className="flex flex-col gap-1">
+    // The timer carries flex-1 so it grows to absorb any extra viewport
+    // height, keeping every part large and edge-to-edge instead of small
+    // parts separated by dead space.
+    <div className="flex flex-1 flex-col gap-3">
+      <div className="flex flex-col gap-2">
         <LiveClock
           parts={formatClock(now, clockOpts)}
           hour12={hour12}
           onToggleFormat={toggleFormat}
         />
-        <AccidentStreakBadge size="sm" onClick={onOpenAccidentCalendar} />
+        <AccidentStreakBadge size="md" onClick={onOpenAccidentCalendar} />
         <WeeklyGoal />
       </div>
 
@@ -362,40 +362,40 @@ export function HomeView({
         <button
           type="button"
           onClick={handleOpenStatus}
-          className="flex items-center justify-center gap-1 rounded-full border border-border bg-muted px-4 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground active:scale-95"
+          className="flex items-center justify-center gap-1.5 rounded-full border border-border bg-muted px-5 py-3 text-base font-semibold text-muted-foreground transition-colors hover:text-foreground active:scale-95"
         >
           運行情報
-          <ChevronRight className="h-4 w-4" aria-hidden="true" />
+          <ChevronRight className="h-5 w-5" aria-hidden="true" />
         </button>
       )}
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-3">
         <button
           type="button"
           onClick={() =>
             setPendingHomeAction(isSplitRestEligible ? 'split-rest' : 'departure')
           }
           aria-pressed={mode === 'departure'}
-          className={`flex flex-col items-center justify-center gap-1 rounded-3xl border py-2.5 text-sm font-bold leading-tight transition-all active:scale-[0.97] ${
+          className={`flex flex-col items-center justify-center gap-2 rounded-3xl border py-5 text-base font-bold leading-tight transition-all active:scale-[0.97] ${
             mode === 'departure'
               ? 'border-secondary bg-secondary text-secondary-foreground shadow-lg shadow-secondary/20'
               : 'border-border bg-card text-secondary hover:border-secondary/60'
           }`}
         >
-          <LogOut className="h-5 w-5" aria-hidden="true" />
+          <LogOut className="h-7 w-7" aria-hidden="true" />
           {isSplitRestEligible ? '分割休息による出庫' : '出庫'}
         </button>
         <button
           type="button"
           onClick={() => setPendingHomeAction('return')}
           aria-pressed={mode === 'return'}
-          className={`flex flex-col items-center justify-center gap-1 rounded-3xl border py-2.5 text-sm font-bold leading-tight transition-all active:scale-[0.97] ${
+          className={`flex flex-col items-center justify-center gap-2 rounded-3xl border py-5 text-base font-bold leading-tight transition-all active:scale-[0.97] ${
             mode === 'return'
               ? 'border-primary bg-primary text-primary-foreground shadow-lg shadow-primary/20'
               : 'border-border bg-card text-primary hover:border-primary/60'
           }`}
         >
-          <LogIn className="h-5 w-5" aria-hidden="true" />
+          <LogIn className="h-7 w-7" aria-hidden="true" />
           帰庫
         </button>
       </div>
