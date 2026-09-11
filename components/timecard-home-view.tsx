@@ -151,20 +151,22 @@ export function TimecardHomeView({
   }
 
   return (
-    <div className="flex flex-1 flex-col justify-evenly gap-1.5">
-      <div className="flex flex-col gap-1">
+    // The timer carries flex-1 so it grows to absorb any extra viewport
+    // height, matching HomeView's layout for 乗務員モード.
+    <div className="flex flex-1 flex-col gap-3">
+      <div className="flex flex-col gap-2">
         <LiveClock
           parts={formatClock(now, clockOpts)}
           hour12={hour12}
           onToggleFormat={toggleFormat}
         />
-        <AccidentStreakBadge size="sm" onClick={onOpenAccidentCalendar} />
+        <AccidentStreakBadge size="md" onClick={onOpenAccidentCalendar} />
         <WeeklyGoal goalId="timecard" />
       </div>
 
       <section
         aria-label="連動表示"
-        className="rounded-3xl border border-border bg-card px-5 py-2.5"
+        className="rounded-3xl border border-border bg-card px-5 py-4"
       >
         <div className="mb-1 flex items-center justify-between">
           <span
@@ -176,12 +178,12 @@ export function TimecardHomeView({
           </span>
           <FormatToggle hour12={hour12} onToggle={toggleFormat} />
         </div>
-        <p className="text-xs font-medium text-muted-foreground">
+        <p className="text-sm font-medium text-muted-foreground">
           {statusParts.date}
           <span className="ml-2 text-foreground">{statusParts.weekday}</span>
         </p>
         <p
-          className={`my-1 text-center font-mono text-3xl font-semibold tabular-nums tracking-tight ${
+          className={`text-center font-mono text-4xl font-semibold tabular-nums tracking-tight ${
             state.clockedIn ? 'text-secondary' : 'text-foreground'
           }`}
         >
@@ -196,11 +198,11 @@ export function TimecardHomeView({
 
       <section
         aria-label="タイマー"
-        className="rounded-3xl border border-border bg-card px-5 py-3 text-center"
+        className="flex flex-1 flex-col items-center justify-center rounded-3xl border border-border bg-card px-5 py-6 text-center"
       >
-        <div className="mb-1 flex items-center justify-center gap-1">
+        <div className="mb-1.5 flex items-center justify-center gap-1.5">
           <Timer
-            className={`h-4 w-4 ${
+            className={`h-5 w-5 ${
               state.clockedIn ? 'text-secondary' : 'text-muted-foreground'
             }`}
             aria-hidden="true"
@@ -222,48 +224,48 @@ export function TimecardHomeView({
             const [hh, mm, ss] = timerText.split(':')
             return (
               <>
-                <span className="text-4xl">{`${hh}:${mm}`}</span>
-                <span className="ml-1 text-lg">{`:${ss}`}</span>
+                <span className="text-6xl">{`${hh}:${mm}`}</span>
+                <span className="ml-1.5 text-3xl">{`:${ss}`}</span>
               </>
             )
           })()}
         </p>
       </section>
 
-      <div className="grid grid-cols-2 gap-2">
+      <button
+        type="button"
+        onClick={() => setScreen('status')}
+        className="flex items-center justify-center gap-1.5 rounded-full border border-border bg-muted px-5 py-3 text-base font-semibold text-muted-foreground transition-colors hover:text-foreground active:scale-95"
+      >
+        勤務状況/メモ
+        <ChevronRight className="h-5 w-5" aria-hidden="true" />
+      </button>
+
+      <div className="grid grid-cols-2 gap-3">
         <button
           type="button"
           onClick={() => setPendingAction('clock-in')}
           disabled={state.clockedIn}
           aria-pressed={state.clockedIn}
-          className={`flex flex-col items-center justify-center gap-1 rounded-3xl border py-3 text-sm font-bold leading-tight transition-all active:scale-[0.97] disabled:opacity-40 ${
+          className={`flex flex-col items-center justify-center gap-2 rounded-3xl border py-5 text-base font-bold leading-tight transition-all active:scale-[0.97] disabled:opacity-40 ${
             state.clockedIn
               ? 'border-secondary bg-secondary text-secondary-foreground shadow-lg shadow-secondary/20'
               : 'border-border bg-card text-secondary hover:border-secondary/60'
           }`}
         >
-          <Stamp className="h-5 w-5" aria-hidden="true" />
+          <Stamp className="h-7 w-7" aria-hidden="true" />
           出勤
         </button>
         <button
           type="button"
           onClick={() => setPendingAction('clock-out')}
           disabled={!state.clockedIn}
-          className="flex flex-col items-center justify-center gap-1 rounded-3xl border border-border bg-card py-3 text-sm font-bold leading-tight text-primary transition-all hover:border-primary/60 active:scale-[0.97] disabled:opacity-40"
+          className="flex flex-col items-center justify-center gap-2 rounded-3xl border border-border bg-card py-5 text-base font-bold leading-tight text-primary transition-all hover:border-primary/60 active:scale-[0.97] disabled:opacity-40"
         >
-          <Stamp className="h-5 w-5" aria-hidden="true" />
+          <Stamp className="h-7 w-7" aria-hidden="true" />
           退勤
         </button>
       </div>
-
-      <button
-        type="button"
-        onClick={() => setScreen('status')}
-        className="mx-auto flex items-center gap-1 rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground active:scale-95"
-      >
-        勤務状況/メモ
-        <ChevronRight className="h-3 w-3" aria-hidden="true" />
-      </button>
 
       {pendingAction === 'clock-in' && (
         <ConfirmActionModal

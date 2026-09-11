@@ -222,19 +222,19 @@ export function TimecardWorkStatusView({
       <button
         type="button"
         onClick={onBack}
-        className="flex items-center gap-1 self-start text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+        className="flex items-center gap-1.5 self-start rounded-full bg-primary px-4 py-2 text-sm font-bold text-primary-foreground shadow-sm transition-transform active:scale-95"
       >
-        <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
         出退勤
       </button>
 
-      <div className="flex flex-1 flex-col justify-evenly gap-3">
-        <div className="rounded-2xl border border-border bg-card px-4 py-3 text-center">
-          <p className="text-xs font-medium text-muted-foreground">
+      <div className="flex flex-1 flex-col gap-3">
+        <div className="rounded-2xl border border-border bg-card px-5 py-3 text-center">
+          <p className="text-sm font-medium text-muted-foreground">
             {nowParts.date}
             <span className="ml-1.5 text-foreground">{nowParts.weekday}</span>
           </p>
-          <p className="font-mono text-2xl font-semibold tabular-nums text-foreground">
+          <p className="font-mono text-3xl font-semibold tabular-nums text-foreground">
             {nowParts.time}
           </p>
         </div>
@@ -242,34 +242,34 @@ export function TimecardWorkStatusView({
         {workStartedAt != null && workStartedParts ? (
           <>
             <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-2xl border border-border bg-card px-3 py-3.5 text-center">
-                <p className="text-xs font-bold text-secondary">出勤時間</p>
-                <p className="font-mono text-xl font-bold tabular-nums text-secondary">
+              <div className="rounded-2xl border border-border bg-card px-3 py-4 text-center">
+                <p className="text-sm font-bold text-secondary">出勤時間</p>
+                <p className="font-mono text-2xl font-bold tabular-nums text-secondary">
                   {workStartedParts.time}
                 </p>
-                <p className="mt-0.5 text-[0.65rem] font-medium text-muted-foreground">
+                <p className="mt-1 text-xs font-medium text-muted-foreground">
                   {workStartedDateLabel}
                 </p>
               </div>
-              <div className="rounded-2xl border border-border bg-card px-3 py-3.5 text-center">
-                <p className="text-xs font-bold text-secondary">勤務時間</p>
-                <p className="font-mono text-xl font-bold tabular-nums text-secondary">
+              <div className="rounded-2xl border border-border bg-card px-3 py-4 text-center">
+                <p className="text-sm font-bold text-secondary">勤務時間</p>
+                <p className="font-mono text-2xl font-bold tabular-nums text-secondary">
                   {formatDuration(shiftElapsedMs)}
                 </p>
               </div>
             </div>
 
-            <div className="rounded-2xl border border-border bg-card px-4 py-3.5">
+            <div className="rounded-2xl border border-border bg-card px-5 py-4">
               <div className="flex items-center justify-between">
                 <span
-                  className={`text-xs font-bold ${
+                  className={`text-sm font-bold ${
                     timecardState.onBreak ? 'text-primary' : 'text-foreground'
                   }`}
                 >
                   休憩時間
                 </span>
                 <span
-                  className={`font-mono text-xl font-bold tabular-nums ${
+                  className={`font-mono text-2xl font-bold tabular-nums ${
                     timecardState.onBreak ? 'text-primary' : 'text-foreground'
                   }`}
                 >
@@ -283,23 +283,23 @@ export function TimecardWorkStatusView({
               onClick={() =>
                 setPendingBreakAction(timecardState.onBreak ? 'end' : 'start')
               }
-              className="flex items-center justify-center gap-1.5 rounded-2xl border border-primary bg-primary py-3.5 text-base font-bold text-primary-foreground transition-all active:scale-[0.97]"
+              className="flex items-center justify-center gap-1.5 rounded-2xl border border-primary bg-primary py-4 text-lg font-bold text-primary-foreground transition-all active:scale-[0.97]"
             >
               {timecardState.onBreak ? (
                 <>
-                  <Pause className="h-5 w-5" aria-hidden="true" />
+                  <Pause className="h-6 w-6" aria-hidden="true" />
                   休憩終了
                 </>
               ) : (
                 <>
-                  <Play className="h-5 w-5" aria-hidden="true" />
+                  <Play className="h-6 w-6" aria-hidden="true" />
                   休憩開始
                 </>
               )}
             </button>
           </>
         ) : (
-          <p className="rounded-2xl border border-dashed border-border bg-card px-4 py-3.5 text-center text-xs text-muted-foreground">
+          <p className="rounded-2xl border border-dashed border-border bg-card px-5 py-4 text-center text-sm text-muted-foreground">
             現在は退勤中です。出勤するとここに勤務時間と休憩ボタンが表示されます。
           </p>
         )}
@@ -308,23 +308,23 @@ export function TimecardWorkStatusView({
           href={KYOEI_YARD_MAP_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center justify-center gap-1.5 rounded-2xl border border-border bg-card py-3 text-sm font-bold text-foreground transition-colors hover:border-primary/60 active:scale-[0.97]"
+          className="flex items-center justify-center gap-1.5 rounded-2xl border border-border bg-card py-3.5 text-base font-bold text-foreground transition-colors hover:border-primary/60 active:scale-[0.97]"
         >
-          <MapPinned className="h-4 w-4 text-primary" aria-hidden="true" />
+          <MapPinned className="h-5 w-5 text-primary" aria-hidden="true" />
           共栄ヤード一覧
         </a>
 
         <section
           aria-label="共有メモ"
           onClick={handleSharedMemoTap}
-          className="flex flex-col gap-2 rounded-2xl border border-border bg-card px-4 py-3.5"
+          className="flex flex-col gap-2 rounded-2xl border border-border bg-card px-5 py-4"
         >
           <div className="flex items-center gap-1.5">
-            <Coffee className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
-            <span className="text-xs font-bold tracking-wide text-primary">
+            <Coffee className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+            <span className="text-sm font-bold tracking-wide text-primary">
               共有メモ
             </span>
-            <span className="text-[0.65rem] font-medium text-muted-foreground">
+            <span className="text-xs font-medium text-muted-foreground">
               リアルタイムで共有されます
             </span>
           </div>
