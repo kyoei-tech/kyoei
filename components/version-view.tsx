@@ -121,6 +121,96 @@ export function VersionView() {
   }>({ page: '', kind: '追加', description: '' })
   const { guard, prompt } = usePasswordGate(EDIT_PIN)
 
+  // Adding a new entry to an existing version.
+  const [addingEntryVersionOrder, setAddingEntryVersionOrder] = useState<
+    number | null
+  >(null)
+  const [newEntryForm, setNewEntryForm] = useState<{
+    page: string
+    kind: ChangeKind
+    description: string
+  }>({ page: '', kind: '追加', description: '' })
+
+  // Adding a brand new version (with its first entry).
+  const [addingVersion, setAddingVersion] = useState(false)
+  const [newVersionForm, setNewVersionForm] = useState<{
+    version: string
+    date: string
+    page: string
+    kind: ChangeKind
+    description: string
+  }>({
+    version: '',
+    date: new Date().toISOString().slice(0, 10),
+    page: '',
+    kind: '追加',
+    description: '',
+  })
+
+  function startAddEntry(v: GroupedVersion) {
+    guard(() => {
+      setNewEntryForm({ page: '', kind: '追加', description: '' })
+      setAddingEntryVersionOrder(v.versionOrder)
+    })
+  }
+
+  async function saveNewEntry(v: GroupedVersion) {
+    const page = newEntryForm.page.trim()
+    const description = newEntryForm.description.trim()
+    if (!page || !description) return
+    const nextEntryOrder =
+      Math.max(...v.entries.map((e) => e.entry_order), -1) + 1
+    const supabase = createClient()
+    await supabase.from('changelog_entries').insert({
+      version: v.version,
+      version_date: v.date,
+      version_order: v.versionOrder,
+      entry_order: nextEntryOrder,
+      page,
+      kind: newEntryForm.kind,
+      description,
+      hidden: false,
+    })
+    setAddingEntryVersionOrder(null)
+    await mutate()
+  }
+
+  function startAddVersion() {
+    guard(() => {
+      setNewVersionForm({
+        version: '',
+        date: new Date().toISOString().slice(0, 10),
+        page: '',
+        kind: '追加',
+        description: '',
+      })
+      setAddingVersion(true)
+    })
+  }
+
+  async function saveNewVersion() {
+    const version = newVersionForm.version.trim()
+    const page = newVersionForm.page.trim()
+    const description = newVersionForm.description.trim()
+    if (!version || !page || !description) return
+    const nextVersionOrder =
+      Math.max(...versions.map((v) => v.versionOrder), -1) + 1
+    const supabase = createClient()
+    await supabase.from('changelog_entries').insert({
+      version,
+      version_date: newVersionForm.date,
+      version_order: nextVersionOrder,
+      entry_order: 0,
+      page,
+      kind: newVersionForm.kind,
+      description,
+      hidden: false,
+    })
+    setAddingVersion(false)
+    setOpenVersion(version)
+    await mutate()
+  }
+
   function openMenu(row: ChangelogRow) {
     guard(() => setMenuId(row.id))
   }
@@ -176,11 +266,21 @@ export function VersionView() {
 
   return (
     <div className="flex flex-col gap-4 pb-6">
-      <div>
-        <h2 className="text-xl font-bold text-foreground">Version</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          これまでの更新内容を日付順に確認できます。各項目の編集ボタンから削除・非表示・編集を行えます（暗証番号が必要です）。
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-bold text-foreground">Version</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            これまでの更新内容を日付順に確認できます。各項目の編集ボタンから削除・非表示・編集を行えます（暗証番号が必要です）。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={startAddVersion}
+          className="flex shrink-0 items-center gap-1 rounded-full border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-accent active:scale-95"
+        >
+          <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+          新しいバージョン
+        </button>
       </div>
 
       {isLoading && rows.length === 0 && (
@@ -357,6 +457,95 @@ export function VersionView() {
                       </li>
                     )
                   })}
+
+                  {addingEntryVersionOrder === v.versionOrder ? (
+                    <li className="rounded-xl border border-primary/60 bg-background px-3 py-3">
+                      <div className="flex flex-col gap-2">
+                        <label className="flex flex-col gap-1">
+                          <span className="text-[0.65rem] font-semibold text-muted-foreground">
+                            ページ
+                          </span>
+                          <input
+                            type="text"
+                            value={newEntryForm.page}
+                            onChange={(ev) =>
+                              setNewEntryForm((f) => ({
+                                ...f,
+                                page: ev.target.value,
+                              }))
+                            }
+                            placeholder="例：ホーム"
+                            className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-primary/60"
+                          />
+                        </label>
+                        <label className="flex flex-col gap-1">
+                          <span className="text-[0.65rem] font-semibold text-muted-foreground">
+                            種類
+                          </span>
+                          <select
+                            value={newEntryForm.kind}
+                            onChange={(ev) =>
+                              setNewEntryForm((f) => ({
+                                ...f,
+                                kind: ev.target.value as ChangeKind,
+                              }))
+                            }
+                            className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary/60"
+                          >
+                            {KIND_OPTIONS.map((k) => (
+                              <option key={k} value={k}>
+                                {k}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="flex flex-col gap-1">
+                          <span className="text-[0.65rem] font-semibold text-muted-foreground">
+                            内容
+                          </span>
+                          <textarea
+                            value={newEntryForm.description}
+                            onChange={(ev) =>
+                              setNewEntryForm((f) => ({
+                                ...f,
+                                description: ev.target.value,
+                              }))
+                            }
+                            rows={3}
+                            placeholder="どこが、どう変わったかを書いてください"
+                            className="resize-none rounded-lg border border-border bg-card px-3 py-2 text-sm leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-primary/60"
+                          />
+                        </label>
+                        <div className="mt-1 flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setAddingEntryVersionOrder(null)}
+                            className="flex-1 rounded-full border border-border px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-accent active:scale-95"
+                          >
+                            キャンセル
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => saveNewEntry(v)}
+                            className="flex-1 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95"
+                          >
+                            追加する
+                          </button>
+                        </div>
+                      </div>
+                    </li>
+                  ) : (
+                    <li>
+                      <button
+                        type="button"
+                        onClick={() => startAddEntry(v)}
+                        className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-border px-3 py-2.5 text-xs font-semibold text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground active:scale-[0.99]"
+                      >
+                        <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                        項目を追加
+                      </button>
+                    </li>
+                  )}
                 </ul>
               )}
             </li>
@@ -456,6 +645,132 @@ export function VersionView() {
             >
               キャンセル
             </button>
+          </div>
+        </div>
+      )}
+
+      {addingVersion && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-6">
+          <div className="w-full max-w-xs rounded-3xl border border-border bg-card p-6">
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-sm font-bold text-foreground">
+                新しいバージョンを追加
+              </p>
+              <button
+                type="button"
+                onClick={() => setAddingVersion(false)}
+                aria-label="閉じる"
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent active:scale-90"
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
+            <div className="mt-4 flex flex-col gap-2">
+              <label className="flex flex-col gap-1">
+                <span className="text-[0.65rem] font-semibold text-muted-foreground">
+                  バージョン番号
+                </span>
+                <input
+                  type="text"
+                  value={newVersionForm.version}
+                  onChange={(ev) =>
+                    setNewVersionForm((f) => ({
+                      ...f,
+                      version: ev.target.value,
+                    }))
+                  }
+                  placeholder="例：1.11.0"
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-primary/60"
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-[0.65rem] font-semibold text-muted-foreground">
+                  日付
+                </span>
+                <input
+                  type="date"
+                  value={newVersionForm.date}
+                  onChange={(ev) =>
+                    setNewVersionForm((f) => ({
+                      ...f,
+                      date: ev.target.value,
+                    }))
+                  }
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary/60"
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-[0.65rem] font-semibold text-muted-foreground">
+                  ページ
+                </span>
+                <input
+                  type="text"
+                  value={newVersionForm.page}
+                  onChange={(ev) =>
+                    setNewVersionForm((f) => ({
+                      ...f,
+                      page: ev.target.value,
+                    }))
+                  }
+                  placeholder="例：ホーム"
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-primary/60"
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-[0.65rem] font-semibold text-muted-foreground">
+                  種類
+                </span>
+                <select
+                  value={newVersionForm.kind}
+                  onChange={(ev) =>
+                    setNewVersionForm((f) => ({
+                      ...f,
+                      kind: ev.target.value as ChangeKind,
+                    }))
+                  }
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary/60"
+                >
+                  {KIND_OPTIONS.map((k) => (
+                    <option key={k} value={k}>
+                      {k}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-[0.65rem] font-semibold text-muted-foreground">
+                  内容
+                </span>
+                <textarea
+                  value={newVersionForm.description}
+                  onChange={(ev) =>
+                    setNewVersionForm((f) => ({
+                      ...f,
+                      description: ev.target.value,
+                    }))
+                  }
+                  rows={3}
+                  placeholder="どこが、どう変わったかを書いてください"
+                  className="resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-primary/60"
+                />
+              </label>
+            </div>
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setAddingVersion(false)}
+                className="flex-1 rounded-full border border-border px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent active:scale-95"
+              >
+                キャンセル
+              </button>
+              <button
+                type="button"
+                onClick={saveNewVersion}
+                className="flex-1 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95"
+              >
+                追加する
+              </button>
+            </div>
           </div>
         </div>
       )}
