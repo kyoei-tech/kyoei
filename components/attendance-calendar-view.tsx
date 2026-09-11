@@ -56,8 +56,9 @@ function DayCell({
   }
 
   async function shiftWorkday(shiftDays: -1 | 0 | 1) {
+    if (!entry || entry.kind === 'holiday') return
     setSaving(true)
-    await setWorkdayShift(iso, shiftDays)
+    await setWorkdayShift(entry.originIso, shiftDays)
     setSaving(false)
     setEditing(false)
     await onChanged()
@@ -103,7 +104,7 @@ function DayCell({
         </span>
       </button>
 
-      {editing && entry?.kind === 'workday' && (
+      {editing && (entry?.kind === 'workday' || entry?.kind === 'workday-origin') && (
         <div
           className="absolute left-1/2 top-full z-10 mt-1 flex -translate-x-1/2 flex-col gap-2 rounded-xl border border-border bg-card p-3 shadow-lg"
           onClick={(e) => e.stopPropagation()}

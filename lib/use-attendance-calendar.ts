@@ -13,11 +13,13 @@ import {
 } from '@/lib/attendance-overrides'
 import { toISODate } from '@/lib/month-calendar'
 
-export type ResolvedAttendanceDay = {
-  kind: AttendanceDayKind
-  /** Custom holiday text, if any (only meaningful when kind === 'holiday'). */
-  label: string | null
-}
+export type ResolvedAttendanceDay =
+  | { kind: 'workday'; originIso: string; shiftDays: number }
+  // A workday whose 〇 has been shifted away to another cell. Renders blank,
+  // but stays double-tap-able here (keyed by originIso) so "元に戻す" can
+  // always be reached from the date the shift was originally applied to.
+  | { kind: 'workday-origin'; originIso: string; shiftDays: number }
+  | { kind: 'holiday'; label: string | null }
 
 function addDaysISO(iso: string, days: number): string {
   const [y, m, d] = iso.split('-').map(Number)
@@ -48,7 +50,6 @@ export function useAttendanceCalendar() {
   const days = useMemo(() => {
     const base = computeAttendanceDays(trips)
     const resolved = new Map<string, ResolvedAttendanceDay>()
-    for (const [iso, kind] of base) resolved.set(iso, { kind, label: null })
 
     const shiftByDay = new Map<string, number>()
     const labelByDay = new Map<string, string>()
@@ -63,26 +64,27 @@ export function useAttendanceCalendar() {
       }
     }
 
-    // Apply workday shifts: move the 〇 from its computed day to +/-1 day.
-    for (const [iso, shift] of shiftByDay) {
-      const entry = resolved.get(iso)
-      if (!entry || entry.kind !== 'workday') continue
-      resolved.delete(iso)
-      resolved.set(addDaysISO(iso, shift), { kind: 'workday', label: null })
-    }
-
-    // Apply holiday label overrides.
-    for (const [iso, label] of labelByDay) {
-      const entry = resolved.get(iso)
-      if (entry && entry.kind === 'holiday') {
-        resolved.set(iso, { kind: 'holiday', label })
+    for (const [iso, kind] of base) {
+      if (kind === 'holiday') {
+        if (removedDays.has(iso)) continue
+        resolved.set(iso, { kind: 'holiday', label: labelByDay.get(iso) ?? null })
+        continue
       }
-    }
 
-    // Apply holiday removals (cell goes blank).
-    for (const iso of removedDays) {
-      const entry = resolved.get(iso)
-      if (entry && entry.kind === 'holiday') resolved.delete(iso)
+      // kind === 'workday'
+      const shift = shiftByDay.get(iso) ?? 0
+      if (shift === 0) {
+        resolved.set(iso, { kind: 'workday', originIso: iso, shiftDays: 0 })
+        continue
+      }
+      // Keep the origin cell double-tap-able (so "元に戻す" is reachable),
+      // and move the visible 〇 to the shifted destination cell.
+      resolved.set(iso, { kind: 'workday-origin', originIso: iso, shiftDays: shift })
+      resolved.set(addDaysISO(iso, shift), {
+        kind: 'workday',
+        originIso: iso,
+        shiftDays: shift,
+      })
     }
 
     return resolved
