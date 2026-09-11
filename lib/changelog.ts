@@ -161,4 +161,10 @@ export const CHANGELOG: ChangelogVersion[] = [
   },
 ]
 
-export const CURRENT_VERSION = CHANGELOG[0]?.version ?? '1.0.0'
+// The Version page (components/version-view.tsx) now reads its entries
+// live from the `changelog_entries` table in Supabase, not from the
+// CHANGELOG array above — that array is kept only as historical seed data
+// and for the ChangeKind type. When a new version is added to the table,
+// bump this constant to match so the "現在のバージョン" label in the menu
+// stays correct.
+export const CURRENT_VERSION = '1.10.0'
