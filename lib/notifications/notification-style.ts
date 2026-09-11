@@ -11,9 +11,10 @@
 //   **text**   -> bold
 //   ;;text;;   -> red
 //   ::text::   -> orange
+//   ##text##   -> green
 // Markers may nest/overlap in any order, e.g. **;;3時間;;** renders bold+red.
 
-export type NotificationColor = 'default' | 'red' | 'orange'
+export type NotificationColor = 'default' | 'red' | 'orange' | 'green'
 
 export type StyledSegment = {
   text: string
@@ -30,6 +31,7 @@ const MARKERS: Marker[] = [
   { token: '**', apply: (seg) => ({ ...seg, bold: true }) },
   { token: ';;', apply: (seg) => ({ ...seg, color: 'red' }) },
   { token: '::', apply: (seg) => ({ ...seg, color: 'orange' }) },
+  { token: '##', apply: (seg) => ({ ...seg, color: 'green' }) },
 ]
 
 /**
@@ -71,14 +73,19 @@ export function parseStyledText(raw: string): StyledSegment[] {
 
 /** Strips every style marker, leaving plain text for OS notifications. */
 export function toPlainText(raw: string): string {
-  return raw.replaceAll('**', '').replaceAll(';;', '').replaceAll('::', '')
+  return raw
+    .replaceAll('**', '')
+    .replaceAll(';;', '')
+    .replaceAll('::', '')
+    .replaceAll('##', '')
 }
 
 export const NOTIFICATION_COLOR_CLASS: Record<NotificationColor, string> = {
   default: '',
   red: 'text-red-500',
   orange: 'text-orange-500',
+  green: 'text-green-500',
 }
 
 export const NOTIFICATION_MARKUP_HELP =
-  '**太字**\u3000;;赤字;;\u3000::オレンジ文字::（組み合わせ可: **;;赤字の太字;;**）'
+  '**太字**\u3000;;赤字;;\u3000::オレンジ文字::\u3000##緑文字##（組み合わせ可: **;;赤字の太字;;**）\u3000改行もそのまま反映されます'

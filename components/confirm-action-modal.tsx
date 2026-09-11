@@ -2,8 +2,15 @@
 
 import type { ReactNode } from 'react'
 import { AlertTriangle } from 'lucide-react'
+import { StyledNotificationText } from './styled-notification-text'
 
-/** Full-screen "誤タップ防止" confirmation overlay shown before a status change. */
+/**
+ * Full-screen "誤タップ防止" confirmation overlay shown before a status
+ * change. `message` may contain the same **bold**/;;red;;/::orange::/
+ * ##green## markup and line breaks used by push notifications — see
+ * notification-style.ts — and is editable from the secret "アラートの管理"
+ * screen (lib/notifications/confirm-messages.ts), synced to every device.
+ */
 export function ConfirmActionModal({
   message,
   body,
@@ -26,9 +33,10 @@ export function ConfirmActionModal({
         <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-primary/10">
           <AlertTriangle className="h-5 w-5 text-primary" aria-hidden="true" />
         </div>
-        <p className="text-center text-base font-bold text-foreground">
-          {message}
-        </p>
+        <StyledNotificationText
+          text={message}
+          className="block whitespace-pre-line text-center text-base font-bold text-foreground"
+        />
         {body && <div className="mt-3">{body}</div>}
         <div className="mt-5 flex gap-2">
           {cancelLabel !== null && (
