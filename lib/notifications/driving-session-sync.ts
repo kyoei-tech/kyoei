@@ -34,9 +34,11 @@ export async function syncDrivingSession(
       active_category: trip.activeCategory,
       continuous_driving_ms: trip.continuousDrivingMs,
       continuous_driving_running: trip.continuousDrivingRunning,
+      continuous_streak_started_at: new Date(trip.continuousStreakStartedAt).toISOString(),
       break_timer_ms: trip.breakTimerMs,
       break_timer_running: trip.breakTimerRunning,
       break_satisfied: trip.breakSatisfied,
+      break_satisfied_at: trip.breakSatisfiedAt ? new Date(trip.breakSatisfiedAt).toISOString() : null,
     },
     { onConflict: 'device_id' },
   )

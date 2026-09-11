@@ -29,6 +29,15 @@ export type TripState = {
   breakSatisfied: boolean
   /** Static remaining-rest display for this trip, set only when departed via 分割休息. */
   splitRestRemainingMs: number | null
+  /**
+   * Epoch ms when the current 連続走行時間 streak began — i.e. the last
+   * time continuousDrivingMs was reset to 0 (trip start, or 走行再開 after
+   * a satisfying break). Lets the server-side driving-timer job dedupe
+   * "continuous" rule fires per streak without needing to see every tick.
+   */
+  continuousStreakStartedAt: number
+  /** Epoch ms when breakSatisfied last flipped to true, or null while false. */
+  breakSatisfiedAt: number | null
 }
 
 export const ZERO_TOTALS: CategoryTotals = {
@@ -68,6 +77,8 @@ export function startTrip(
     breakTimerRunning: false,
     breakSatisfied: false,
     splitRestRemainingMs,
+    continuousStreakStartedAt: now,
+    breakSatisfiedAt: null,
   }
 }
 
@@ -115,6 +126,7 @@ export function tickTrip(trip: TripState, now: number): TripState {
         breakTimerMs: 0,
         breakTimerRunning: false,
         breakSatisfied: true,
+        breakSatisfiedAt: now,
       }
     }
   }
@@ -153,11 +165,13 @@ export function tapResumeDriving(trip: TripState, now: number): TripState {
 
   let breakTimerMs = trip.breakTimerMs
   let continuousDrivingMs = trip.continuousDrivingMs
+  let continuousStreakStartedAt = trip.continuousStreakStartedAt
 
   if (trip.breakSatisfied) {
     // The break already ran to 30+ minutes and auto-reset — that satisfies
     // the legal break, so the 4-hour continuous-driving clock restarts too.
     continuousDrivingMs = 0
+    continuousStreakStartedAt = now
     breakTimerMs = 0
   } else {
     const newBreakTimerMs = breakTimerMs + elapsed
@@ -171,8 +185,10 @@ export function tapResumeDriving(trip: TripState, now: number): TripState {
     segmentStartedAt: now,
     continuousDrivingMs,
     continuousDrivingRunning: true,
+    continuousStreakStartedAt,
     breakTimerMs,
     breakTimerRunning: false,
     breakSatisfied: false,
+    breakSatisfiedAt: null,
   }
 }
