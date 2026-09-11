@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { LogIn, LogOut } from 'lucide-react'
+import { ChevronRight, LogIn, LogOut } from 'lucide-react'
 import {
   addHours,
   formatClock,
@@ -207,7 +207,10 @@ export function HomeView({
     setStartedAt(now)
     setTrip(newTrip)
     setNotify(initialNotifyState())
-    setScreen('home')
+    // Jump straight into 運行状況 so the driver sees the running timers
+    // immediately after tapping 出庫, instead of landing back on the home
+    // screen.
+    setScreen('driving')
     void syncDrivingSession(newTrip, now)
   }
 
