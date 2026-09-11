@@ -45,9 +45,12 @@ export function BottomTabs({
   }
 
   return (
+    // Deliberately NOT `position: fixed` — see attendance-app.tsx for why:
+    // as a normal flex child of the app shell it can never drift when the
+    // mobile browser chrome collapses/expands during scroll.
     <nav
       aria-label="メインナビゲーション"
-      className="fixed inset-x-0 bottom-0 z-10 mx-auto flex w-full max-w-md items-stretch justify-around border-t border-border bg-card/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur"
+      className="flex w-full shrink-0 items-stretch justify-around border-t border-border bg-card/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur"
     >
       {TABS.map(({ id, label, Icon }) => {
         const isActive = id === active

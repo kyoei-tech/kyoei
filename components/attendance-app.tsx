@@ -58,10 +58,19 @@ export function AttendanceApp() {
   }
 
   return (
-    <div className="relative mx-auto flex min-h-[100dvh] w-full max-w-md flex-col bg-background">
+    // Fixed to the dynamic viewport height (not min-h) with its own
+    // internal scroll container below, rather than letting `body` scroll:
+    // on mobile, a `position: fixed` bottom bar visibly drifts as the
+    // browser chrome (URL bar) collapses/expands during a document-level
+    // scroll. Keeping BottomTabs as a normal flex sibling here — never
+    // `position: fixed` — means it can't drift, since only `main` scrolls.
+    <div className="relative mx-auto flex h-[100dvh] w-full max-w-md flex-col overflow-hidden bg-background">
       <NewsNotifier />
       <PendingNotificationModal />
-      <main className="flex flex-1 flex-col px-4 pb-24 pt-6">
+      <main
+        id="app-scroll-container"
+        className="flex flex-1 flex-col overflow-y-auto px-4 pb-6 pt-6"
+      >
         {tab === 'home' &&
           (appMode === 'timecard' ? (
             <TimecardHomeView

@@ -14,6 +14,18 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim())
 })
 
+// Strips the **bold**/;;red;;/::orange::/##green## rich-text markup used by
+// the editable push-notification rules (see notification-style.ts) so the
+// raw marker characters never show up in the OS notification text. This
+// duplicates lib/notifications/notification-style.ts's toPlainText() rather
+// than importing it, since this classic (non-module) service worker script
+// cannot use ES module imports.
+function stripMarkup(text) {
+  return typeof text === 'string'
+    ? text.replaceAll('**', '').replaceAll(';;', '').replaceAll('::', '').replaceAll('##', '')
+    : text
+}
+
 self.addEventListener('push', (event) => {
   let payload = { title: 'おしらせ', message: '新しいおしらせがあります' }
   try {
@@ -22,8 +34,8 @@ self.addEventListener('push', (event) => {
     // Ignore malformed payloads; fall back to the default text above.
   }
   event.waitUntil(
-    self.registration.showNotification(payload.title, {
-      body: payload.message,
+    self.registration.showNotification(stripMarkup(payload.title), {
+      body: stripMarkup(payload.message),
       icon: '/icon-192.png',
       tag: `kyoei-push-${Date.now()}`,
     }),
