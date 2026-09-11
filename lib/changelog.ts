@@ -1,3 +1,8 @@
+'use client'
+
+import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
+import { createClient } from '@/lib/supabase/client'
+
 // Human-written update history shown in the "Version" menu page.
 // Keep entries short and in plain Japanese so non-technical staff can
 // follow what changed, where, and when.
@@ -164,7 +169,39 @@ export const CHANGELOG: ChangelogVersion[] = [
 // The Version page (components/version-view.tsx) now reads its entries
 // live from the `changelog_entries` table in Supabase, not from the
 // CHANGELOG array above — that array is kept only as historical seed data
-// and for the ChangeKind type. When a new version is added to the table,
-// bump this constant to match so the "現在のバージョン" label in the menu
-// stays correct.
+// and for the ChangeKind type. This constant is only the last-resort
+// fallback for useCurrentVersion() below (shown for an instant before the
+// table loads, or if the table is ever unreachable) — it does not need to
+// be kept in sync with the table by hand anymore.
 export const CURRENT_VERSION = '1.10.0'
+
+async function fetchLatestVersion(): Promise<{ version: string }[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('changelog_entries')
+    .select('version')
+    .order('version_order', { ascending: false })
+    .limit(1)
+  if (error) throw error
+  return (data as { version: string }[]) ?? []
+}
+
+/**
+ * The current app version, read live from the highest `version_order` row
+ * in `changelog_entries` and kept in sync in real time — so adding a new
+ * version from the Version page (components/version-view.tsx) updates the
+ * "現在のバージョン：…" label shown in the menu immediately, with no manual
+ * constant to bump. Falls back to CURRENT_VERSION while loading or if the
+ * table is empty/unreachable.
+ *
+ * Uses a distinct cacheKey ("latest") because components/version-view.tsx
+ * watches the same table with a different query shape (all columns, all
+ * rows) — sharing a cache key would let whichever fetch resolves last
+ * silently overwrite the other's data.
+ */
+export function useCurrentVersion(): string {
+  const { data } = useRealtimeTable('changelog_entries', fetchLatestVersion, {
+    cacheKey: 'latest',
+  })
+  return data[0]?.version ?? CURRENT_VERSION
+}

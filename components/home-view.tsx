@@ -353,8 +353,18 @@ export function HomeView({
         finished={finished}
         countdownOffset={countdownOffset}
         onSelectCountdown={setCountdownOffset}
-        onOpenStatus={handleOpenStatus}
       />
+
+      {mode !== 'idle' && (
+        <button
+          type="button"
+          onClick={handleOpenStatus}
+          className="flex items-center justify-center gap-1 rounded-full border border-border bg-muted px-4 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground active:scale-95"
+        >
+          運行情報
+          <ChevronRight className="h-4 w-4" aria-hidden="true" />
+        </button>
+      )}
 
       <div className="grid grid-cols-2 gap-2">
         <button

@@ -138,10 +138,10 @@ export function DrivingStatusView({
       <button
         type="button"
         onClick={onBack}
-        className="flex items-center gap-1 self-start text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+        className="flex items-center gap-1.5 self-start rounded-full bg-primary px-4 py-2 text-sm font-bold text-primary-foreground shadow-sm transition-transform active:scale-95"
       >
-        <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-        出庫
+        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+        出帰庫
       </button>
 
       <div className="flex flex-1 flex-col justify-evenly gap-3">

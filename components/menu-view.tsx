@@ -30,7 +30,7 @@ import { DriverTermsView } from './driver-terms-view'
 import { TripHistoryView } from './trip-history-view'
 import { SettingsView } from './settings-view'
 import { VersionView } from './version-view'
-import { CURRENT_VERSION } from '@/lib/changelog'
+import { useCurrentVersion } from '@/lib/changelog'
 import { useScrollToTop } from '@/lib/use-scroll-to-top'
 import { useSettings } from '@/lib/settings/settings-context'
 
@@ -123,7 +123,9 @@ const MENU_ITEMS: {
   {
     id: 'version',
     label: 'Version',
-    description: `現在のバージョン：${CURRENT_VERSION}`,
+    // Placeholder — overridden at render time with the live version from
+    // useCurrentVersion() below, so this never goes stale.
+    description: '',
     Icon: Tag,
   },
 ]
@@ -136,13 +138,20 @@ export function MenuView({
 }) {
   const [selected, setSelected] = useState<MenuItemId | null>(initialItem)
   const { partTimeMode } = useSettings()
+  const currentVersion = useCurrentVersion()
   useScrollToTop([selected])
 
   // LoL (delivery destination info) and Version (changelog) are hidden for
   // part-time staff, who only need the day-to-day reference pages below.
-  const visibleItems = partTimeMode
-    ? MENU_ITEMS.filter((m) => m.id !== 'lol' && m.id !== 'version')
-    : MENU_ITEMS
+  const visibleItems = (
+    partTimeMode
+      ? MENU_ITEMS.filter((m) => m.id !== 'lol' && m.id !== 'version')
+      : MENU_ITEMS
+  ).map((m) =>
+    m.id === 'version'
+      ? { ...m, description: `現在のバージョン：${currentVersion}` }
+      : m,
+  )
 
   if (selected) {
     const item = MENU_ITEMS.find((m) => m.id === selected)
