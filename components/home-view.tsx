@@ -28,6 +28,10 @@ import {
 } from '@/lib/notifications/driving-notifications'
 import { deliverNotification } from '@/lib/notifications/push-notifications'
 import { usePushNotificationRules } from '@/lib/notifications/push-rules'
+import {
+  clearDrivingSession,
+  syncDrivingSession,
+} from '@/lib/notifications/driving-session-sync'
 import { LiveClock } from './live-clock'
 import { StatusDisplay } from './status-display'
 import { ShiftTimer } from './shift-timer'
@@ -157,7 +161,12 @@ export function HomeView({
     if (!trip) return
     const nowMs = now.getTime()
     const tickedTrip = tickTrip(trip, nowMs)
-    if (tickedTrip !== trip) setTrip(tickedTrip)
+    if (tickedTrip !== trip) {
+      setTrip(tickedTrip)
+      // The 30-min 累計休憩時間 auto-reset just flipped breakSatisfied — the
+      // server-side driving-timer job needs to see that transition too.
+      if (startedAt != null) void syncDrivingSession(tickedTrip, startedAt)
+    }
 
     if (pushNotificationsEnabled && notificationRules.length > 0) {
       const continuousMs = liveContinuousDrivingMs(tickedTrip, nowMs)
@@ -185,11 +194,13 @@ export function HomeView({
   const isSplitRestEligible = mode === 'return' && restElapsedMs < NINE_HOURS_MS
 
   function startDeparture(now: number, splitRestRemainingMs: number | null) {
+    const newTrip = startTrip(now, splitRestRemainingMs)
     setMode('departure')
     setStartedAt(now)
-    setTrip(startTrip(now, splitRestRemainingMs))
+    setTrip(newTrip)
     setNotify(initialNotifyState())
     setScreen('home')
+    void syncDrivingSession(newTrip, now)
   }
 
   function confirmDeparture() {
@@ -219,6 +230,9 @@ export function HomeView({
         splitRestRemainingMs: trip.splitRestRemainingMs,
       })
     }
+    // Trip is over — nothing left for the server-side driving-timer job to
+    // evaluate against this device.
+    void clearDrivingSession()
     setCountdownOffset(isSaturday(new Date()) ? 33 : 9)
     setMode('return')
     setStartedAt(returnedAt)
@@ -227,13 +241,26 @@ export function HomeView({
     setPendingHomeAction(null)
   }
 
-  const handleTapCategory = useCallback((category: BreakCategory) => {
-    setTrip((cur) => (cur ? tapBreakCategoryPure(cur, category, Date.now()) : cur))
-  }, [])
+  const handleTapCategory = useCallback(
+    (category: BreakCategory) => {
+      setTrip((cur) => {
+        if (!cur) return cur
+        const next = tapBreakCategoryPure(cur, category, Date.now())
+        if (startedAt != null) void syncDrivingSession(next, startedAt)
+        return next
+      })
+    },
+    [startedAt],
+  )
 
   const handleResumeDriving = useCallback(() => {
-    setTrip((cur) => (cur ? tapResumeDrivingPure(cur, Date.now()) : cur))
-  }, [])
+    setTrip((cur) => {
+      if (!cur) return cur
+      const next = tapResumeDrivingPure(cur, Date.now())
+      if (startedAt != null) void syncDrivingSession(next, startedAt)
+      return next
+    })
+  }, [startedAt])
 
   const handleOpenStatus = useCallback(() => {
     if (mode === 'departure') setScreen('driving')
