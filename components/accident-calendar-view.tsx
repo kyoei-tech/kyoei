@@ -1,15 +1,7 @@
 'use client'
 
-import { useMemo, useRef, useState } from 'react'
-import {
-  Calendar,
-  CalendarRange,
-  ChevronLeft,
-  ChevronRight,
-  Pencil,
-  Trash2,
-  X,
-} from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Calendar, CalendarRange, Pencil, Trash2, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { ConfirmDeleteInline } from './confirm-delete'
@@ -22,6 +14,13 @@ import {
 import { AccidentYearlyView } from './accident-yearly-view'
 import { useSettings } from '@/lib/settings/settings-context'
 import { useScrollToTop } from '@/lib/use-scroll-to-top'
+import { MonthNav, useMonthSwipe } from './month-nav'
+import {
+  WEEKDAYS,
+  buildMonthCells,
+  todayISO,
+  weekdayColor,
+} from '@/lib/month-calendar'
 
 // Shared across every browser via the `accident_records` Supabase table.
 type AccidentRow = {
@@ -41,81 +40,6 @@ async function fetchAccidentRows(): Promise<AccidentRow[]> {
     .order('occurred_on', { ascending: false })
   if (error) throw error
   return (data as AccidentRow[]) ?? []
-}
-
-const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土']
-
-function pad2(n: number) {
-  return String(n).padStart(2, '0')
-}
-
-function toISODate(y: number, m: number, d: number) {
-  return `${y}-${pad2(m + 1)}-${pad2(d)}`
-}
-
-function monthLabel(date: Date) {
-  return `${date.getFullYear()}年${date.getMonth() + 1}月`
-}
-
-function todayISO() {
-  const t = new Date()
-  return toISODate(t.getFullYear(), t.getMonth(), t.getDate())
-}
-
-function weekdayColor(i: number): string {
-  if (i === 0) return 'text-destructive'
-  if (i === 6) return 'text-secondary'
-  return 'text-foreground'
-}
-
-function useMonthSwipe(onPrev: () => void, onNext: () => void) {
-  const touchX = useRef<number | null>(null)
-  return {
-    onTouchStart: (e: React.TouchEvent) => {
-      touchX.current = e.touches[0].clientX
-    },
-    onTouchEnd: (e: React.TouchEvent) => {
-      if (touchX.current == null) return
-      const delta = e.changedTouches[0].clientX - touchX.current
-      touchX.current = null
-      if (delta > 50) onPrev()
-      else if (delta < -50) onNext()
-    },
-  }
-}
-
-function MonthNav({
-  date,
-  onPrev,
-  onNext,
-}: {
-  date: Date
-  onPrev: () => void
-  onNext: () => void
-}) {
-  return (
-    <div className="flex items-center justify-between">
-      <button
-        type="button"
-        onClick={onPrev}
-        aria-label="前の月"
-        className="flex h-8 w-8 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:text-foreground active:scale-90"
-      >
-        <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-      </button>
-      <span className="text-base font-bold text-foreground">
-        {monthLabel(date)}
-      </span>
-      <button
-        type="button"
-        onClick={onNext}
-        aria-label="次の月"
-        className="flex h-8 w-8 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:text-foreground active:scale-90"
-      >
-        <ChevronRight className="h-4 w-4" aria-hidden="true" />
-      </button>
-    </div>
-  )
 }
 
 function emptyForm() {
@@ -182,17 +106,7 @@ export function AccidentCalendarView() {
     return map
   }, [rows])
 
-  const cells = useMemo(() => {
-    const y = viewMonth.getFullYear()
-    const m = viewMonth.getMonth()
-    const firstWeekday = new Date(y, m, 1).getDay()
-    const daysInMonth = new Date(y, m + 1, 0).getDate()
-    const list: { day: number; iso: string }[] = []
-    for (let i = 0; i < firstWeekday; i++) list.push({ day: 0, iso: '' })
-    for (let d = 1; d <= daysInMonth; d++) list.push({ day: d, iso: toISODate(y, m, d) })
-    while (list.length % 7 !== 0) list.push({ day: 0, iso: '' })
-    return list
-  }, [viewMonth])
+  const cells = useMemo(() => buildMonthCells(viewMonth), [viewMonth])
 
   const selectedAccidents = useMemo(
     () => (selectedDate ? rows.filter((r) => r.occurred_on === selectedDate) : []),

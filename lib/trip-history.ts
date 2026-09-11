@@ -12,6 +12,9 @@ export type TripHistoryEntry = {
   returnedAt: number
   totals: CategoryTotals
   splitRestRemainingMs: number | null
+  processMemo: string
+  trafficMemo: string
+  freeMemo: string
 }
 
 type TripHistoryRow = {
@@ -24,10 +27,13 @@ type TripHistoryRow = {
   waiting_ms: number
   resting_ms: number
   split_rest_remaining_ms: number | null
+  process_memo: string | null
+  traffic_memo: string | null
+  free_memo: string | null
 }
 
 const SELECT_COLUMNS =
-  'id, departed_at, returned_at, driving_ms, loading_ms, unloading_ms, waiting_ms, resting_ms, split_rest_remaining_ms'
+  'id, departed_at, returned_at, driving_ms, loading_ms, unloading_ms, waiting_ms, resting_ms, split_rest_remaining_ms, process_memo, traffic_memo, free_memo'
 
 function toEntry(row: TripHistoryRow): TripHistoryEntry {
   return {
@@ -42,6 +48,9 @@ function toEntry(row: TripHistoryRow): TripHistoryEntry {
       resting: row.resting_ms,
     },
     splitRestRemainingMs: row.split_rest_remaining_ms,
+    processMemo: row.process_memo ?? '',
+    trafficMemo: row.traffic_memo ?? '',
+    freeMemo: row.free_memo ?? '',
   }
 }
 
@@ -87,4 +96,39 @@ export async function fetchTripHistory(
     .limit(limit)
   if (error || !data) return []
   return (data as TripHistoryRow[]).map(toEntry)
+}
+
+/** Deletes one trip permanently. Scoped to this device's own trips. */
+export async function deleteTripHistory(
+  id: string,
+): Promise<{ error: string | null }> {
+  const deviceId = getDeviceId()
+  if (!deviceId) return { error: 'device id not found' }
+  const supabase = createClient()
+  const { error } = await supabase
+    .from('trip_history')
+    .delete()
+    .eq('id', id)
+    .eq('device_id', deviceId)
+  return { error: error?.message ?? null }
+}
+
+/** Updates the 工程 / 渋滞区間 / 自由欄 memo fields for one trip. */
+export async function updateTripHistoryMemo(
+  id: string,
+  memo: { processMemo: string; trafficMemo: string; freeMemo: string },
+): Promise<{ error: string | null }> {
+  const deviceId = getDeviceId()
+  if (!deviceId) return { error: 'device id not found' }
+  const supabase = createClient()
+  const { error } = await supabase
+    .from('trip_history')
+    .update({
+      process_memo: memo.processMemo.trim() || null,
+      traffic_memo: memo.trafficMemo.trim() || null,
+      free_memo: memo.freeMemo.trim() || null,
+    })
+    .eq('id', id)
+    .eq('device_id', deviceId)
+  return { error: error?.message ?? null }
 }
