@@ -177,17 +177,21 @@ export const CURRENT_VERSION = '1.10.0'
 
 async function fetchLatestVersion(): Promise<{ version: string }[]> {
   const supabase = createClient()
+  // Lower version_order = newer: components/version-view.tsx sorts
+  // version_order ascending and treats idx 0 (the smallest value) as
+  // "最新" / newest, and saveNewVersion() there assigns each new version
+  // an even lower value than any existing one. Mirror that convention here.
   const { data, error } = await supabase
     .from('changelog_entries')
     .select('version')
-    .order('version_order', { ascending: false })
+    .order('version_order', { ascending: true })
     .limit(1)
   if (error) throw error
   return (data as { version: string }[]) ?? []
 }
 
 /**
- * The current app version, read live from the highest `version_order` row
+ * The current app version, read live from the lowest `version_order` row
  * in `changelog_entries` and kept in sync in real time — so adding a new
  * version from the Version page (components/version-view.tsx) updates the
  * "現在のバージョン：…" label shown in the menu immediately, with no manual

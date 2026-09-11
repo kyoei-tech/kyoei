@@ -193,8 +193,12 @@ export function VersionView() {
     const page = newVersionForm.page.trim()
     const description = newVersionForm.description.trim()
     if (!version || !page || !description) return
+    // Lower version_order = newer (see groupByVersion's ascending sort and
+    // isLatest = idx === 0 above), so a brand-new version must get the
+    // lowest order in the table, not the highest, to actually show up as
+    // "最新" and as the top entry in the list.
     const nextVersionOrder =
-      Math.max(...versions.map((v) => v.versionOrder), -1) + 1
+      Math.min(...versions.map((v) => v.versionOrder), 0) - 1
     const supabase = createClient()
     await supabase.from('changelog_entries').insert({
       version,
