@@ -20,6 +20,10 @@ import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { ConfirmActionModal } from './confirm-action-modal'
 import { ConfirmDeleteInline } from './confirm-delete'
+import {
+  getConfirmActionMessage,
+  useConfirmActionMessages,
+} from '@/lib/notifications/confirm-messages'
 
 // Shared across every browser via the `timecard_shared_memos` table.
 // Any entry can be edited or deleted by anyone — changes sync to every
@@ -84,6 +88,7 @@ export function TimecardWorkStatusView({
   const [pendingBreakAction, setPendingBreakAction] = useState<
     'start' | 'end' | null
   >(null)
+  const { data: confirmMessages } = useConfirmActionMessages()
 
   const { data: sharedMemos, mutate: refetchSharedMemos } =
     useRealtimeTable<SharedMemoRow>('timecard_shared_memos', fetchSharedMemos)
@@ -513,7 +518,11 @@ export function TimecardWorkStatusView({
 
       {pendingBreakAction === 'start' && (
         <ConfirmActionModal
-          message="休憩を開始しますか？"
+          message={getConfirmActionMessage(
+            confirmMessages,
+            'timecard-break-start',
+            '休憩を開始しますか？',
+          )}
           confirmLabel="開始する"
           onConfirm={() => {
             onStartBreak()
@@ -524,7 +533,11 @@ export function TimecardWorkStatusView({
       )}
       {pendingBreakAction === 'end' && (
         <ConfirmActionModal
-          message="休憩を終了しますか？"
+          message={getConfirmActionMessage(
+            confirmMessages,
+            'timecard-break-end',
+            '休憩を終了しますか？',
+          )}
           confirmLabel="終了する"
           onConfirm={() => {
             onEndBreak()

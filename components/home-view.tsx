@@ -38,6 +38,11 @@ import { ShiftTimer } from './shift-timer'
 import { AccidentStreakBadge } from './accident-streak-badge'
 import { WeeklyGoal } from './weekly-goal'
 import { ConfirmActionModal } from './confirm-action-modal'
+import {
+  getConfirmActionMessage,
+  useConfirmActionMessages,
+} from '@/lib/notifications/confirm-messages'
+import { StyledNotificationText } from './styled-notification-text'
 import { DrivingStatusView } from './driving-status-view'
 import { RestStatusView } from './rest-status-view'
 
@@ -90,6 +95,7 @@ export function HomeView({
   const [notify, setNotify] = useState<NotifyState>(initialNotifyState)
   const [pendingHomeAction, setPendingHomeAction] =
     useState<PendingHomeAction>(null)
+  const { data: confirmMessages } = useConfirmActionMessages()
   const { pushNotificationsEnabled } = useSettings()
   const { data: notificationRules } = usePushNotificationRules()
 
@@ -378,32 +384,45 @@ export function HomeView({
 
       {pendingHomeAction === 'departure' && (
         <ConfirmActionModal
-          message="出庫を開始しますか？"
+          message={getConfirmActionMessage(
+            confirmMessages,
+            'home-departure',
+            '出庫を開始しますか？',
+          )}
           onConfirm={confirmDeparture}
           onCancel={() => setPendingHomeAction(null)}
         />
       )}
       {pendingHomeAction === 'return' && (
         <ConfirmActionModal
-          message="帰庫を開始しますか？"
+          message={getConfirmActionMessage(
+            confirmMessages,
+            'home-return',
+            '帰庫を開始しますか？',
+          )}
           onConfirm={confirmReturn}
           onCancel={() => setPendingHomeAction(null)}
         />
       )}
       {pendingHomeAction === 'split-rest' && (
         <ConfirmActionModal
-          message="分割休息による出庫"
+          message={getConfirmActionMessage(
+            confirmMessages,
+            'home-split-rest-message',
+            '分割休息による出庫',
+          )}
           confirmLabel="確認しました"
           cancelLabel={null}
           onConfirm={confirmSplitRestDeparture}
           body={
-            <p className="rounded-xl bg-destructive/10 px-3 py-2.5 text-sm font-bold leading-relaxed text-destructive">
-              分割休息は1回3時間以上とること。
-              <br />
-              2分割の場合は合計10時間以上、
-              <br />
-              3分割の場合は合計12時間以上になるように休息をとること。
-            </p>
+            <StyledNotificationText
+              text={getConfirmActionMessage(
+                confirmMessages,
+                'home-split-rest-body',
+                '分割休息は1回3時間以上とること。\n2分割の場合は合計10時間以上、\n3分割の場合は合計12時間以上になるように休息をとること。',
+              )}
+              className="block whitespace-pre-line rounded-xl bg-destructive/10 px-3 py-2.5 text-sm font-bold leading-relaxed text-destructive"
+            />
           }
         />
       )}

@@ -6,10 +6,11 @@ import { StyledNotificationText } from './styled-notification-text'
 
 /**
  * Full-screen "誤タップ防止" confirmation overlay shown before a status
- * change. `message` may contain the same **bold**/;;red;;/::orange::/
- * ##green## markup and line breaks used by push notifications — see
- * notification-style.ts — and is editable from the secret "アラートの管理"
- * screen (lib/notifications/confirm-messages.ts), synced to every device.
+ * change. `message` may contain the same bold/red/orange/green markup
+ * (see NOTIFICATION_MARKUP_HELP) and line breaks used by push
+ * notifications — see notification-style.ts — and is editable from the
+ * secret "アラートの管理" screen (lib/notifications/confirm-messages.ts),
+ * synced to every device.
  */
 export function ConfirmActionModal({
   message,

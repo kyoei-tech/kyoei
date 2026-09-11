@@ -26,6 +26,10 @@ import {
   type TripState,
 } from '@/lib/trip-log'
 import { ConfirmActionModal } from './confirm-action-modal'
+import {
+  getConfirmActionMessage,
+  useConfirmActionMessages,
+} from '@/lib/notifications/confirm-messages'
 
 type IconProps = { className?: string; 'aria-hidden'?: boolean | 'true' | 'false' }
 type IconComponent = ComponentType<IconProps>
@@ -93,6 +97,7 @@ export function DrivingStatusView({
   const [pendingAction, setPendingAction] = useState<
     { kind: 'category'; category: BreakCategory } | { kind: 'resume' } | null
   >(null)
+  const { data: confirmMessages } = useConfirmActionMessages()
 
   const drivingDurationMs = now - departureAt
   const continuousMs = liveContinuousDrivingMs(trip, now)
@@ -267,9 +272,14 @@ export function DrivingStatusView({
 
       {pendingAction?.kind === 'category' && (
         <ConfirmActionModal
-          message={`${
-            BREAK_BUTTONS.find((b) => b.id === pendingAction.category)?.label
-          }を開始しますか？`}
+          message={getConfirmActionMessage(
+            confirmMessages,
+            `driving-category-${pendingAction.category}`,
+            `${
+              BREAK_BUTTONS.find((b) => b.id === pendingAction.category)
+                ?.label
+            }を開始しますか？`,
+          )}
           onConfirm={() => {
             onTapCategory(pendingAction.category)
             setPendingAction(null)
@@ -279,7 +289,11 @@ export function DrivingStatusView({
       )}
       {pendingAction?.kind === 'resume' && (
         <ConfirmActionModal
-          message="走行再開を開始しますか？"
+          message={getConfirmActionMessage(
+            confirmMessages,
+            'driving-resume',
+            '走行再開を開始しますか？',
+          )}
           onConfirm={() => {
             onResumeDriving()
             setPendingAction(null)

@@ -18,6 +18,10 @@ import { FormatToggle } from './format-toggle'
 import { AccidentStreakBadge } from './accident-streak-badge'
 import { WeeklyGoal } from './weekly-goal'
 import { ConfirmActionModal } from './confirm-action-modal'
+import {
+  getConfirmActionMessage,
+  useConfirmActionMessages,
+} from '@/lib/notifications/confirm-messages'
 import { TimecardWorkStatusView } from './timecard-work-status-view'
 import { useScrollToTop } from '@/lib/use-scroll-to-top'
 
@@ -60,6 +64,7 @@ export function TimecardHomeView({
   const [hydrated, setHydrated] = useState(false)
   const [screen, setScreen] = useState<Screen>('home')
   const [pendingAction, setPendingAction] = useState<PendingAction>(null)
+  const { data: confirmMessages } = useConfirmActionMessages()
   useScrollToTop([screen])
 
   const toggleFormat = useCallback(() => setHour12((v) => !v), [])
@@ -260,7 +265,11 @@ export function TimecardHomeView({
 
       {pendingAction === 'clock-in' && (
         <ConfirmActionModal
-          message="タイムカードを押しましたか？"
+          message={getConfirmActionMessage(
+            confirmMessages,
+            'timecard-clock-in',
+            'タイムカードを押しましたか？',
+          )}
           confirmLabel="押しました"
           onConfirm={confirmClockIn}
           onCancel={() => setPendingAction(null)}
@@ -268,7 +277,11 @@ export function TimecardHomeView({
       )}
       {pendingAction === 'clock-out' && (
         <ConfirmActionModal
-          message="タイムカードを押しましたか？"
+          message={getConfirmActionMessage(
+            confirmMessages,
+            'timecard-clock-out',
+            'タイムカードを押しましたか？',
+          )}
           confirmLabel="押しました"
           onConfirm={confirmClockOut}
           onCancel={() => setPendingAction(null)}

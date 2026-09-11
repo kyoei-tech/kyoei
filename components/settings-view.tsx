@@ -20,6 +20,8 @@ import {
 } from '@/lib/notifications/web-push-subscription'
 import { usePasswordGate } from './password-prompt'
 import { PushNotificationEditorView } from './push-notification-editor-view'
+import { NotificationAdminMenu } from './notification-admin-menu'
+import { AlertMessageEditorView } from './alert-message-editor-view'
 
 const THEME_OPTIONS: { id: ThemeMode; label: string; Icon: typeof Sun }[] = [
   { id: 'dark', label: 'ダーク', Icon: Moon },
@@ -33,10 +35,12 @@ const PART_TIME_MODE_PASSCODE = '2486'
 const PUSH_NOTIFICATION_EDITOR_PASSCODE = '0525'
 
 // Tapping the bell icon 5 times within this window opens the (otherwise
-// hidden) push-notification rule editor, behind a PIN. Same convention as
-// the home tab's 5-tap 乗務員/タイムカードモード gesture in bottom-tabs.tsx.
+// hidden) notification admin menu, behind a PIN. Same convention as the
+// home tab's 5-tap 乗務員/タイムカードモード gesture in bottom-tabs.tsx.
 const SECRET_TAP_COUNT = 5
 const SECRET_TAP_WINDOW_MS = 2000
+
+type SecretScreen = 'menu' | 'push-editor' | 'alert-editor'
 
 export function SettingsView() {
   const {
@@ -55,7 +59,7 @@ export function SettingsView() {
   const { guard: guardEditor, prompt: editorPrompt } = usePasswordGate(
     PUSH_NOTIFICATION_EDITOR_PASSCODE,
   )
-  const [showEditor, setShowEditor] = useState(false)
+  const [secretScreen, setSecretScreen] = useState<SecretScreen | null>(null)
   const bellTapCountRef = useRef(0)
   const bellTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -135,7 +139,7 @@ export function SettingsView() {
     if (bellTapTimerRef.current) clearTimeout(bellTapTimerRef.current)
     if (bellTapCountRef.current >= SECRET_TAP_COUNT) {
       bellTapCountRef.current = 0
-      guardEditor(() => setShowEditor(true))
+      guardEditor(() => setSecretScreen('menu'))
       return
     }
     bellTapTimerRef.current = setTimeout(() => {
@@ -143,10 +147,32 @@ export function SettingsView() {
     }, SECRET_TAP_WINDOW_MS)
   }
 
-  if (showEditor) {
+  if (secretScreen === 'menu') {
     return (
       <>
-        <PushNotificationEditorView onBack={() => setShowEditor(false)} />
+        <NotificationAdminMenu
+          onBack={() => setSecretScreen(null)}
+          onOpenPushEditor={() => setSecretScreen('push-editor')}
+          onOpenAlertEditor={() => setSecretScreen('alert-editor')}
+        />
+        {editorPrompt}
+      </>
+    )
+  }
+
+  if (secretScreen === 'push-editor') {
+    return (
+      <>
+        <PushNotificationEditorView onBack={() => setSecretScreen('menu')} />
+        {editorPrompt}
+      </>
+    )
+  }
+
+  if (secretScreen === 'alert-editor') {
+    return (
+      <>
+        <AlertMessageEditorView onBack={() => setSecretScreen('menu')} />
         {editorPrompt}
       </>
     )
