@@ -134,7 +134,7 @@ export function DrivingStatusView({
   }))
 
   return (
-    <div className="flex flex-1 flex-col gap-3 pb-2">
+    <div className="flex flex-1 flex-col gap-2.5 pb-2">
       <button
         type="button"
         onClick={onBack}
@@ -144,38 +144,40 @@ export function DrivingStatusView({
         出帰庫
       </button>
 
-      <div className="flex flex-1 flex-col justify-evenly gap-3">
-      <div className="rounded-2xl border border-border bg-card px-4 py-3 text-center">
+      {/* Fixed gap-2.5 rather than justify-evenly, which would stretch
+          these cards apart with uneven, viewport-height-dependent gaps. */}
+      <div className="flex flex-1 flex-col gap-2.5">
+      <div className="rounded-2xl border border-border bg-card px-4 py-2.5 text-center">
         <p className="text-xs font-medium text-muted-foreground">
           {nowParts.date}
           <span className="ml-1.5 text-foreground">{nowParts.weekday}</span>
         </p>
-        <p className="font-mono text-2xl font-semibold tabular-nums text-foreground">
+        <p className="font-mono text-xl font-semibold tabular-nums text-foreground">
           {nowParts.time}
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-2xl border border-border bg-card px-3 py-3.5 text-center">
+      <div className="grid grid-cols-2 gap-2.5">
+        <div className="rounded-2xl border border-border bg-card px-3 py-3 text-center">
           <p className="text-xs font-bold text-secondary">出庫時刻</p>
-          <p className="font-mono text-xl font-bold tabular-nums text-secondary">
+          <p className="font-mono text-lg font-bold tabular-nums text-secondary">
             {departureParts.time}
           </p>
           <p className="mt-0.5 text-[0.65rem] font-medium text-muted-foreground">
             {departureDateLabel}
           </p>
         </div>
-        <div className="rounded-2xl border border-border bg-card px-3 py-3.5 text-center">
+        <div className="rounded-2xl border border-border bg-card px-3 py-3 text-center">
           <p className={`text-xs font-bold ${drivingAccent}`}>運行時間</p>
           <p
-            className={`font-mono text-xl font-bold tabular-nums ${drivingAccent}`}
+            className={`font-mono text-lg font-bold tabular-nums ${drivingAccent}`}
           >
             {formatDuration(drivingDurationMs)}
           </p>
         </div>
       </div>
 
-      <div className="rounded-2xl border border-border bg-card px-4 py-3.5">
+      <div className="rounded-2xl border border-border bg-card px-4 py-3">
         <div className="flex items-center justify-between">
           <span
             className={`text-xs font-bold ${
@@ -185,7 +187,7 @@ export function DrivingStatusView({
             連続走行時間
           </span>
           <span
-            className={`font-mono text-xl font-bold tabular-nums ${
+            className={`font-mono text-lg font-bold tabular-nums ${
               continuousOver ? 'text-destructive' : 'text-foreground'
             }`}
           >
@@ -193,13 +195,13 @@ export function DrivingStatusView({
           </span>
         </div>
         {continuousOver && (
-          <p className="mt-1.5 text-right text-xs font-bold text-destructive">
+          <p className="mt-1 text-right text-xs font-bold text-destructive">
             {`${continuousRemainingMin}分以内に休憩して下さい`}
           </p>
         )}
       </div>
 
-      <div className="rounded-2xl border border-border bg-card px-4 py-3.5">
+      <div className="rounded-2xl border border-border bg-card px-4 py-3">
         <div className="flex items-center justify-between">
           <span
             className={`text-xs font-bold ${
@@ -209,7 +211,7 @@ export function DrivingStatusView({
             累計休憩時間
           </span>
           <span
-            className={`font-mono text-xl font-bold tabular-nums ${
+            className={`font-mono text-lg font-bold tabular-nums ${
               breakOrange ? 'text-orange-500' : 'text-foreground'
             }`}
           >
@@ -218,7 +220,7 @@ export function DrivingStatusView({
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-x-2 gap-y-2 rounded-2xl border border-border bg-card px-4 py-3.5 text-center">
+      <div className="grid grid-cols-3 gap-x-2 gap-y-1.5 rounded-2xl border border-border bg-card px-4 py-3 text-center">
         {categoryList.map(({ key, ms }) => (
           <div key={key}>
             <p className="text-xs text-muted-foreground">
@@ -239,8 +241,8 @@ export function DrivingStatusView({
         )}
       </div>
 
-      <div className="flex flex-col gap-2.5">
-        <div className="grid grid-cols-4 gap-2.5">
+      <div className="flex flex-col gap-2">
+        <div className="grid grid-cols-4 gap-2">
           {BREAK_BUTTONS.map(({ id, label, icon: Icon }) => {
             const active = trip.activeCategory === id
             return (
@@ -249,7 +251,7 @@ export function DrivingStatusView({
                 type="button"
                 disabled={active}
                 onClick={() => setPendingAction({ kind: 'category', category: id })}
-                className={`flex flex-col items-center gap-1.5 rounded-2xl border py-3.5 text-xs font-semibold transition-all active:scale-[0.97] disabled:opacity-50 ${
+                className={`flex flex-col items-center gap-1 rounded-2xl border py-3 text-xs font-semibold transition-all active:scale-[0.97] disabled:opacity-50 ${
                   active
                     ? 'border-secondary bg-secondary text-secondary-foreground'
                     : 'border-border bg-card text-foreground hover:border-secondary/60'
@@ -265,7 +267,7 @@ export function DrivingStatusView({
           type="button"
           disabled={isDriving}
           onClick={() => setPendingAction({ kind: 'resume' })}
-          className="flex items-center justify-center gap-1.5 rounded-2xl border border-primary bg-primary py-3.5 text-base font-bold text-primary-foreground transition-all active:scale-[0.97] disabled:opacity-50"
+          className="flex items-center justify-center gap-1.5 rounded-2xl border border-primary bg-primary py-3 text-base font-bold text-primary-foreground transition-all active:scale-[0.97] disabled:opacity-50"
         >
           走行再開
         </button>

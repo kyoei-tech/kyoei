@@ -32,39 +32,39 @@ export function RestStatusView({
   const departableDateLabel = `${departableParts.date} ${departableParts.weekday}`
 
   return (
-    <div className="flex flex-1 flex-col gap-3">
+    <div className="flex flex-1 flex-col gap-2.5">
       <button
         type="button"
         onClick={onBack}
-        className="flex items-center gap-1 self-start text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+        className="flex items-center gap-1.5 self-start rounded-full bg-primary px-4 py-2 text-sm font-bold text-primary-foreground shadow-sm transition-transform active:scale-95"
       >
-        <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-        帰庫
+        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+        出帰庫
       </button>
 
-      <div className="rounded-2xl border border-border bg-card px-4 py-3 text-center">
+      <div className="rounded-2xl border border-border bg-card px-4 py-2.5 text-center">
         <p className="text-xs font-medium text-muted-foreground">
           {nowParts.date}
           <span className="ml-1.5 text-foreground">{nowParts.weekday}</span>
         </p>
-        <p className="font-mono text-3xl font-semibold tabular-nums text-foreground">
+        <p className="font-mono text-2xl font-semibold tabular-nums text-foreground">
           {nowParts.time}
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-2xl border border-border bg-card px-3 py-3 text-center">
+      <div className="grid grid-cols-2 gap-2.5">
+        <div className="rounded-2xl border border-border bg-card px-3 py-2.5 text-center">
           <p className="text-xs font-bold text-primary">帰庫時刻</p>
-          <p className="font-mono text-xl font-bold tabular-nums text-primary">
+          <p className="font-mono text-lg font-bold tabular-nums text-primary">
             {returnParts.time}
           </p>
           <p className="mt-0.5 text-[0.65rem] font-medium text-muted-foreground">
             {returnDateLabel}
           </p>
         </div>
-        <div className="rounded-2xl border border-border bg-card px-3 py-3 text-center">
+        <div className="rounded-2xl border border-border bg-card px-3 py-2.5 text-center">
           <p className="text-xs font-bold text-primary">出庫可能時刻</p>
-          <p className="font-mono text-xl font-bold tabular-nums text-primary">
+          <p className="font-mono text-lg font-bold tabular-nums text-primary">
             {departableParts.time}
           </p>
           <p className="mt-0.5 text-[0.65rem] font-medium text-muted-foreground">
@@ -94,16 +94,16 @@ export function RestStatusView({
         })}
       </div>
 
-      <div className="rounded-3xl border border-border bg-card px-6 py-6 text-center">
+      <div className="rounded-3xl border border-border bg-card px-6 py-4 text-center">
         <p className="text-sm font-bold tracking-wide text-muted-foreground">
           休息時間
         </p>
-        <p className="mt-1 font-mono text-5xl font-bold tabular-nums tracking-tight text-foreground">
+        <p className="mt-0.5 font-mono text-4xl font-bold tabular-nums tracking-tight text-foreground">
           {formatDuration(restElapsedMs)}
         </p>
       </div>
 
-      <div className="rounded-2xl border border-border bg-muted/40 px-4 py-3">
+      <div className="rounded-2xl border border-border bg-muted/40 px-4 py-2.5">
         <p className="text-sm leading-relaxed text-foreground">
           分割休息は1回<span className="font-bold text-destructive">3時間</span>
           以上とること。

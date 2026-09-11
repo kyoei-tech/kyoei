@@ -84,7 +84,7 @@ export function WeeklyGoal({ goalId = 'current' }: { goalId?: string }) {
     <section
       onClick={handleTap}
       aria-label="今週の目標"
-      className="rounded-2xl border border-border bg-card px-3.5 py-2"
+      className="rounded-2xl border border-border bg-card px-3 py-1.5"
     >
       <div className="flex items-center gap-1">
         <Target className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />

@@ -329,7 +329,10 @@ export function HomeView({
   }
 
   return (
-    <div className="flex flex-1 flex-col justify-evenly gap-1.5">
+    // Not justify-evenly: on a taller viewport that would stretch each
+    // part apart with unequal, layout-dependent gaps instead of the
+    // consistent, tight spacing gap-2 gives everywhere.
+    <div className="flex flex-1 flex-col gap-2">
       <div className="flex flex-col gap-1">
         <LiveClock
           parts={formatClock(now, clockOpts)}
@@ -373,7 +376,7 @@ export function HomeView({
             setPendingHomeAction(isSplitRestEligible ? 'split-rest' : 'departure')
           }
           aria-pressed={mode === 'departure'}
-          className={`flex flex-col items-center justify-center gap-1 rounded-3xl border py-3 text-sm font-bold leading-tight transition-all active:scale-[0.97] ${
+          className={`flex flex-col items-center justify-center gap-1 rounded-3xl border py-2.5 text-sm font-bold leading-tight transition-all active:scale-[0.97] ${
             mode === 'departure'
               ? 'border-secondary bg-secondary text-secondary-foreground shadow-lg shadow-secondary/20'
               : 'border-border bg-card text-secondary hover:border-secondary/60'
@@ -386,7 +389,7 @@ export function HomeView({
           type="button"
           onClick={() => setPendingHomeAction('return')}
           aria-pressed={mode === 'return'}
-          className={`flex flex-col items-center justify-center gap-1 rounded-3xl border py-3 text-sm font-bold leading-tight transition-all active:scale-[0.97] ${
+          className={`flex flex-col items-center justify-center gap-1 rounded-3xl border py-2.5 text-sm font-bold leading-tight transition-all active:scale-[0.97] ${
             mode === 'return'
               ? 'border-primary bg-primary text-primary-foreground shadow-lg shadow-primary/20'
               : 'border-border bg-card text-primary hover:border-primary/60'
@@ -458,7 +461,7 @@ export function HomeView({
               text={getConfirmActionMessage(
                 confirmMessages,
                 'home-split-rest-body',
-                '分割休息は1回3時間以上とること。\n2分割の場合は合計10時間以上、\n3分割の場合は合計12時間以上になるように休息をとること。',
+                '分割休息は1回3時間以上とること。\n2分割の場合は合計10時間以上、\n3分割の��合は合計12時間以上になるように休息をとること。',
               )}
               className="block whitespace-pre-line rounded-xl bg-destructive/10 px-3 py-2.5 text-sm font-bold leading-relaxed text-destructive"
             />
