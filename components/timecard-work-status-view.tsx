@@ -21,6 +21,8 @@ import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { ConfirmActionModal } from './confirm-action-modal'
 import { ConfirmDeleteInline } from './confirm-delete'
 import {
+  getConfirmActionCancelLabel,
+  getConfirmActionConfirmLabel,
   getConfirmActionMessage,
   useConfirmActionMessages,
 } from '@/lib/notifications/confirm-messages'
@@ -523,7 +525,16 @@ export function TimecardWorkStatusView({
             'timecard-break-start',
             '休憩を開始しますか？',
           )}
-          confirmLabel="開始する"
+          confirmLabel={getConfirmActionConfirmLabel(
+            confirmMessages,
+            'timecard-break-start',
+            '開始する',
+          )}
+          cancelLabel={getConfirmActionCancelLabel(
+            confirmMessages,
+            'timecard-break-start',
+            'キャンセル',
+          )}
           onConfirm={() => {
             onStartBreak()
             setPendingBreakAction(null)
@@ -538,7 +549,16 @@ export function TimecardWorkStatusView({
             'timecard-break-end',
             '休憩を終了しますか？',
           )}
-          confirmLabel="終了する"
+          confirmLabel={getConfirmActionConfirmLabel(
+            confirmMessages,
+            'timecard-break-end',
+            '終了する',
+          )}
+          cancelLabel={getConfirmActionCancelLabel(
+            confirmMessages,
+            'timecard-break-end',
+            'キャンセル',
+          )}
           onConfirm={() => {
             onEndBreak()
             setPendingBreakAction(null)

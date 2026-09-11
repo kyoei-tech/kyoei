@@ -19,6 +19,8 @@ import { AccidentStreakBadge } from './accident-streak-badge'
 import { WeeklyGoal } from './weekly-goal'
 import { ConfirmActionModal } from './confirm-action-modal'
 import {
+  getConfirmActionCancelLabel,
+  getConfirmActionConfirmLabel,
   getConfirmActionMessage,
   useConfirmActionMessages,
 } from '@/lib/notifications/confirm-messages'
@@ -270,7 +272,16 @@ export function TimecardHomeView({
             'timecard-clock-in',
             'タイムカードを押しましたか？',
           )}
-          confirmLabel="押しました"
+          confirmLabel={getConfirmActionConfirmLabel(
+            confirmMessages,
+            'timecard-clock-in',
+            '押しました',
+          )}
+          cancelLabel={getConfirmActionCancelLabel(
+            confirmMessages,
+            'timecard-clock-in',
+            'キャンセル',
+          )}
           onConfirm={confirmClockIn}
           onCancel={() => setPendingAction(null)}
         />
@@ -282,7 +293,16 @@ export function TimecardHomeView({
             'timecard-clock-out',
             'タイムカードを押しましたか？',
           )}
-          confirmLabel="押しました"
+          confirmLabel={getConfirmActionConfirmLabel(
+            confirmMessages,
+            'timecard-clock-out',
+            '押しました',
+          )}
+          cancelLabel={getConfirmActionCancelLabel(
+            confirmMessages,
+            'timecard-clock-out',
+            'キャンセル',
+          )}
           onConfirm={confirmClockOut}
           onCancel={() => setPendingAction(null)}
         />

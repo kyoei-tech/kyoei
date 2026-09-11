@@ -3,7 +3,12 @@
 import { useState } from 'react'
 import { ArrowLeft, Pencil } from 'lucide-react'
 import {
+  getConfirmActionButtonVisibility,
+  getConfirmActionCancelLabel,
+  getConfirmActionConfirmLabel,
   getConfirmActionMessage,
+  getDefaultConfirmActionLabels,
+  updateConfirmActionButtonLabels,
   updateConfirmActionMessage,
   useConfirmActionMessages,
 } from '@/lib/notifications/confirm-messages'
@@ -23,12 +28,21 @@ export function AlertMessageEditorView({ onBack }: { onBack: () => void }) {
   const { data: messages, isLoading, mutate } = useConfirmActionMessages()
   const [editingId, setEditingId] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
+  const [draftConfirmLabel, setDraftConfirmLabel] = useState('')
+  const [draftCancelLabel, setDraftCancelLabel] = useState('')
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
   function startEdit(id: string, fallback: string) {
     setSaveError(null)
     setDraft(getConfirmActionMessage(messages, id, fallback))
+    const defaults = getDefaultConfirmActionLabels(id)
+    setDraftConfirmLabel(
+      getConfirmActionConfirmLabel(messages, id, defaults.confirmLabel),
+    )
+    setDraftCancelLabel(
+      getConfirmActionCancelLabel(messages, id, defaults.cancelLabel),
+    )
     setEditingId(id)
   }
 
@@ -42,8 +56,25 @@ export function AlertMessageEditorView({ onBack }: { onBack: () => void }) {
       setSaveError('本文を入力してください。')
       return
     }
+    const { hasButtons, hasCancel } = getConfirmActionButtonVisibility(editingId)
+    if (hasButtons && !draftConfirmLabel.trim()) {
+      setSaveError('ボタンの文言を入力してください。')
+      return
+    }
     setSaving(true)
     const { error } = await updateConfirmActionMessage(editingId, draft.trim())
+    if (!error && hasButtons) {
+      const { error: labelError } = await updateConfirmActionButtonLabels(
+        editingId,
+        draftConfirmLabel,
+        hasCancel ? draftCancelLabel : '',
+      )
+      if (labelError) {
+        setSaving(false)
+        setSaveError(labelError)
+        return
+      }
+    }
     setSaving(false)
     if (error) {
       setSaveError(error)
@@ -78,6 +109,20 @@ export function AlertMessageEditorView({ onBack }: { onBack: () => void }) {
       <ul className="flex flex-col gap-2.5">
         {messages.map((item) => {
           const isEditing = editingId === item.id
+          const { hasButtons, hasCancel } = getConfirmActionButtonVisibility(
+            item.id,
+          )
+          const defaults = getDefaultConfirmActionLabels(item.id)
+          const confirmLabel = getConfirmActionConfirmLabel(
+            messages,
+            item.id,
+            defaults.confirmLabel,
+          )
+          const cancelLabel = getConfirmActionCancelLabel(
+            messages,
+            item.id,
+            defaults.cancelLabel,
+          )
           return (
             <li
               key={item.id}
@@ -124,6 +169,47 @@ export function AlertMessageEditorView({ onBack }: { onBack: () => void }) {
                       />
                     </div>
                   )}
+
+                  {hasButtons && (
+                    <div className="flex flex-col gap-2 rounded-lg border border-border/60 bg-background px-3 py-2.5">
+                      <p className="text-[0.65rem] font-semibold text-muted-foreground">
+                        ボタンの文言
+                      </p>
+                      <div
+                        className={`flex gap-2 ${hasCancel ? '' : 'flex-col'}`}
+                      >
+                        {hasCancel && (
+                          <label className="flex flex-1 flex-col gap-1">
+                            <span className="text-[0.65rem] text-muted-foreground">
+                              キャンセル側
+                            </span>
+                            <input
+                              type="text"
+                              value={draftCancelLabel}
+                              onChange={(e) =>
+                                setDraftCancelLabel(e.target.value)
+                              }
+                              className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-sm text-foreground outline-none focus:border-primary/60"
+                            />
+                          </label>
+                        )}
+                        <label className="flex flex-1 flex-col gap-1">
+                          <span className="text-[0.65rem] text-muted-foreground">
+                            確定側
+                          </span>
+                          <input
+                            type="text"
+                            value={draftConfirmLabel}
+                            onChange={(e) =>
+                              setDraftConfirmLabel(e.target.value)
+                            }
+                            className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-sm text-foreground outline-none focus:border-primary/60"
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  )}
+
                   {saveError && (
                     <p className="text-xs font-semibold text-destructive">
                       {saveError}
@@ -149,10 +235,18 @@ export function AlertMessageEditorView({ onBack }: { onBack: () => void }) {
                   </div>
                 </div>
               ) : (
-                <StyledNotificationText
-                  text={item.message}
-                  className="mt-1 block whitespace-pre-line text-sm font-bold leading-relaxed text-foreground"
-                />
+                <>
+                  <StyledNotificationText
+                    text={item.message}
+                    className="mt-1 block whitespace-pre-line text-sm font-bold leading-relaxed text-foreground"
+                  />
+                  {hasButtons && (
+                    <p className="mt-2 text-[0.65rem] text-muted-foreground">
+                      ボタン：
+                      {hasCancel ? `${cancelLabel} / ${confirmLabel}` : confirmLabel}
+                    </p>
+                  )}
+                </>
               )}
             </li>
           )

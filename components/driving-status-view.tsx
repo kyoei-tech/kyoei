@@ -27,6 +27,8 @@ import {
 } from '@/lib/trip-log'
 import { ConfirmActionModal } from './confirm-action-modal'
 import {
+  getConfirmActionCancelLabel,
+  getConfirmActionConfirmLabel,
   getConfirmActionMessage,
   useConfirmActionMessages,
 } from '@/lib/notifications/confirm-messages'
@@ -280,6 +282,16 @@ export function DrivingStatusView({
                 ?.label
             }を開始しますか？`,
           )}
+          confirmLabel={getConfirmActionConfirmLabel(
+            confirmMessages,
+            `driving-category-${pendingAction.category}`,
+            '開始する',
+          )}
+          cancelLabel={getConfirmActionCancelLabel(
+            confirmMessages,
+            `driving-category-${pendingAction.category}`,
+            'キャンセル',
+          )}
           onConfirm={() => {
             onTapCategory(pendingAction.category)
             setPendingAction(null)
@@ -293,6 +305,16 @@ export function DrivingStatusView({
             confirmMessages,
             'driving-resume',
             '走行再開を開始しますか？',
+          )}
+          confirmLabel={getConfirmActionConfirmLabel(
+            confirmMessages,
+            'driving-resume',
+            '開始する',
+          )}
+          cancelLabel={getConfirmActionCancelLabel(
+            confirmMessages,
+            'driving-resume',
+            'キャンセル',
           )}
           onConfirm={() => {
             onResumeDriving()

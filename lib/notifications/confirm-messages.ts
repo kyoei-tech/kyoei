@@ -51,6 +51,39 @@ export function getConfirmActionButtonVisibility(id: string) {
   )
 }
 
+/**
+ * The original hardcoded button wording for each dialog, kept here so the
+ * "アラートの管理" editor can show the real current value (rather than a
+ * blank field) for ids that have never been customized, and so callers and
+ * the editor share one source of truth instead of repeating literals.
+ */
+export const DEFAULT_CONFIRM_ACTION_LABELS: Record<
+  string,
+  { confirmLabel: string; cancelLabel: string }
+> = {
+  'driving-category-loading': { confirmLabel: '開始する', cancelLabel: 'キャンセル' },
+  'driving-category-resting': { confirmLabel: '開始する', cancelLabel: 'キャンセル' },
+  'driving-category-unloading': { confirmLabel: '開始する', cancelLabel: 'キャンセル' },
+  'driving-category-waiting': { confirmLabel: '開始する', cancelLabel: 'キャンセル' },
+  'driving-resume': { confirmLabel: '開始する', cancelLabel: 'キャンセル' },
+  'home-departure': { confirmLabel: '開始する', cancelLabel: 'キャンセル' },
+  'home-return': { confirmLabel: '開始する', cancelLabel: 'キャンセル' },
+  'home-split-rest-message': { confirmLabel: '確認しました', cancelLabel: 'キャンセル' },
+  'timecard-break-end': { confirmLabel: '終了する', cancelLabel: 'キャンセル' },
+  'timecard-break-start': { confirmLabel: '開始する', cancelLabel: 'キャンセル' },
+  'timecard-clock-in': { confirmLabel: '押しました', cancelLabel: 'キャンセル' },
+  'timecard-clock-out': { confirmLabel: '押しました', cancelLabel: 'キャンセル' },
+}
+
+export function getDefaultConfirmActionLabels(id: string) {
+  return (
+    DEFAULT_CONFIRM_ACTION_LABELS[id] ?? {
+      confirmLabel: '開始する',
+      cancelLabel: 'キャンセル',
+    }
+  )
+}
+
 async function fetchConfirmActionMessages(): Promise<ConfirmActionMessage[]> {
   const supabase = createClient()
   const { data, error } = await supabase

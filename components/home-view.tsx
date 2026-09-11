@@ -39,6 +39,8 @@ import { AccidentStreakBadge } from './accident-streak-badge'
 import { WeeklyGoal } from './weekly-goal'
 import { ConfirmActionModal } from './confirm-action-modal'
 import {
+  getConfirmActionCancelLabel,
+  getConfirmActionConfirmLabel,
   getConfirmActionMessage,
   useConfirmActionMessages,
 } from '@/lib/notifications/confirm-messages'
@@ -389,6 +391,16 @@ export function HomeView({
             'home-departure',
             '出庫を開始しますか？',
           )}
+          confirmLabel={getConfirmActionConfirmLabel(
+            confirmMessages,
+            'home-departure',
+            '開始する',
+          )}
+          cancelLabel={getConfirmActionCancelLabel(
+            confirmMessages,
+            'home-departure',
+            'キャンセル',
+          )}
           onConfirm={confirmDeparture}
           onCancel={() => setPendingHomeAction(null)}
         />
@@ -399,6 +411,16 @@ export function HomeView({
             confirmMessages,
             'home-return',
             '帰庫を開始しますか？',
+          )}
+          confirmLabel={getConfirmActionConfirmLabel(
+            confirmMessages,
+            'home-return',
+            '開始する',
+          )}
+          cancelLabel={getConfirmActionCancelLabel(
+            confirmMessages,
+            'home-return',
+            'キャンセル',
           )}
           onConfirm={confirmReturn}
           onCancel={() => setPendingHomeAction(null)}
@@ -411,7 +433,11 @@ export function HomeView({
             'home-split-rest-message',
             '分割休息による出庫',
           )}
-          confirmLabel="確認しました"
+          confirmLabel={getConfirmActionConfirmLabel(
+            confirmMessages,
+            'home-split-rest-message',
+            '確認しました',
+          )}
           cancelLabel={null}
           onConfirm={confirmSplitRestDeparture}
           body={
