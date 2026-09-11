@@ -11,7 +11,7 @@ import {
 } from '@/lib/notifications/push-rules'
 import { NOTIFICATION_MARKUP_HELP } from '@/lib/notifications/notification-style'
 import { deliverNotification } from '@/lib/notifications/push-notifications'
-import { StyledNotificationText } from './notification-toast'
+import { StyledNotificationText } from './styled-notification-text'
 
 const BREAK_FIXED_MS = 30 * 60 * 1000
 

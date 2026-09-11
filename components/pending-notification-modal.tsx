@@ -3,42 +3,38 @@
 import { useEffect, useState } from 'react'
 import { BellRing } from 'lucide-react'
 import {
-  clearPendingNotification,
-  getPendingNotification,
-  subscribePendingNotification,
+  dismissPendingNotification,
+  getPendingNotifications,
+  subscribePendingNotifications,
   type PendingNotification,
 } from '@/lib/notifications/pending-notification'
-import { StyledNotificationText } from './notification-toast'
+import { StyledNotificationText } from './styled-notification-text'
 
 /**
- * Blocking modal shown once, the next time the app is opened/foregrounded,
- * for a notification that was delivered while the app was backgrounded or
- * closed (see push-notifications.ts' deliverNotification) — the OS
- * notification banner alone is easy to miss. Mount once at the app root.
+ * The app's single notification surface: every push notification (see
+ * push-notifications.ts' deliverNotification), whether delivered while the
+ * app was open or caught up on after being backgrounded/closed, shows here
+ * as a blocking modal that must be dismissed with "了解しました。" — an OS
+ * notification banner or an in-app toast is too easy to miss or dismiss
+ * without reading. Mount once at the app root.
+ *
+ * Notifications queue up (see pending-notification.ts) so several firing in
+ * quick succession are shown one at a time instead of the later ones
+ * silently overwriting the earlier ones.
  */
 export function PendingNotificationModal() {
-  const [pending, setPending] = useState<PendingNotification | null>(null)
+  const [queue, setQueue] = useState<PendingNotification[]>([])
 
   useEffect(() => {
-    setPending(getPendingNotification())
-    function checkOnForeground() {
-      if (!document.hidden) setPending(getPendingNotification())
-    }
-    document.addEventListener('visibilitychange', checkOnForeground)
-    // Picks up notifications saved after this mount-time check already
-    // ran, e.g. an async news catch-up query resolving a moment later.
-    const unsubscribe = subscribePendingNotification(setPending)
-    return () => {
-      document.removeEventListener('visibilitychange', checkOnForeground)
-      unsubscribe()
-    }
+    setQueue(getPendingNotifications())
+    return subscribePendingNotifications(setQueue)
   }, [])
 
-  if (!pending) return null
+  const current = queue[0] ?? null
+  if (!current) return null
 
   function dismiss() {
-    clearPendingNotification()
-    setPending(null)
+    dismissPendingNotification(current.id)
   }
 
   return (
@@ -49,11 +45,11 @@ export function PendingNotificationModal() {
             <BellRing className="h-6 w-6 text-primary" aria-hidden="true" />
           </span>
           <StyledNotificationText
-            text={pending.title}
+            text={current.title}
             className="text-base font-bold text-foreground"
           />
           <StyledNotificationText
-            text={pending.message}
+            text={current.message}
             className="whitespace-pre-line text-sm leading-relaxed text-foreground"
           />
         </div>

@@ -6,7 +6,6 @@
 // service worker once the user has granted permission from Settings.
 
 import { toPlainText } from './notification-style'
-import { emitToast } from './toast-bus'
 import { savePendingNotification } from './pending-notification'
 
 const SERVICE_WORKER_URL = '/sw.js'
@@ -98,31 +97,18 @@ export async function showAppNotification(
 
 /**
  * Delivers a push notification through every channel this app supports:
- * an OS-level notification (plain text only) plus an in-app toast that can
- * render the color/bold markup while the app is open. Always best-effort.
- *
- * When the app is backgrounded/closed at delivery time, the toast can't be
- * seen, so the notification is also saved as a "pending" one — see
- * pending-notification.ts and its modal in pending-notification-modal.tsx —
- * so it re-surfaces as a blocking modal the next time the app is opened.
- *
- * Pass `forcePending: true` for notifications about an event the user
- * missed while away from the app entirely (e.g. a news post caught up on
- * app open) — those should always surface as the blocking modal, even
- * though the app happens to be in the foreground at delivery time.
+ * an OS-level notification (plain text only) plus a blocking in-app modal
+ * — see pending-notification.ts and its UI in pending-notification-modal.tsx
+ * — that renders the color/bold markup and must be dismissed with
+ * "了解しました。". Always best-effort, and always queued as pending
+ * regardless of whether the app is foregrounded at delivery time: a modal
+ * shown once (foreground) is exactly as easy to miss as one caught up on
+ * later (backgrounded/closed), so both go through the same single path.
  */
 export async function deliverNotification(
   title: string,
   message: string,
-  options?: { forcePending?: boolean },
 ): Promise<void> {
-  const shouldShowPending =
-    options?.forcePending ||
-    (typeof document !== 'undefined' && document.hidden)
-  if (shouldShowPending) {
-    savePendingNotification(title, message)
-  } else {
-    emitToast(title, message)
-  }
+  savePendingNotification(title, message)
   await showAppNotification(title, message)
 }
