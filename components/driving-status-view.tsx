@@ -174,6 +174,11 @@ export function DrivingStatusView({
           >
             {formatDuration(drivingDurationMs)}
           </p>
+          {trip.splitRestRemainingMs != null && (
+            <p className="mt-1 text-xs font-bold text-destructive">
+              分割休息による運行中
+            </p>
+          )}
         </div>
       </div>
 
@@ -233,8 +238,8 @@ export function DrivingStatusView({
         ))}
         {trip.splitRestRemainingMs != null && (
           <div>
-            <p className="text-xs text-muted-foreground">休息時間</p>
-            <p className="font-mono text-base font-semibold tabular-nums text-primary">
+            <p className="text-xs text-muted-foreground">要休息時間</p>
+            <p className="font-mono text-base font-bold tabular-nums text-destructive dark:text-orange-500">
               {formatHoursMinutes(trip.splitRestRemainingMs)}
             </p>
           </div>
