@@ -454,8 +454,13 @@ export function HomeView({
             'home-split-rest-message',
             '確認しました',
           )}
-          cancelLabel={null}
+          cancelLabel={getConfirmActionCancelLabel(
+            confirmMessages,
+            'home-split-rest-message',
+            'キャンセル',
+          )}
           onConfirm={confirmSplitRestDeparture}
+          onCancel={() => setPendingHomeAction(null)}
           body={
             <StyledNotificationText
               text={getConfirmActionMessage(
