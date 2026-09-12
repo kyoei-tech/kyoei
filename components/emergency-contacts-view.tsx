@@ -1,12 +1,21 @@
 'use client'
 
 import { useMemo, useRef, useState } from 'react'
-import { Clock, Pencil, Phone, Plus, Trash2, X } from 'lucide-react'
+import {
+  Clock,
+  Pencil,
+  Phone,
+  Plus,
+  ShieldAlert,
+  Trash2,
+  X,
+} from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { ConfirmDeleteInline } from './confirm-delete'
 import { usePasswordGate } from './password-prompt'
 import { useSettings } from '@/lib/settings/settings-context'
+import { AccidentReportView } from './accident-report-view'
 
 // Shared across every browser via the `emergency_contacts` Supabase table.
 type ContactRow = {
@@ -172,6 +181,7 @@ function MemoBox() {
 
 export function EmergencyContactsView() {
   const { partTimeMode } = useSettings()
+  const [showAccidentReport, setShowAccidentReport] = useState(false)
   const [editMode, setEditMode] = useState(false)
   const [adding, setAdding] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -249,6 +259,10 @@ export function EmergencyContactsView() {
     closeForm()
   }
 
+  if (showAccidentReport) {
+    return <AccidentReportView onBack={() => setShowAccidentReport(false)} />
+  }
+
   return (
     <div className="flex flex-col gap-4 pb-6">
       <div className="flex items-start justify-between gap-3">
@@ -282,6 +296,15 @@ export function EmergencyContactsView() {
       </div>
 
       <MemoBox />
+
+      <button
+        type="button"
+        onClick={() => setShowAccidentReport(true)}
+        className="flex items-center justify-center gap-2 rounded-2xl border border-destructive/40 bg-destructive/10 px-4 py-3.5 text-sm font-bold text-destructive transition-colors active:scale-[0.98]"
+      >
+        <ShieldAlert className="h-4 w-4" aria-hidden="true" />
+        事故を起こしてしまった/事故にあってしまったら
+      </button>
 
       {editMode && !adding && (
         <button

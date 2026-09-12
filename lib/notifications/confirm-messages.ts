@@ -61,6 +61,7 @@ export const DEFAULT_CONFIRM_ACTION_LABELS: Record<
   string,
   { confirmLabel: string; cancelLabel: string }
 > = {
+  'accident-report-reset': { confirmLabel: 'リセットする', cancelLabel: 'キャンセル' },
   'driving-category-loading': { confirmLabel: '開始する', cancelLabel: 'キャンセル' },
   'driving-category-resting': { confirmLabel: '開始する', cancelLabel: 'キャンセル' },
   'driving-category-unloading': { confirmLabel: '開始する', cancelLabel: 'キャンセル' },

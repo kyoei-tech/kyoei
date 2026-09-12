@@ -79,9 +79,11 @@ function loadState(): PersistedState | null {
 
 export function HomeView({
   onOpenAccidentCalendar,
+  onOpenEmergencyContacts,
   homeSignal,
 }: {
   onOpenAccidentCalendar?: () => void
+  onOpenEmergencyContacts?: () => void
   homeSignal?: number
 }) {
   const [now, setNow] = useState(() => new Date())
@@ -311,6 +313,7 @@ export function HomeView({
         onTapCategory={handleTapCategory}
         onResumeDriving={handleResumeDriving}
         onBack={() => setScreen('home')}
+        onOpenEmergencyContacts={onOpenEmergencyContacts}
       />
     )
   }

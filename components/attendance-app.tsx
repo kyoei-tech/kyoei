@@ -80,6 +80,7 @@ export function AttendanceApp() {
           ) : (
             <HomeView
               onOpenAccidentCalendar={() => openMenuItem('accidents')}
+              onOpenEmergencyContacts={() => openMenuItem('emergency')}
               homeSignal={homeSignal}
             />
           ))}

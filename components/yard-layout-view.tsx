@@ -1,12 +1,22 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Check, Pencil, Plus, Settings2, Trash2, X } from 'lucide-react'
+import {
+  Check,
+  ClipboardList,
+  ListChecks,
+  Pencil,
+  Plus,
+  Settings2,
+  Trash2,
+  X,
+} from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { ConfirmDeleteInline, DeleteIconButton } from './confirm-delete'
 import { usePasswordGate } from './password-prompt'
 import { useSettings } from '@/lib/settings/settings-context'
+import { YardDestinationRegistryView } from './yard-destination-registry-view'
 
 // Shared across every browser via the `yards` / `yard_rows` Supabase tables.
 type YardRow = { id: string; name: string; sort_order: number; updated_at: string }
@@ -103,6 +113,9 @@ export function YardLayoutView() {
     string | null
   >(null)
 
+  const [showEditToolbar, setShowEditToolbar] = useState(false)
+  const [showDestinationRegistry, setShowDestinationRegistry] =
+    useState(false)
   const [managingDestinations, setManagingDestinations] = useState(false)
   const [newDestinationName, setNewDestinationName] = useState('')
   const [destinationEditId, setDestinationEditId] = useState<string | null>(
@@ -342,6 +355,14 @@ export function YardLayoutView() {
     setConfirmDeleteDestinationId(null)
   }
 
+  if (showDestinationRegistry) {
+    return (
+      <YardDestinationRegistryView
+        onBack={() => setShowDestinationRegistry(false)}
+      />
+    )
+  }
+
   return (
     <div className="flex flex-col gap-5 pb-6">
       <div className="flex items-start justify-between gap-3">
@@ -362,24 +383,52 @@ export function YardLayoutView() {
         {!partTimeMode && (
           <button
             type="button"
-            onClick={() =>
-              managingDestinations
-                ? setManagingDestinations(false)
-                : guard(() => setManagingDestinations(true))
-            }
+            onClick={() => {
+              if (showEditToolbar) {
+                setShowEditToolbar(false)
+                setManagingDestinations(false)
+              } else {
+                guard(() => setShowEditToolbar(true))
+              }
+            }}
             className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors active:scale-95 ${
-              managingDestinations
+              showEditToolbar
                 ? 'bg-primary text-primary-foreground'
                 : 'border border-border text-muted-foreground hover:text-foreground'
             }`}
           >
             <Settings2 className="h-3.5 w-3.5" aria-hidden="true" />
-            行き先を管理
+            編集
           </button>
         )}
       </div>
 
       {!partTimeMode && prompt}
+
+      {!partTimeMode && showEditToolbar && (
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setManagingDestinations((v) => !v)}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-colors active:scale-95 ${
+              managingDestinations
+                ? 'bg-primary text-primary-foreground'
+                : 'border border-border text-foreground hover:bg-accent'
+            }`}
+          >
+            <ListChecks className="h-3.5 w-3.5" aria-hidden="true" />
+            行き先を管理
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowDestinationRegistry(true)}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-border px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-accent active:scale-95"
+          >
+            <ClipboardList className="h-3.5 w-3.5" aria-hidden="true" />
+            行き先の登録
+          </button>
+        </div>
+      )}
 
       {managingDestinations && (
         <section className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
