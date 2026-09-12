@@ -21,6 +21,15 @@ export function todayISO() {
   return toISODate(t.getFullYear(), t.getMonth(), t.getDate())
 }
 
+/** Formats a date as a `'YYYY-MM'` month key (e.g. for weekly_goal_history). */
+export function monthKey(date: Date) {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}`
+}
+
+export function currentMonthKey() {
+  return monthKey(new Date())
+}
+
 export function weekdayColor(i: number): string {
   if (i === 0) return 'text-destructive'
   if (i === 6) return 'text-secondary'

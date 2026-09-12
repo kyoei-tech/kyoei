@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Calendar, CalendarRange, Pencil, Trash2, X } from 'lucide-react'
+import { Calendar, CalendarRange, Pencil, Target, Trash2, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { ConfirmDeleteInline } from './confirm-delete'
@@ -18,9 +18,35 @@ import { MonthNav, useMonthSwipe } from './month-nav'
 import {
   WEEKDAYS,
   buildMonthCells,
+  monthKey,
   todayISO,
   weekdayColor,
 } from '@/lib/month-calendar'
+
+// Shared across every browser via the `weekly_goal` / `weekly_goal_history`
+// Supabase tables. Mirrors the row shape used by WeeklyGoal.
+type GoalRow = { id: string; title: string }
+type GoalHistoryRow = { goal_id: string; month: string; content: string }
+
+async function fetchGoalTitle(goalId: string): Promise<GoalRow[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('weekly_goal')
+    .select('id, title')
+    .eq('id', goalId)
+  if (error) throw error
+  return (data as GoalRow[]) ?? []
+}
+
+async function fetchGoalHistory(goalId: string): Promise<GoalHistoryRow[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('weekly_goal_history')
+    .select('goal_id, month, content')
+    .eq('goal_id', goalId)
+  if (error) throw error
+  return (data as GoalHistoryRow[]) ?? []
+}
 
 // Shared across every browser via the `accident_records` Supabase table.
 type AccidentRow = {
@@ -53,7 +79,19 @@ function emptyForm() {
 }
 
 export function AccidentCalendarView() {
-  const { partTimeMode } = useSettings()
+  const { partTimeMode, appMode } = useSettings()
+  const goalId = appMode === 'timecard' ? 'timecard' : 'current'
+  const { data: goalRows } = useRealtimeTable<GoalRow>(
+    'weekly_goal',
+    () => fetchGoalTitle(goalId),
+    { cacheKey: `title:${goalId}` },
+  )
+  const { data: goalHistoryRows } = useRealtimeTable<GoalHistoryRow>(
+    'weekly_goal_history',
+    () => fetchGoalHistory(goalId),
+    { cacheKey: goalId },
+  )
+  const goalTitle = goalRows[0]?.title ?? '今月の目標'
   const [periodMode, setPeriodMode] = useState<'month' | 'year'>('month')
   const [viewMonth, setViewMonth] = useState(() => {
     const t = new Date()
@@ -107,6 +145,11 @@ export function AccidentCalendarView() {
   }, [rows])
 
   const cells = useMemo(() => buildMonthCells(viewMonth), [viewMonth])
+
+  const viewMonthGoal = useMemo(() => {
+    const key = monthKey(viewMonth)
+    return goalHistoryRows.find((r) => r.month === key)?.content ?? ''
+  }, [goalHistoryRows, viewMonth])
 
   const selectedAccidents = useMemo(
     () => (selectedDate ? rows.filter((r) => r.occurred_on === selectedDate) : []),
@@ -228,6 +271,21 @@ export function AccidentCalendarView() {
         <AccidentYearlyView rows={rows} categories={categories} />
       ) : (
         <>
+          <section className="rounded-2xl border border-border bg-card px-4 py-3">
+            <div className="flex items-center gap-1.5">
+              <Target
+                className="h-4 w-4 shrink-0 text-primary"
+                aria-hidden="true"
+              />
+              <span className="text-sm font-bold tracking-wide text-primary">
+                {goalTitle}
+              </span>
+            </div>
+            <p className="mt-1 text-sm font-medium text-foreground">
+              {viewMonthGoal || '目標未設定'}
+            </p>
+          </section>
+
           <section
             className="rounded-2xl border border-border bg-card p-4"
             onTouchStart={calendarSwipe.onTouchStart}
