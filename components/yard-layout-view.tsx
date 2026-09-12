@@ -434,7 +434,7 @@ export function YardLayoutView() {
               aria-hidden="true"
             />
             <span>
-              ヒント：中���用紙に市区町村が書いてあると一般の可能性大
+              ヒント：中継用紙の店舗名の後に市区町村が書いてある場合、一般の可能性大
             </span>
           </p>
         </div>
@@ -471,8 +471,8 @@ export function YardLayoutView() {
             type="text"
             value={destinationSearch}
             onChange={(e) => setDestinationSearch(e.target.value)}
-            placeholder="降地を検索"
-            aria-label="降地を検索"
+            placeholder="中継表の降地を入力して移動先を検索"
+            aria-label="中継表の降地を入力して移動先を検索"
             className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
           />
           {destinationSearch && (
