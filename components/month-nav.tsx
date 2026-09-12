@@ -4,19 +4,29 @@ import { useRef } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { monthLabel } from '@/lib/month-calendar'
 
-/** Left/right swipe gesture that triggers month navigation. */
+/** Left/right swipe gesture that triggers month navigation. Vertical drags
+ *  (page scrolling) are ignored so scrolling down never changes the month. */
 export function useMonthSwipe(onPrev: () => void, onNext: () => void) {
-  const touchX = useRef<number | null>(null)
+  const touchStart = useRef<{ x: number; y: number } | null>(null)
   return {
     onTouchStart: (e: React.TouchEvent) => {
-      touchX.current = e.touches[0].clientX
+      touchStart.current = {
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY,
+      }
     },
     onTouchEnd: (e: React.TouchEvent) => {
-      if (touchX.current == null) return
-      const delta = e.changedTouches[0].clientX - touchX.current
-      touchX.current = null
-      if (delta > 50) onPrev()
-      else if (delta < -50) onNext()
+      if (touchStart.current == null) return
+      const deltaX = e.changedTouches[0].clientX - touchStart.current.x
+      const deltaY = e.changedTouches[0].clientY - touchStart.current.y
+      touchStart.current = null
+      // Only treat this as a month swipe when the horizontal movement
+      // clearly dominates the vertical movement.
+      if (Math.abs(deltaX) < 50 || Math.abs(deltaX) < Math.abs(deltaY) * 1.5) {
+        return
+      }
+      if (deltaX > 0) onPrev()
+      else onNext()
     },
   }
 }
