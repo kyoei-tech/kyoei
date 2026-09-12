@@ -4,9 +4,11 @@ import { useMemo, useState } from 'react'
 import {
   Check,
   ClipboardList,
+  Lightbulb,
   ListChecks,
   Pencil,
   Plus,
+  Search,
   Settings2,
   Trash2,
   X,
@@ -31,6 +33,10 @@ type RowRow = {
 }
 // Managed list of selectable destination names, shared via `yard_destinations`.
 type DestinationRow = { id: string; name: string; sort_order: number }
+// Registry used by "行き先の登録" (title/store lookup), shared via
+// `yard_destination_titles` / `yard_destination_stores`.
+type DestinationTitleRow = { id: string; title: string; sort_order: number }
+type DestinationStoreRow = { id: string; title_id: string; name: string }
 
 async function fetchYards(): Promise<YardRow[]> {
   const supabase = createClient()
@@ -65,6 +71,26 @@ async function fetchDestinations(): Promise<DestinationRow[]> {
     .order('name', { ascending: true })
   if (error) throw error
   return (data as DestinationRow[]) ?? []
+}
+
+async function fetchDestinationTitles(): Promise<DestinationTitleRow[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('yard_destination_titles')
+    .select('id, title, sort_order')
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: true })
+  if (error) throw error
+  return (data as DestinationTitleRow[]) ?? []
+}
+
+async function fetchDestinationStores(): Promise<DestinationStoreRow[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('yard_destination_stores')
+    .select('id, title_id, name')
+  if (error) throw error
+  return (data as DestinationStoreRow[]) ?? []
 }
 
 function formatUpdated(iso: string): string {
@@ -124,6 +150,7 @@ export function YardLayoutView() {
   const [destinationEditName, setDestinationEditName] = useState('')
   const [confirmDeleteDestinationId, setConfirmDeleteDestinationId] =
     useState<string | null>(null)
+  const [destinationSearch, setDestinationSearch] = useState('')
   const { guard, prompt } = usePasswordGate('5789')
 
   const { data: yardRows, mutate: refetchYards } = useRealtimeTable<YardRow>(
@@ -136,6 +163,16 @@ export function YardLayoutView() {
   )
   const { data: destinationRows, mutate: refetchDestinations } =
     useRealtimeTable<DestinationRow>('yard_destinations', fetchDestinations)
+  const { data: destinationTitleRows } =
+    useRealtimeTable<DestinationTitleRow>(
+      'yard_destination_titles',
+      fetchDestinationTitles,
+    )
+  const { data: destinationStoreRows } =
+    useRealtimeTable<DestinationStoreRow>(
+      'yard_destination_stores',
+      fetchDestinationStores,
+    )
 
   const yards = useMemo(
     () => [...yardRows].sort((a, b) => a.sort_order - b.sort_order),
@@ -166,6 +203,18 @@ export function YardLayoutView() {
     () => [...destinationRows].sort((a, b) => a.name.localeCompare(b.name, 'ja')),
     [destinationRows],
   )
+
+  const destinationTitleById = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const t of destinationTitleRows) map.set(t.id, t.title)
+    return map
+  }, [destinationTitleRows])
+
+  const destinationSearchResults = useMemo(() => {
+    const query = destinationSearch.trim()
+    if (!query) return null
+    return destinationStoreRows.filter((s) => s.name.includes(query))
+  }, [destinationSearch, destinationStoreRows])
 
   function startEditYard(yard: YardRow) {
     setEditingYardId(yard.id)
@@ -379,6 +428,15 @@ export function YardLayoutView() {
               最終更新：{formatUpdated(latestUpdate)}
             </p>
           )}
+          <p className="mt-2 flex items-start gap-1.5 text-xs text-muted-foreground">
+            <Lightbulb
+              className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500"
+              aria-hidden="true"
+            />
+            <span>
+              ヒント：中継用紙に市区町村が書いてあると一般の可能性大
+            </span>
+          </p>
         </div>
         {!partTimeMode && (
           <button
@@ -400,6 +458,54 @@ export function YardLayoutView() {
             <Settings2 className="h-3.5 w-3.5" aria-hidden="true" />
             編集
           </button>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2">
+          <Search
+            className="h-4 w-4 shrink-0 text-muted-foreground"
+            aria-hidden="true"
+          />
+          <input
+            type="text"
+            value={destinationSearch}
+            onChange={(e) => setDestinationSearch(e.target.value)}
+            placeholder="店舗名で検索"
+            aria-label="店舗名で検索"
+            className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+          />
+          {destinationSearch && (
+            <button
+              type="button"
+              onClick={() => setDestinationSearch('')}
+              aria-label="検索をクリア"
+              className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
+          )}
+        </div>
+        {destinationSearchResults != null && (
+          <div className="flex flex-col gap-1 rounded-xl border border-border/60 bg-card px-3 py-2">
+            {destinationSearchResults.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                該当なし。確認してください。
+              </p>
+            ) : (
+              destinationSearchResults.map((s) => (
+                <p
+                  key={s.id}
+                  className="flex items-center justify-between gap-2 text-sm text-foreground"
+                >
+                  <span className="truncate">{s.name}</span>
+                  <span className="shrink-0 text-muted-foreground">
+                    {destinationTitleById.get(s.title_id) ?? '不明'}
+                  </span>
+                </p>
+              ))
+            )}
+          </div>
         )}
       </div>
 
