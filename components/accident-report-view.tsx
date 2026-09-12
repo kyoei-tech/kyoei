@@ -7,10 +7,11 @@
 // shared Supabase tables do.
 
 import { useEffect, useRef, useState } from 'react'
-import { ArrowLeft, Camera, Lock, Pencil, RotateCcw } from 'lucide-react'
+import { ArrowLeft, Camera, Pencil, RotateCcw } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { usePasswordGate } from './password-prompt'
 import { StyledNotificationText } from './styled-notification-text'
-import { NOTIFICATION_MARKUP_HELP } from '@/lib/notifications/notification-style'
 import { ConfirmActionModal } from './confirm-action-modal'
 import {
   getConfirmActionCancelLabel,
@@ -22,8 +23,20 @@ import {
 const STORAGE_KEY = 'kyoei-accident-report'
 const DOUBLE_TAP_MS = 350
 
+// Shared across every browser via the `accident_report_memo` table (single row).
+type MemoRow = { id: string; content: string; updated_at: string }
+
+async function fetchAccidentReportMemo(): Promise<MemoRow[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('accident_report_memo')
+    .select('id, content, updated_at')
+    .eq('id', 'current')
+  if (error) throw error
+  return (data as MemoRow[]) ?? []
+}
+
 type ReportForm = {
-  memo: string
   name: string
   address: string
   licensePhoto: string | null
@@ -36,7 +49,6 @@ type ReportForm = {
 
 function emptyForm(): ReportForm {
   return {
-    memo: '',
     name: '',
     address: '',
     licensePhoto: null,
@@ -89,8 +101,14 @@ export function AccidentReportView({ onBack }: { onBack: () => void }) {
   const [editingForm, setEditingForm] = useState(false)
   const [confirmReset, setConfirmReset] = useState(false)
 
+  const { data: memoRows, mutate: refetchMemo } = useRealtimeTable<MemoRow>(
+    'accident_report_memo',
+    fetchAccidentReportMemo,
+  )
+  const memo = memoRows[0]?.content ?? ''
   const [memoEditing, setMemoEditing] = useState(false)
   const [memoDraft, setMemoDraft] = useState('')
+  const [savingMemo, setSavingMemo] = useState(false)
   const lastTapRef = useRef(0)
   const { guard, prompt } = usePasswordGate('2486')
   const { data: confirmMessages } = useConfirmActionMessages()
@@ -125,7 +143,7 @@ export function AccidentReportView({ onBack }: { onBack: () => void }) {
   }
 
   function startMemoEditing() {
-    setMemoDraft(form.memo)
+    setMemoDraft(memo)
     setMemoEditing(true)
   }
 
@@ -140,13 +158,19 @@ export function AccidentReportView({ onBack }: { onBack: () => void }) {
     }
   }
 
-  function saveMemo() {
-    setForm((current) => {
-      const next = { ...current, memo: memoDraft }
-      if (saved) persist(next)
-      return next
-    })
-    setMemoEditing(false)
+  async function saveMemo() {
+    setSavingMemo(true)
+    try {
+      const supabase = createClient()
+      await supabase
+        .from('accident_report_memo')
+        .update({ content: memoDraft, updated_at: new Date().toISOString() })
+        .eq('id', 'current')
+      await refetchMemo()
+      setMemoEditing(false)
+    } finally {
+      setSavingMemo(false)
+    }
   }
 
   async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -194,12 +218,8 @@ export function AccidentReportView({ onBack }: { onBack: () => void }) {
               onChange={(e) => setMemoDraft(e.target.value)}
               rows={4}
               autoFocus
-              placeholder="メモを入力"
-              className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60"
+              className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary/60"
             />
-            <p className="text-xs text-muted-foreground/70">
-              {NOTIFICATION_MARKUP_HELP}
-            </p>
             <div className="flex justify-end gap-2">
               <button
                 type="button"
@@ -211,23 +231,19 @@ export function AccidentReportView({ onBack }: { onBack: () => void }) {
               <button
                 type="button"
                 onClick={saveMemo}
-                className="rounded-full bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95"
+                disabled={savingMemo}
+                className="rounded-full bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95 disabled:opacity-40"
               >
-                保存
+                {savingMemo ? '保存中…' : '保存'}
               </button>
             </div>
           </div>
-        ) : form.memo ? (
+        ) : memo ? (
           <StyledNotificationText
-            text={form.memo}
-            className="block whitespace-pre-wrap text-sm font-bold text-foreground"
+            text={memo}
+            className="block whitespace-pre-wrap text-sm font-bold text-orange-500"
           />
-        ) : (
-          <p className="flex items-center gap-1.5 text-sm text-muted-foreground/60">
-            <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            ダブルタップでメモを入力（暗証番号が必要です）
-          </p>
-        )}
+        ) : null}
       </div>
       {prompt}
 
