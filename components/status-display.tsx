@@ -29,9 +29,9 @@ export function StatusDisplay({
   return (
     <section
       aria-label="連動表示"
-      className="rounded-3xl border border-border bg-card px-5 py-4"
+      className="rounded-3xl border border-border bg-card px-5 py-3"
     >
-      <div className="mb-1 flex items-center justify-between">
+      <div className="mb-0.5 flex items-center justify-between">
         <span className={`text-base font-bold tracking-wide ${ACCENT[mode]}`}>
           {LABELS[mode]}
         </span>

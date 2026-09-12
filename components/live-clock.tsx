@@ -13,7 +13,7 @@ export function LiveClock({
   return (
     <section
       aria-label="現在時刻"
-      className="relative rounded-3xl border border-border bg-card px-5 py-4 text-center"
+      className="relative rounded-3xl border border-border bg-card px-5 py-3 text-center"
     >
       <div className="absolute right-3 top-3">
         <FormatToggle hour12={hour12} onToggle={onToggleFormat} />

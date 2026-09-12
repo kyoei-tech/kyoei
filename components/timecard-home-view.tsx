@@ -153,8 +153,8 @@ export function TimecardHomeView({
   return (
     // The timer carries flex-1 so it grows to absorb any extra viewport
     // height, matching HomeView's layout for 乗務員モード.
-    <div className="flex flex-1 flex-col gap-3">
-      <div className="flex flex-col gap-2">
+    <div className="flex flex-1 flex-col gap-2">
+      <div className="flex flex-col gap-1.5">
         <LiveClock
           parts={formatClock(now, clockOpts)}
           hour12={hour12}
@@ -166,9 +166,9 @@ export function TimecardHomeView({
 
       <section
         aria-label="連動表示"
-        className="rounded-3xl border border-border bg-card px-5 py-4"
+        className="rounded-3xl border border-border bg-card px-5 py-3"
       >
-        <div className="mb-1 flex items-center justify-between">
+        <div className="mb-0.5 flex items-center justify-between">
           <span
             className={`text-base font-bold tracking-wide ${
               state.clockedIn ? 'text-secondary' : 'text-muted-foreground'
@@ -198,9 +198,9 @@ export function TimecardHomeView({
 
       <section
         aria-label="タイマー"
-        className="flex flex-1 flex-col items-center justify-center rounded-3xl border border-border bg-card px-5 py-6 text-center"
+        className="flex flex-1 flex-col items-center justify-center rounded-3xl border border-border bg-card px-5 py-4 text-center"
       >
-        <div className="mb-1.5 flex items-center justify-center gap-1.5">
+        <div className="mb-1 flex items-center justify-center gap-1.5">
           <Timer
             className={`h-5 w-5 ${
               state.clockedIn ? 'text-secondary' : 'text-muted-foreground'
@@ -235,7 +235,7 @@ export function TimecardHomeView({
       <button
         type="button"
         onClick={() => setScreen('status')}
-        className="flex items-center justify-center gap-1.5 rounded-full border border-border bg-muted px-5 py-3 text-base font-semibold text-muted-foreground transition-colors hover:text-foreground active:scale-95"
+        className="flex items-center justify-center gap-1.5 rounded-full border border-border bg-muted px-5 py-2.5 text-base font-semibold text-muted-foreground transition-colors hover:text-foreground active:scale-95"
       >
         勤務状況/メモ
         <ChevronRight className="h-5 w-5" aria-hidden="true" />

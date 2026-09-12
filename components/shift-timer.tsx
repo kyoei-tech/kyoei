@@ -43,9 +43,9 @@ export function ShiftTimer({
   return (
     <section
       aria-label="シフトタイマー"
-      className="flex flex-1 flex-col items-center justify-center rounded-3xl border border-border bg-card px-5 py-6 text-center"
+      className="flex flex-1 flex-col items-center justify-center rounded-3xl border border-border bg-card px-5 py-4 text-center"
     >
-      <div className="mb-1.5 flex items-center justify-center gap-1.5">
+      <div className="mb-1 flex items-center justify-center gap-1.5">
         <Timer className={`h-5 w-5 ${LABEL_ACCENT[mode]}`} aria-hidden="true" />
         <span className={`text-base font-bold tracking-wide ${LABEL_ACCENT[mode]}`}>
           {LABELS[mode]}
@@ -66,7 +66,7 @@ export function ShiftTimer({
       </p>
 
       {mode === 'return' ? (
-        <div className="mt-3 flex items-center justify-center gap-2.5">
+        <div className="mt-2 flex items-center justify-center gap-2.5">
           {COUNTDOWN_OPTIONS.map((h) => {
             const active = h === countdownOffset
             return (
