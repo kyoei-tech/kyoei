@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   ArrowLeft,
+  ClipboardList,
   Coffee,
   MapPinned,
   Pause,
@@ -20,6 +21,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { ConfirmActionModal } from './confirm-action-modal'
 import { ConfirmDeleteInline } from './confirm-delete'
+import { TodoView } from './timecard-todo-view'
 import {
   getConfirmActionCancelLabel,
   getConfirmActionConfirmLabel,
@@ -113,6 +115,8 @@ export function TimecardWorkStatusView({
   const [personalEditing, setPersonalEditing] = useState(false)
   const [personalDraft, setPersonalDraft] = useState('')
   const personalLastTapRef = useRef(0)
+
+  const [showTodo, setShowTodo] = useState(false)
 
   useEffect(() => {
     setPersonalMemo(loadPersonalMemo())
@@ -217,6 +221,10 @@ export function TimecardWorkStatusView({
     setPersonalEditing(false)
   }
 
+  if (showTodo) {
+    return <TodoView onBack={() => setShowTodo(false)} />
+  }
+
   return (
     <div className="flex flex-1 flex-col gap-3 pb-2">
       <button
@@ -304,15 +312,25 @@ export function TimecardWorkStatusView({
           </p>
         )}
 
-        <a
-          href={KYOEI_YARD_MAP_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center justify-center gap-1.5 rounded-2xl border border-border bg-card py-3.5 text-base font-bold text-foreground transition-colors hover:border-primary/60 active:scale-[0.97]"
-        >
-          <MapPinned className="h-5 w-5 text-primary" aria-hidden="true" />
-          共栄ヤード一覧
-        </a>
+        <div className="grid grid-cols-2 gap-2">
+          <a
+            href={KYOEI_YARD_MAP_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-1.5 rounded-2xl border border-border bg-card py-3.5 text-base font-bold text-foreground transition-colors hover:border-primary/60 active:scale-[0.97]"
+          >
+            <MapPinned className="h-5 w-5 text-primary" aria-hidden="true" />
+            共栄ヤード一覧
+          </a>
+          <button
+            type="button"
+            onClick={() => setShowTodo(true)}
+            className="flex items-center justify-center gap-1.5 rounded-2xl border border-border bg-card py-3.5 text-base font-bold text-foreground transition-colors hover:border-primary/60 active:scale-[0.97]"
+          >
+            <ClipboardList className="h-5 w-5 text-primary" aria-hidden="true" />
+            やること
+          </button>
+        </div>
 
         <section
           aria-label="共有メモ"
@@ -325,7 +343,7 @@ export function TimecardWorkStatusView({
               共有メモ
             </span>
             <span className="text-xs font-medium text-muted-foreground">
-              リアルタイムで共有されます
+              リ��ルタイムで共有されます
             </span>
           </div>
 
