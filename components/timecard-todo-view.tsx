@@ -1,10 +1,12 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import Image from 'next/image'
 import {
   ArrowLeft,
   ChevronDown,
   ClipboardList,
+  ImagePlus,
   Pencil,
   Plus,
   X,
@@ -21,6 +23,7 @@ type TodoItem = {
   id: string
   title: string
   body: string
+  imageUrl: string | null
   createdAt: number
 }
 
@@ -29,6 +32,7 @@ type TodoRow = {
   id: string
   title: string
   body: string
+  image_url: string | null
   created_at: string
 }
 
@@ -37,6 +41,7 @@ function rowToTodo(r: TodoRow): TodoItem {
     id: r.id,
     title: r.title,
     body: r.body,
+    imageUrl: r.image_url,
     createdAt: new Date(r.created_at).getTime(),
   }
 }
@@ -45,14 +50,14 @@ async function fetchTodoRows(): Promise<TodoRow[]> {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('timecard_todo_items')
-    .select('id, title, body, created_at')
+    .select('id, title, body, image_url, created_at')
     .order('created_at', { ascending: true })
   if (error) throw error
   return (data as TodoRow[]) ?? []
 }
 
 function emptyForm() {
-  return { title: '', body: '' }
+  return { title: '', body: '', imageUrl: '' }
 }
 
 /**
@@ -94,9 +99,11 @@ export function TodoView({ onBack }: { onBack: () => void }) {
     const title = form.title.trim()
     if (!title) return
     const supabase = createClient()
-    await supabase
-      .from('timecard_todo_items')
-      .insert({ title, body: form.body.trim() })
+    await supabase.from('timecard_todo_items').insert({
+      title,
+      body: form.body.trim(),
+      image_url: form.imageUrl.trim() || null,
+    })
     await refetch()
     setForm(emptyForm())
     setAdding(false)
@@ -104,7 +111,11 @@ export function TodoView({ onBack }: { onBack: () => void }) {
 
   function startEdit(item: TodoItem) {
     guard(() => {
-      setEditForm({ title: item.title, body: item.body })
+      setEditForm({
+        title: item.title,
+        body: item.body,
+        imageUrl: item.imageUrl ?? '',
+      })
       setEditingId(item.id)
     })
   }
@@ -116,7 +127,11 @@ export function TodoView({ onBack }: { onBack: () => void }) {
     const supabase = createClient()
     await supabase
       .from('timecard_todo_items')
-      .update({ title, body: editForm.body.trim() })
+      .update({
+        title,
+        body: editForm.body.trim(),
+        image_url: editForm.imageUrl.trim() || null,
+      })
       .eq('id', editingId)
     await refetch()
     setEditingId(null)
@@ -207,6 +222,33 @@ export function TodoView({ onBack }: { onBack: () => void }) {
               {NOTIFICATION_MARKUP_HELP}
             </p>
           </label>
+          <label className="flex flex-col gap-1">
+            <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+              <ImagePlus className="h-3.5 w-3.5" aria-hidden="true" />
+              画像URL（任意）
+            </span>
+            <input
+              type="text"
+              value={form.imageUrl}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, imageUrl: e.target.value }))
+              }
+              placeholder="/images/... または https://..."
+              className="w-full rounded-2xl border border-border bg-background px-4 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/60"
+            />
+          </label>
+          {form.imageUrl.trim() && (
+            <div className="overflow-hidden rounded-2xl border border-border/60 bg-background">
+              <Image
+                src={form.imageUrl.trim() || '/placeholder.svg'}
+                alt="添付画像プレビュー"
+                width={640}
+                height={480}
+                className="h-auto w-full object-contain"
+                unoptimized
+              />
+            </div>
+          )}
           <button
             type="button"
             onClick={submitAdd}
@@ -272,15 +314,47 @@ export function TodoView({ onBack }: { onBack: () => void }) {
                         {NOTIFICATION_MARKUP_HELP}
                       </p>
                     </label>
-                    {editForm.body && (
+                    <label className="flex flex-col gap-1">
+                      <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                        <ImagePlus className="h-3.5 w-3.5" aria-hidden="true" />
+                        画像URL（任意）
+                      </span>
+                      <input
+                        type="text"
+                        value={editForm.imageUrl}
+                        onChange={(e) =>
+                          setEditForm((p) => ({
+                            ...p,
+                            imageUrl: e.target.value,
+                          }))
+                        }
+                        placeholder="/images/... または https://..."
+                        className="w-full rounded-2xl border border-border bg-background px-4 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/60"
+                      />
+                    </label>
+                    {(editForm.body || editForm.imageUrl.trim()) && (
                       <div className="rounded-lg border border-border/60 bg-background px-3 py-2">
                         <p className="text-[0.65rem] font-semibold text-muted-foreground">
                           プレビュー
                         </p>
-                        <StyledNotificationText
-                          text={editForm.body}
-                          className="mt-1 block whitespace-pre-line text-sm leading-relaxed text-foreground"
-                        />
+                        {editForm.body && (
+                          <StyledNotificationText
+                            text={editForm.body}
+                            className="mt-1 block whitespace-pre-line text-sm leading-relaxed text-foreground"
+                          />
+                        )}
+                        {editForm.imageUrl.trim() && (
+                          <div className="mt-2 overflow-hidden rounded-xl border border-border/60">
+                            <Image
+                              src={editForm.imageUrl.trim() || '/placeholder.svg'}
+                              alt="添付画像プレビュー"
+                              width={640}
+                              height={480}
+                              className="h-auto w-full object-contain"
+                              unoptimized
+                            />
+                          </div>
+                        )}
                       </div>
                     )}
                     <div className="flex gap-2">
@@ -343,11 +417,27 @@ export function TodoView({ onBack }: { onBack: () => void }) {
                       )}
                     </div>
 
-                    {isOpen && item.body && (
-                      <StyledNotificationText
-                        text={item.body}
-                        className="mt-3 block whitespace-pre-line pl-12 text-sm leading-relaxed text-foreground"
-                      />
+                    {isOpen && (item.body || item.imageUrl) && (
+                      <div className="mt-3 flex flex-col gap-3 pl-12">
+                        {item.body && (
+                          <StyledNotificationText
+                            text={item.body}
+                            className="block whitespace-pre-line text-sm leading-relaxed text-foreground"
+                          />
+                        )}
+                        {item.imageUrl && (
+                          <div className="overflow-hidden rounded-2xl border border-border">
+                            <Image
+                              src={item.imageUrl || '/placeholder.svg'}
+                              alt={item.title}
+                              width={960}
+                              height={720}
+                              className="h-auto w-full object-contain"
+                              unoptimized
+                            />
+                          </div>
+                        )}
+                      </div>
                     )}
 
                     {confirmDeleteId === item.id && (
