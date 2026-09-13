@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Pencil, X, Plus, Store, Clock } from 'lucide-react'
+import { ChevronRight, Pencil, X, Plus, Store, Clock } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { ConfirmDeleteInline } from './confirm-delete'
@@ -120,7 +120,12 @@ function CalendarCard({
   )
 }
 
-export function AAView() {
+export function AAView({
+  onOpenVenueDetail,
+}: {
+  /** Navigates to List of Location's AA entry (会場詳細). */
+  onOpenVenueDetail?: () => void
+}) {
   const [editingDays, setEditingDays] = useState(false)
   const [editingDeadlines, setEditingDeadlines] = useState(false)
   const [confirmVenueId, setConfirmVenueId] = useState<string | null>(null)
@@ -219,6 +224,32 @@ export function AAView() {
           オークションの開催日と各会場の搬出期限を確認できます。
         </p>
       </div>
+
+      {onOpenVenueDetail && (
+        <button
+          type="button"
+          onClick={onOpenVenueDetail}
+          className="flex w-full items-center justify-between gap-3 rounded-2xl border border-border bg-card px-5 py-4 text-left transition-colors hover:border-primary/60 hover:bg-accent active:scale-[0.99]"
+        >
+          <span className="flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-primary">
+              <Store className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <span className="flex flex-col">
+              <span className="text-base font-semibold text-foreground">
+                会場詳細
+              </span>
+              <span className="text-xs text-muted-foreground">
+                各会場の住所・電話番号などを確認できます。
+              </span>
+            </span>
+          </span>
+          <ChevronRight
+            className="h-5 w-5 text-muted-foreground"
+            aria-hidden="true"
+          />
+        </button>
+      )}
 
       <CalendarCard
         title="オークション開催日一覧"

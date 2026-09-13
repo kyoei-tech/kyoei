@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { ArrowLeft, Check, Pencil, Plus, Search, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
+import { useKanaSearch } from '@/lib/search/use-kana-search'
 import { ConfirmDeleteInline, DeleteIconButton } from './confirm-delete'
 
 // Shared across every browser via the `yard_destination_titles` /
@@ -74,6 +75,7 @@ export function YardDestinationRegistryView({
     string | null
   >(null)
   const [bulkInputs, setBulkInputs] = useState<Record<string, string>>({})
+  const { matches } = useKanaSearch()
 
   const titles = useMemo(
     () => [...titleRows].sort((a, b) => a.sort_order - b.sort_order),
@@ -101,8 +103,8 @@ export function YardDestinationRegistryView({
   const searchResults = useMemo(() => {
     const query = search.trim()
     if (!query) return null
-    return storeRows.filter((s) => s.name.includes(query))
-  }, [search, storeRows])
+    return storeRows.filter((s) => matches(s.name, query))
+  }, [search, storeRows, matches])
 
   async function addTitle() {
     const title = newTitleName.trim()
@@ -387,7 +389,7 @@ export function YardDestinationRegistryView({
                     [title.id]: e.target.value,
                   }))
                 }
-                placeholder={'店舗名を改行または「、」区切りで入力\n（複数件を一括登録できます）'}
+                placeholder={'店舗名を��行または「、」区切りで入力\n（複数件を一括登録できます）'}
                 aria-label="店舗名の一括登録"
                 rows={2}
                 className="min-w-0 rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60"

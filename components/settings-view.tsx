@@ -1,7 +1,17 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Bell, Briefcase, Monitor, Moon, Smartphone, Sun } from 'lucide-react'
+import {
+  ArrowLeft,
+  Bell,
+  Briefcase,
+  ChevronRight,
+  Monitor,
+  Moon,
+  Smartphone,
+  Sun,
+  Tag,
+} from 'lucide-react'
 import {
   FONT_SCALES,
   FONT_TABS,
@@ -22,6 +32,8 @@ import { usePasswordGate } from './password-prompt'
 import { PushNotificationEditorView } from './push-notification-editor-view'
 import { NotificationAdminMenu } from './notification-admin-menu'
 import { AlertMessageEditorView } from './alert-message-editor-view'
+import { VersionView } from './version-view'
+import { useCurrentVersion } from '@/lib/changelog'
 
 const THEME_OPTIONS: { id: ThemeMode; label: string; Icon: typeof Sun }[] = [
   { id: 'dark', label: 'ダーク', Icon: Moon },
@@ -41,6 +53,7 @@ const SECRET_TAP_COUNT = 5
 const SECRET_TAP_WINDOW_MS = 2000
 
 type SecretScreen = 'menu' | 'push-editor' | 'alert-editor'
+type SubScreen = 'version'
 
 export function SettingsView() {
   const {
@@ -60,6 +73,8 @@ export function SettingsView() {
     PUSH_NOTIFICATION_EDITOR_PASSCODE,
   )
   const [secretScreen, setSecretScreen] = useState<SecretScreen | null>(null)
+  const [subScreen, setSubScreen] = useState<SubScreen | null>(null)
+  const currentVersion = useCurrentVersion()
   const bellTapCountRef = useRef(0)
   const bellTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -147,6 +162,22 @@ export function SettingsView() {
     }, SECRET_TAP_WINDOW_MS)
   }
 
+  if (subScreen === 'version') {
+    return (
+      <div className="flex flex-col gap-4">
+        <button
+          type="button"
+          onClick={() => setSubScreen(null)}
+          className="flex w-fit items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground active:scale-95"
+        >
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+          設定へ戻る
+        </button>
+        <VersionView />
+      </div>
+    )
+  }
+
   if (secretScreen === 'menu') {
     return (
       <>
@@ -230,7 +261,7 @@ export function SettingsView() {
         <p className="text-xs text-muted-foreground">
           {deviceFont
             ? 'デバイスに合わせる設定がONのため、下の個別設定は無効になっています。'
-            : '各タブごとに文字の大きさを6段階で調整できます。'}
+            : '各タブ���とに文字の大きさを6段階で調整できます。'}
         </p>
         <div
           className={`flex flex-col gap-4 ${
@@ -400,6 +431,32 @@ export function SettingsView() {
           </p>
         ) : null}
       </section>
+
+      {!partTimeMode && (
+        <button
+          type="button"
+          onClick={() => setSubScreen('version')}
+          className="flex w-full items-center justify-between gap-3 rounded-2xl border border-border bg-card px-5 py-4 text-left transition-colors hover:border-primary/60 hover:bg-accent active:scale-[0.99]"
+        >
+          <span className="flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-primary">
+              <Tag className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <span className="flex flex-col">
+              <span className="text-base font-semibold text-foreground">
+                Version
+              </span>
+              <span className="text-xs text-muted-foreground">
+                現在のバージョン：{currentVersion}
+              </span>
+            </span>
+          </span>
+          <ChevronRight
+            className="h-5 w-5 text-muted-foreground"
+            aria-hidden="true"
+          />
+        </button>
+      )}
 
       {prompt}
       {editorPrompt}

@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
+import { useKanaSearch } from '@/lib/search/use-kana-search'
 import { ConfirmDeleteInline, DeleteIconButton } from './confirm-delete'
 import { usePasswordGate } from './password-prompt'
 import { useSettings } from '@/lib/settings/settings-context'
@@ -152,6 +153,7 @@ export function YardLayoutView() {
     useState<string | null>(null)
   const [destinationSearch, setDestinationSearch] = useState('')
   const { guard, prompt } = usePasswordGate('5789')
+  const { matches } = useKanaSearch()
 
   const { data: yardRows, mutate: refetchYards } = useRealtimeTable<YardRow>(
     'yards',
@@ -213,8 +215,8 @@ export function YardLayoutView() {
   const destinationSearchResults = useMemo(() => {
     const query = destinationSearch.trim()
     if (!query) return null
-    return destinationStoreRows.filter((s) => s.name.includes(query))
-  }, [destinationSearch, destinationStoreRows])
+    return destinationStoreRows.filter((s) => matches(s.name, query))
+  }, [destinationSearch, destinationStoreRows, matches])
 
   function startEditYard(yard: YardRow) {
     setEditingYardId(yard.id)

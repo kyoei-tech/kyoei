@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
+import { useKanaSearch } from '@/lib/search/use-kana-search'
 import { useSettings } from '@/lib/settings/settings-context'
 import { useScrollToTop } from '@/lib/use-scroll-to-top'
 
@@ -72,6 +73,7 @@ export function HighValueCarsView() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm())
   useScrollToTop([view])
+  const { matches } = useKanaSearch()
 
   const { data: rows, mutate: refetch } = useRealtimeTable<CarRow>(
     'high_value_cars',
@@ -80,17 +82,17 @@ export function HighValueCarsView() {
 
   const cars: CarEntry[] = useMemo(() => rows.map(rowToCar), [rows])
 
-  const q = query.trim().toLowerCase()
+  const q = query.trim()
   const searchResults = useMemo(() => {
     if (!q) return []
     return cars.filter(
       (c) =>
-        c.maker.toLowerCase().includes(q) ||
-        c.modelName.toLowerCase().includes(q) ||
-        c.modelCode.toLowerCase().includes(q) ||
-        c.memo.toLowerCase().includes(q),
+        matches(c.maker, q) ||
+        matches(c.modelName, q) ||
+        matches(c.modelCode, q) ||
+        matches(c.memo, q),
     )
-  }, [cars, q])
+  }, [cars, q, matches])
 
   const makerGroups = useMemo(() => {
     const map = new Map<string, CarEntry[]>()

@@ -15,7 +15,6 @@ import {
   MessageCircleQuestion,
   Phone,
   Settings,
-  Tag,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { HighValueCarsView } from './high-value-cars-view'
@@ -29,8 +28,6 @@ import { AccidentCalendarView } from './accident-calendar-view'
 import { DriverTermsView } from './driver-terms-view'
 import { TripHistoryView } from './trip-history-view'
 import { SettingsView } from './settings-view'
-import { VersionView } from './version-view'
-import { useCurrentVersion } from '@/lib/changelog'
 import { useScrollToTop } from '@/lib/use-scroll-to-top'
 import { useSettings } from '@/lib/settings/settings-context'
 
@@ -46,7 +43,6 @@ export type MenuItemId =
   | 'trip-history'
   | 'emergency'
   | 'settings'
-  | 'version'
 
 const MENU_ITEMS: {
   id: MenuItemId
@@ -56,27 +52,21 @@ const MENU_ITEMS: {
 }[] = [
   {
     id: 'lolmap',
-    label: 'LoL MAP',
+    label: 'List of Location MAP',
     description: '各ボタンを押すとGoogleマップを開きます。',
     Icon: MapPinned,
   },
   {
     id: 'lol',
-    label: 'LoL',
+    label: 'List of Location',
     description: '配達先情報の一覧を確認できます。',
     Icon: MapPin,
   },
   {
     id: 'aa',
-    label: 'AA',
+    label: 'オークション情報',
     description: 'オークションの開催日・搬出期限を確認できます。',
     Icon: CalendarDays,
-  },
-  {
-    id: 'qa',
-    label: 'Q&A',
-    description: '匿名で質問・回答できます。',
-    Icon: MessageCircleQuestion,
   },
   {
     id: 'cars',
@@ -85,22 +75,10 @@ const MENU_ITEMS: {
     Icon: Car,
   },
   {
-    id: 'notes',
-    label: '初心者ノート',
-    description: '新人向けのメモや手順の確認ができます。',
-    Icon: BookOpen,
-  },
-  {
     id: 'accidents',
     label: '無事故カレンダー',
     description: '目指せ無事故！',
     Icon: CalendarCheck,
-  },
-  {
-    id: 'terms',
-    label: 'ドライバー語録',
-    description: '業界用語、隠語を調べられるおもしろ辞典📖',
-    Icon: BookMarked,
   },
   {
     id: 'trip-history',
@@ -115,18 +93,28 @@ const MENU_ITEMS: {
     Icon: Phone,
   },
   {
+    id: 'notes',
+    label: '初心者ノート',
+    description: '新人向けのメモや手順の確認ができます。',
+    Icon: BookOpen,
+  },
+  {
+    id: 'terms',
+    label: 'ドライバー語録',
+    description: '業界用語、隠語を調べられるおもしろ辞典📖',
+    Icon: BookMarked,
+  },
+  {
+    id: 'qa',
+    label: 'Q&A',
+    description: '匿名で質問・回答できます。',
+    Icon: MessageCircleQuestion,
+  },
+  {
     id: 'settings',
     label: '設定',
     description: 'フォントサイズや背景色を変更できます。',
     Icon: Settings,
-  },
-  {
-    id: 'version',
-    label: 'Version',
-    // Placeholder — overridden at render time with the live version from
-    // useCurrentVersion() below, so this never goes stale.
-    description: '',
-    Icon: Tag,
   },
 ]
 
@@ -137,21 +125,27 @@ export function MenuView({
   initialItem?: MenuItemId | null
 }) {
   const [selected, setSelected] = useState<MenuItemId | null>(initialItem)
+  // True when 'lol' was reached via the AA page's 「会場詳細」 button rather
+  // than a normal tap on the List of Location menu item — changes the back
+  // button's label/destination to return to the AA page instead of the menu.
+  const [viaAAVenueDetail, setViaAAVenueDetail] = useState(false)
   const { partTimeMode } = useSettings()
-  const currentVersion = useCurrentVersion()
   useScrollToTop([selected])
 
-  // LoL (delivery destination info) and Version (changelog) are hidden for
-  // part-time staff, who only need the day-to-day reference pages below.
-  const visibleItems = (
-    partTimeMode
-      ? MENU_ITEMS.filter((m) => m.id !== 'lol' && m.id !== 'version')
-      : MENU_ITEMS
-  ).map((m) =>
-    m.id === 'version'
-      ? { ...m, description: `現在のバージョン：${currentVersion}` }
-      : m,
-  )
+  // LoL (delivery destination info) is hidden for part-time staff, who only
+  // need the day-to-day reference pages below.
+  const visibleItems = partTimeMode
+    ? MENU_ITEMS.filter((m) => m.id !== 'lol')
+    : MENU_ITEMS
+
+  function goBack() {
+    if (viaAAVenueDetail) {
+      setViaAAVenueDetail(false)
+      setSelected('aa')
+    } else {
+      setSelected(null)
+    }
+  }
 
   if (selected) {
     const item = MENU_ITEMS.find((m) => m.id === selected)
@@ -159,15 +153,24 @@ export function MenuView({
       <div className="flex flex-col gap-4">
         <button
           type="button"
-          onClick={() => setSelected(null)}
+          onClick={goBack}
           className="flex w-fit items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground active:scale-95"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          メニューへ戻る
+          {viaAAVenueDetail ? '開催日一覧へ戻る' : 'メニューへ戻る'}
         </button>
         {item?.id === 'lolmap' && <LolMapView />}
-        {item?.id === 'lol' && <LolView />}
-        {item?.id === 'aa' && <AAView />}
+        {item?.id === 'lol' && (
+          <LolView initialDestinationId={viaAAVenueDetail ? 'aa' : null} />
+        )}
+        {item?.id === 'aa' && (
+          <AAView
+            onOpenVenueDetail={() => {
+              setViaAAVenueDetail(true)
+              setSelected('lol')
+            }}
+          />
+        )}
         {item?.id === 'qa' && <QAView />}
         {item?.id === 'cars' && <HighValueCarsView />}
         {item?.id === 'notes' && <BeginnerNotesView />}
@@ -176,7 +179,6 @@ export function MenuView({
         {item?.id === 'trip-history' && <TripHistoryView />}
         {item?.id === 'emergency' && <EmergencyContactsView />}
         {item?.id === 'settings' && <SettingsView />}
-        {item?.id === 'version' && <VersionView />}
       </div>
     )
   }

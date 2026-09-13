@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
+import { useKanaSearch } from '@/lib/search/use-kana-search'
 import { ConfirmDeleteInline, DeleteIconButton } from './confirm-delete'
 import { useSettings } from '@/lib/settings/settings-context'
 import { useScrollToTop } from '@/lib/use-scroll-to-top'
@@ -119,6 +120,7 @@ export function QAView() {
   const [confirmDeleteAnswerId, setConfirmDeleteAnswerId] = useState<
     string | null
   >(null)
+  const { matches } = useKanaSearch()
 
   const { data: questionRows, mutate: refetchQuestions } =
     useRealtimeTable<QuestionRow>('qa_questions', fetchQuestionRows)
@@ -162,16 +164,16 @@ export function QAView() {
     [categories],
   )
 
-  const q = query.trim().toLowerCase()
+  const q = query.trim()
   const searchResults = useMemo(() => {
     if (!q) return null
     return questions.filter(
       (qs) =>
-        qs.title.toLowerCase().includes(q) ||
-        qs.category.toLowerCase().includes(q) ||
-        qs.body.toLowerCase().includes(q),
+        matches(qs.title, q) ||
+        matches(qs.category, q) ||
+        matches(qs.body, q),
     )
-  }, [questions, q])
+  }, [questions, q, matches])
 
   const titlesInCategory = useMemo(() => {
     if (!activeCategory) return []

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
+import { useKanaSearch } from '@/lib/search/use-kana-search'
 
 type Destination = {
   id: string
@@ -556,8 +557,16 @@ function VehiclePermissionDisplay({ value }: { value: VehiclePermission }) {
   )
 }
 
-export function LolView() {
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+export function LolView({
+  initialDestinationId = null,
+}: {
+  /** Opens directly into this destination's detail view (e.g. 'aa' when
+   * reached via AA page's 「会場詳細」 button) instead of the picker list. */
+  initialDestinationId?: string | null
+}) {
+  const [selectedId, setSelectedId] = useState<string | null>(
+    initialDestinationId,
+  )
   const [focusedEntryId, setFocusedEntryId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [adding, setAdding] = useState(false)
@@ -577,6 +586,7 @@ export function LolView() {
     string | null
   >(null)
   const [visitedNameDraft, setVisitedNameDraft] = useState('')
+  const { matches } = useKanaSearch()
 
   // Shared across every browser: fetched from Supabase and kept live via
   // Postgres Changes, so an edit made anywhere shows up here automatically.
@@ -602,7 +612,7 @@ export function LolView() {
   const isAA = selected?.id === 'aa'
   const activeFields = fieldsFor(selected?.id)
 
-  const q = query.trim().toLowerCase()
+  const q = query.trim()
 
   // When searching, produce a flat list of matching registered places (entries)
   // across all destinations. An entry matches if any of its field values (or
@@ -611,21 +621,19 @@ export function LolView() {
     if (!q) return []
     const results: { dest: Destination; entry: InfoEntry }[] = []
     for (const dest of DESTINATIONS) {
-      const destMatch =
-        dest.name.toLowerCase().includes(q) ||
-        dest.category.toLowerCase().includes(q)
+      const destMatch = matches(dest.name, q) || matches(dest.category, q)
       for (const entry of entries[dest.id] ?? []) {
         const textMatch = (Object.keys(emptyForm()) as FieldKey[]).some((k) =>
-          entry[k].toLowerCase().includes(q),
+          matches(entry[k], q),
         )
         const calMatch = [...(entry.calOut ?? []), ...(entry.calIn ?? [])].some(
-          (v) => v.toLowerCase().includes(q),
+          (v) => matches(v, q),
         )
         if (destMatch || textMatch || calMatch) results.push({ dest, entry })
       }
     }
     return results
-  }, [q, entries])
+  }, [q, entries, matches])
 
   function openDetail(id: string, entryId: string | null = null) {
     setSelectedId(id)

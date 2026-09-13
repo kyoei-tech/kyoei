@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
+import { useKanaSearch } from '@/lib/search/use-kana-search'
 import { ConfirmDeleteInline } from './confirm-delete'
 import { useSettings } from '@/lib/settings/settings-context'
 import { useScrollToTop } from '@/lib/use-scroll-to-top'
@@ -117,6 +118,7 @@ export function DriverTermsView() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm())
+  const { matches } = useKanaSearch()
 
   const { data: termRows, mutate: refetchTerms } = useRealtimeTable<TermRow>(
     'dictionary_terms',
@@ -153,19 +155,19 @@ export function DriverTermsView() {
     [categoryGroups, selectedCategory],
   )
 
-  const q = query.trim().toLowerCase()
+  const q = query.trim()
   const searchResults = useMemo(() => {
     if (!q) return null
     return kanaList.filter(
       (t) =>
-        t.term.toLowerCase().includes(q) ||
-        t.reading.toLowerCase().includes(q) ||
-        t.meaning.toLowerCase().includes(q) ||
-        t.antonym.toLowerCase().includes(q) ||
-        t.example.toLowerCase().includes(q) ||
-        t.category.toLowerCase().includes(q),
+        matches(t.term, q) ||
+        matches(t.reading, q) ||
+        matches(t.meaning, q) ||
+        matches(t.antonym, q) ||
+        matches(t.example, q) ||
+        matches(t.category, q),
     )
-  }, [kanaList, q])
+  }, [kanaList, q, matches])
 
   const selectedTerm = useMemo(
     () => terms.find((t) => t.id === selectedTermId) ?? null,
