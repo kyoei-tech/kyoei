@@ -23,8 +23,15 @@ import {
 } from '@/lib/trip-history'
 import { formatHoursMinutes } from '@/lib/trip-log'
 import { pad2 } from '@/lib/shift-time'
+import { workdayForTrip } from '@/lib/attendance-calendar'
+import {
+  fetchAttendanceOverrides,
+  type AttendanceOverride,
+} from '@/lib/attendance-overrides'
 import { ConfirmDeleteInline } from './confirm-delete'
 import { AttendanceCalendarView } from './attendance-calendar-view'
+
+const ONE_DAY_MS = 24 * 60 * 60 * 1000
 
 // Tapping a trip card 5 times within this window opens an immediate delete
 // confirmation (no PIN — this is the driver's own data). Distinct from the
@@ -68,14 +75,20 @@ function hasMemo(trip: TripHistoryEntry) {
 function TripCard({
   trip,
   restBeforeMs,
+  dayShift,
   onChanged,
 }: {
   trip: TripHistoryEntry
   restBeforeMs: number | null
+  // Days this trip's displayed dates should move by, mirroring a workday
+  // shift made on the カレンダー tab (lib/attendance-overrides.ts). Purely
+  // cosmetic — the stored departedAt/returnedAt never change.
+  dayShift: number
   onChanged: () => void | Promise<void>
 }) {
-  const departure = formatDateTime(trip.departedAt)
-  const arrival = formatDateTime(trip.returnedAt)
+  const shiftMs = dayShift * ONE_DAY_MS
+  const departure = formatDateTime(trip.departedAt + shiftMs)
+  const arrival = formatDateTime(trip.returnedAt + shiftMs)
   const drivingMs = trip.totals.driving
 
   const deleteTapCountRef = useRef(0)
@@ -170,6 +183,11 @@ function TripCard({
           <Timer className="h-3.5 w-3.5" aria-hidden="true" />
           休息時間：{formatHoursMinutes(restBeforeMs)}
         </div>
+      )}
+      {dayShift !== 0 && (
+        <p className="text-[0.65rem] font-medium text-primary">
+          カレンダーで出勤日を{dayShift > 0 ? '翌日' : '前日'}に調整済み
+        </p>
       )}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
@@ -327,6 +345,28 @@ export function TripHistoryView() {
   } = useRealtimeTable<TripHistoryEntry>('trip_history', fetchTripHistory, {
     cacheKey: 'device',
   })
+  // Same overrides the カレンダー tab writes to when 出勤日 is shifted, so a
+  // shift made there is reflected here too without touching stored trips.
+  const { data: overrides } = useRealtimeTable<AttendanceOverride>(
+    'attendance_day_overrides',
+    fetchAttendanceOverrides,
+    { cacheKey: 'device' },
+  )
+
+  const shiftByDay = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const o of overrides) {
+      if (o.kind === 'workday_shift' && o.shiftDays) {
+        map.set(o.day, o.shiftDays)
+      }
+    }
+    return map
+  }, [overrides])
+
+  const dayShiftByIndex = useMemo(
+    () => trips.map((trip) => shiftByDay.get(workdayForTrip(trip)) ?? 0),
+    [trips, shiftByDay],
+  )
 
   // trips is newest-first; the rest before trip[i] is the gap between the
   // chronologically previous trip's 帰庫 and this trip's 出庫.
@@ -392,6 +432,7 @@ export function TripHistoryView() {
               key={trip.id}
               trip={trip}
               restBeforeMs={restBeforeByIndex[i]}
+              dayShift={dayShiftByIndex[i]}
               onChanged={mutate}
             />
           ))}

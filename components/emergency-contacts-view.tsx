@@ -13,6 +13,7 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { ConfirmDeleteInline } from './confirm-delete'
+import { CallButton } from './call-button'
 import { usePasswordGate } from './password-prompt'
 import { useSettings } from '@/lib/settings/settings-context'
 import { AccidentReportView } from './accident-report-view'
@@ -391,15 +392,18 @@ export function EmergencyContactsView() {
             <span className="text-xs font-medium text-muted-foreground">
               電話番号
             </span>
-            <input
-              type="tel"
-              value={form.phone}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, phone: e.target.value }))
-              }
-              placeholder="例：03-0000-0000"
-              className="w-full rounded-2xl border border-border bg-background px-4 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60"
-            />
+            <div className="flex items-center gap-2">
+              <input
+                type="tel"
+                value={form.phone}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, phone: e.target.value }))
+                }
+                placeholder="例：03-0000-0000"
+                className="w-full rounded-2xl border border-border bg-background px-4 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60"
+              />
+              <CallButton phone={form.phone} />
+            </div>
           </label>
           <label className="flex flex-col gap-1">
             <span className="text-xs font-medium text-muted-foreground">
@@ -458,7 +462,7 @@ export function EmergencyContactsView() {
 
       {contacts.length === 0 && !adding ? (
         <p className="rounded-2xl border border-dashed border-border px-5 py-10 text-center text-sm text-muted-foreground">
-          まだ連絡先が登録されていません。
+          まだ連絡先が��録されていません。
         </p>
       ) : (
         <ul className="flex flex-col gap-2.5">

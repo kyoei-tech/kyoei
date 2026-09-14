@@ -14,6 +14,8 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { useKanaSearch } from '@/lib/search/use-kana-search'
+import { CallButton } from './call-button'
+import { telHref } from '@/lib/phone'
 
 type Destination = {
   id: string
@@ -30,6 +32,7 @@ type FieldKey =
   | 'place'
   | 'eventDay'
   | 'memo'
+  | 'exitMethod'
   | 'method'
   | 'notes'
 
@@ -105,6 +108,7 @@ const AA_FIELDS: FieldConfig[] = [
   { key: 'address', label: '住所' },
   { key: 'phone', label: '電話番号' },
   { key: 'eventDay', label: '開催日', weekday: true },
+  { key: 'exitMethod', label: '搬出方法', multiline: true },
   { key: 'method', label: '搬入方法', multiline: true },
   { key: 'memo', label: 'メモ', multiline: true },
   { key: 'notes', label: '注意事項', multiline: true },
@@ -124,6 +128,7 @@ function emptyForm(): Record<FieldKey, string> {
     place: '',
     eventDay: '',
     memo: '',
+    exitMethod: '',
     method: '',
     notes: '',
   }
@@ -156,6 +161,7 @@ type LolRow = {
   place: string
   event_day: string
   memo: string
+  exit_method: string
   method: string
   notes: string
   cal_out: string[] | null
@@ -175,6 +181,7 @@ function rowToEntry(r: LolRow): InfoEntry {
     place: r.place,
     eventDay: r.event_day,
     memo: r.memo,
+    exitMethod: r.exit_method,
     method: r.method,
     notes: r.notes,
     calOut: r.cal_out ?? emptyWeek(),
@@ -189,7 +196,7 @@ async function fetchLolRows(): Promise<LolRow[]> {
   const { data, error } = await supabase
     .from('lol_entries')
     .select(
-      'id, destination_id, shop_name, address, phone, hours, break_time, place, event_day, memo, method, notes, cal_out, cal_in, vehicle_permission, visited_by',
+      'id, destination_id, shop_name, address, phone, hours, break_time, place, event_day, memo, exit_method, method, notes, cal_out, cal_in, vehicle_permission, visited_by',
     )
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: true })
@@ -289,7 +296,7 @@ function DayCellEditor({
         <div className="flex items-center gap-1">
           <select
             value={parsed.start}
-            aria-label={`${label}の開始時間`}
+            aria-label={`${label}の開��時間`}
             onChange={(e) => onChange(`${e.target.value}〜${parsed.end}`)}
             className={SELECT_CLASS}
           >
@@ -708,6 +715,7 @@ export function LolView({
       place: trimmed.place,
       event_day: trimmed.eventDay,
       memo: trimmed.memo,
+      exit_method: trimmed.exitMethod,
       method: trimmed.method,
       notes: trimmed.notes,
       ...(isAA
@@ -877,6 +885,18 @@ export function LolView({
                       rows={2}
                       className="w-full resize-none rounded-2xl border border-border bg-background px-4 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/60"
                     />
+                  ) : f.key === 'phone' ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="tel"
+                        value={form[f.key]}
+                        onChange={(e) =>
+                          setForm((p) => ({ ...p, [f.key]: e.target.value }))
+                        }
+                        className="w-full rounded-2xl border border-border bg-background px-4 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/60"
+                      />
+                      <CallButton phone={form.phone} />
+                    </div>
                   ) : (
                     <input
                       type="text"
@@ -1072,7 +1092,17 @@ export function LolView({
                         <div className="grid grid-cols-[6.5rem_1fr] gap-2 text-sm">
                           <dt className="text-muted-foreground">{f.label}</dt>
                           <dd className="whitespace-pre-wrap leading-relaxed text-foreground">
-                            {e[f.key]}
+                            {f.key === 'phone' ? (
+                              <a
+                                href={telHref(e.phone)}
+                                onClick={(ev) => ev.stopPropagation()}
+                                className="font-medium text-primary underline-offset-2 hover:underline"
+                              >
+                                {e.phone}
+                              </a>
+                            ) : (
+                              e[f.key]
+                            )}
                           </dd>
                         </div>
                         {isAA && f.key === 'eventDay' && hasCalendar(e) && (

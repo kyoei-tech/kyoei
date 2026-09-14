@@ -11,6 +11,7 @@ import { ArrowLeft, Camera, Pencil, RotateCcw } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { usePasswordGate } from './password-prompt'
+import { CallButton } from './call-button'
 import { StyledNotificationText } from './styled-notification-text'
 import { ConfirmActionModal } from './confirm-action-modal'
 import {
@@ -311,16 +312,19 @@ export function AccidentReportView({ onBack }: { onBack: () => void }) {
           <span className="text-xs font-medium text-muted-foreground">
             電話番号
           </span>
-          <input
-            type="tel"
-            value={form.phone}
-            disabled={readOnly}
-            onChange={(e) =>
-              setForm((p) => ({ ...p, phone: e.target.value }))
-            }
-            placeholder="例：090-0000-0000"
-            className="w-full rounded-2xl border border-border bg-background px-4 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60 disabled:opacity-70"
-          />
+          <div className="flex items-center gap-2">
+            <input
+              type="tel"
+              value={form.phone}
+              disabled={readOnly}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, phone: e.target.value }))
+              }
+              placeholder="例：090-0000-0000"
+              className="w-full rounded-2xl border border-border bg-background px-4 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60 disabled:opacity-70"
+            />
+            <CallButton phone={form.phone} />
+          </div>
           <p className="text-xs text-muted-foreground">
             ※メモした後にその場で一度電話をかけ、相手のスマホが鳴るか確認する
           </p>
