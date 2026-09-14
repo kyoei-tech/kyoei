@@ -296,7 +296,7 @@ function DayCellEditor({
         <div className="flex items-center gap-1">
           <select
             value={parsed.start}
-            aria-label={`${label}の開��時間`}
+            aria-label={`${label}の開始時間`}
             onChange={(e) => onChange(`${e.target.value}〜${parsed.end}`)}
             className={SELECT_CLASS}
           >

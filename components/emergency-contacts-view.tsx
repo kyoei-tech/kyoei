@@ -462,7 +462,7 @@ export function EmergencyContactsView() {
 
       {contacts.length === 0 && !adding ? (
         <p className="rounded-2xl border border-dashed border-border px-5 py-10 text-center text-sm text-muted-foreground">
-          まだ連絡先が��録されていません。
+          まだ連絡先が登録されていません。
         </p>
       ) : (
         <ul className="flex flex-col gap-2.5">

@@ -261,7 +261,7 @@ export function SettingsView() {
         <p className="text-xs text-muted-foreground">
           {deviceFont
             ? 'デバイスに合わせる設定がONのため、下の個別設定は無効になっています。'
-            : '各タブ���とに文字の大きさを6段階で調整できます。'}
+            : '各タブごとに文字の大きさを6段階で調整できます。'}
         </p>
         <div
           className={`flex flex-col gap-4 ${

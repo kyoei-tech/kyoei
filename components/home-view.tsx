@@ -469,7 +469,7 @@ export function HomeView({
               text={getConfirmActionMessage(
                 confirmMessages,
                 'home-split-rest-body',
-                '分割休息は1回3時間以上とること。\n2分割の場合は合計10時間以上、\n3分割の��合は合計12時間以上になるように休息をとること。',
+                '分割休息は1回3時間以上とること。\n2分割の場合は合計10時間以上、\n3分割の場合は合計12時間以上になるように休息をとること。',
               )}
               className="block whitespace-pre-line rounded-xl bg-destructive/10 px-3 py-2.5 text-sm font-bold leading-relaxed text-destructive"
             />

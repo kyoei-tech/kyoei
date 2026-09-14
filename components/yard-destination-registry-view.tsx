@@ -389,7 +389,7 @@ export function YardDestinationRegistryView({
                     [title.id]: e.target.value,
                   }))
                 }
-                placeholder={'店舗名を��行または「、」区切りで入力\n（複数件を一括登録できます）'}
+                placeholder={'店舗名を改行または「、」区切りで入力\n（複数件を一括登録できます）'}
                 aria-label="店舗名の一括登録"
                 rows={2}
                 className="min-w-0 rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60"

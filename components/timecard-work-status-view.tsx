@@ -343,7 +343,7 @@ export function TimecardWorkStatusView({
               共有メモ
             </span>
             <span className="text-xs font-medium text-muted-foreground">
-              リ��ルタイムで共有されます
+              リアルタイムで共有されます
             </span>
           </div>
 
