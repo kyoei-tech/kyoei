@@ -113,6 +113,28 @@ export async function deleteTripHistory(
   return { error: error?.message ?? null }
 }
 
+/** Updates the 出庫 / 帰庫 timestamps for one trip. Gated behind the 隠しコマンド in trip-history-view.tsx. */
+export async function updateTripHistoryTimes(
+  id: string,
+  times: { departedAt: number; returnedAt: number },
+): Promise<{ error: string | null }> {
+  const deviceId = getDeviceId()
+  if (!deviceId) return { error: 'device id not found' }
+  if (times.returnedAt <= times.departedAt) {
+    return { error: '帰庫日時は出庫日時より後にしてください' }
+  }
+  const supabase = createClient()
+  const { error } = await supabase
+    .from('trip_history')
+    .update({
+      departed_at: new Date(times.departedAt).toISOString(),
+      returned_at: new Date(times.returnedAt).toISOString(),
+    })
+    .eq('id', id)
+    .eq('device_id', deviceId)
+  return { error: error?.message ?? null }
+}
+
 /** Updates the 工程 / 渋滞区間 / 自由欄 memo fields for one trip. */
 export async function updateTripHistoryMemo(
   id: string,

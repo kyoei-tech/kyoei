@@ -40,7 +40,7 @@ export function PasswordPrompt({
           type="password"
           inputMode="numeric"
           pattern="[0-9]*"
-          maxLength={4}
+          maxLength={expectedCode.length}
           autoFocus
           value={value}
           onChange={(e) => {
@@ -54,7 +54,7 @@ export function PasswordPrompt({
             }
           }}
           aria-label="パスワード"
-          className={`mt-4 w-full rounded-2xl border bg-background px-4 py-3 text-center font-mono text-2xl tracking-[0.5em] text-foreground outline-none transition-colors ${
+          className={`mt-4 w-full rounded-2xl border bg-background px-4 py-3 text-center font-mono text-2xl tracking-[0.35em] text-foreground outline-none transition-colors ${
             error ? 'border-destructive' : 'border-border focus:border-primary/60'
           }`}
         />
@@ -74,7 +74,7 @@ export function PasswordPrompt({
           <button
             type="button"
             onClick={submit}
-            disabled={value.length !== 4}
+            disabled={value.length !== expectedCode.length}
             className="flex-1 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95 disabled:opacity-40"
           >
             確定

@@ -13,12 +13,14 @@ import {
   PackagePlus,
   ScrollText,
   Timer,
+  Trash2,
 } from 'lucide-react'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import {
   deleteTripHistory,
   fetchTripHistory,
   updateTripHistoryMemo,
+  updateTripHistoryTimes,
   type TripHistoryEntry,
 } from '@/lib/trip-history'
 import { formatHoursMinutes } from '@/lib/trip-log'
@@ -30,15 +32,18 @@ import {
 } from '@/lib/attendance-overrides'
 import { ConfirmDeleteInline } from './confirm-delete'
 import { AttendanceCalendarView } from './attendance-calendar-view'
+import { usePasswordGate } from './password-prompt'
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000
 
-// Tapping a trip card 5 times within this window opens an immediate delete
-// confirmation (no PIN — this is the driver's own data). Distinct from the
-// double-tap-to-edit-memo gesture below by requiring far more taps.
-const DELETE_TAP_COUNT = 5
-const DELETE_TAP_WINDOW_MS = 2000
+// Tapping a trip card 5 times within this window is the 隠しコマンド that
+// opens the 出庫/帰庫 date-time editor (which also holds the delete button).
+// It's gated behind usePasswordGate below so casual taps can't reach it.
+// Distinct from the double-tap-to-edit-memo gesture by requiring far more taps.
+const UNLOCK_TAP_COUNT = 5
+const UNLOCK_TAP_WINDOW_MS = 2000
 const DOUBLE_TAP_MS = 350
+const EDIT_UNLOCK_CODE = '1357951'
 
 function formatDateTime(ms: number): { date: string; time: string } {
   const d = new Date(ms)
@@ -46,6 +51,12 @@ function formatDateTime(ms: number): { date: string; time: string } {
     date: `${d.getMonth() + 1}/${d.getDate()}`,
     time: `${pad2(d.getHours())}:${pad2(d.getMinutes())}`,
   }
+}
+
+/** `<input type="datetime-local">` value, in local time, for one timestamp. */
+function toLocalInputValue(ms: number): string {
+  const d = new Date(ms)
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`
 }
 
 const CATEGORY_ITEMS: {
@@ -76,6 +87,7 @@ function TripCard({
   trip,
   restBeforeMs,
   dayShift,
+  guard,
   onChanged,
 }: {
   trip: TripHistoryEntry
@@ -84,6 +96,10 @@ function TripCard({
   // shift made on the カレンダー tab (lib/attendance-overrides.ts). Purely
   // cosmetic — the stored departedAt/returnedAt never change.
   dayShift: number
+  // From usePasswordGate: runs `action` immediately once unlocked this
+  // session, otherwise shows the PIN prompt first. Protects the 出庫/帰庫
+  // date-time editor and delete button behind the 隠しコマンド below.
+  guard: (action: () => void) => void
   onChanged: () => void | Promise<void>
 }) {
   const shiftMs = dayShift * ONE_DAY_MS
@@ -91,8 +107,8 @@ function TripCard({
   const arrival = formatDateTime(trip.returnedAt + shiftMs)
   const drivingMs = trip.totals.driving
 
-  const deleteTapCountRef = useRef(0)
-  const deleteTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const unlockTapCountRef = useRef(0)
+  const unlockTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastTapRef = useRef(0)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -104,6 +120,12 @@ function TripCard({
   const [freeDraft, setFreeDraft] = useState('')
   const [savingMemo, setSavingMemo] = useState(false)
 
+  const [editingTimes, setEditingTimes] = useState(false)
+  const [departedDraft, setDepartedDraft] = useState('')
+  const [returnedDraft, setReturnedDraft] = useState('')
+  const [savingTimes, setSavingTimes] = useState(false)
+  const [timesError, setTimesError] = useState<string | null>(null)
+
   function startEditingMemo() {
     setProcessDraft(trip.processMemo)
     setTrafficDraft(trip.trafficMemo)
@@ -112,20 +134,29 @@ function TripCard({
     setShowMemo(true)
   }
 
-  function handleCardTap() {
-    if (confirmingDelete || editingMemo) return
+  function startEditingTimes() {
+    setDepartedDraft(toLocalInputValue(trip.departedAt))
+    setReturnedDraft(toLocalInputValue(trip.returnedAt))
+    setTimesError(null)
+    setEditingTimes(true)
+    setShowMemo(false)
+  }
 
-    // 5-tap-within-2s → immediate delete confirmation (no PIN).
-    deleteTapCountRef.current += 1
-    if (deleteTapTimerRef.current) clearTimeout(deleteTapTimerRef.current)
-    if (deleteTapCountRef.current >= DELETE_TAP_COUNT) {
-      deleteTapCountRef.current = 0
-      setConfirmingDelete(true)
+  function handleCardTap() {
+    if (confirmingDelete || editingMemo || editingTimes) return
+
+    // 5-tap-within-2s → 隠しコマンド。Runs through the PIN gate before
+    // opening the date-time editor (which also holds the delete button).
+    unlockTapCountRef.current += 1
+    if (unlockTapTimerRef.current) clearTimeout(unlockTapTimerRef.current)
+    if (unlockTapCountRef.current >= UNLOCK_TAP_COUNT) {
+      unlockTapCountRef.current = 0
+      guard(startEditingTimes)
       return
     }
-    deleteTapTimerRef.current = setTimeout(() => {
-      deleteTapCountRef.current = 0
-    }, DELETE_TAP_WINDOW_MS)
+    unlockTapTimerRef.current = setTimeout(() => {
+      unlockTapCountRef.current = 0
+    }, UNLOCK_TAP_WINDOW_MS)
 
     // Double-tap → open the memo editor. Single tap → toggle memo preview.
     const now = Date.now()
@@ -155,6 +186,27 @@ function TripCard({
     })
     setSavingMemo(false)
     setEditingMemo(false)
+    await onChanged()
+  }
+
+  async function saveTimes() {
+    const departedAt = new Date(departedDraft).getTime()
+    const returnedAt = new Date(returnedDraft).getTime()
+    if (Number.isNaN(departedAt) || Number.isNaN(returnedAt)) {
+      setTimesError('日時を正しく入力してください')
+      return
+    }
+    setSavingTimes(true)
+    const { error } = await updateTripHistoryTimes(trip.id, {
+      departedAt,
+      returnedAt,
+    })
+    setSavingTimes(false)
+    if (error) {
+      setTimesError(error)
+      return
+    }
+    setEditingTimes(false)
     await onChanged()
   }
 
@@ -330,6 +382,73 @@ function TripCard({
           </div>
         </div>
       )}
+
+      {editingTimes && (
+        <div
+          className="flex flex-col gap-2.5 rounded-xl border border-primary/30 bg-background px-3 py-3"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <p className="text-[0.65rem] font-semibold text-muted-foreground">
+            出庫・帰庫日時を編集
+          </p>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-muted-foreground">出庫</span>
+            <input
+              type="datetime-local"
+              value={departedDraft}
+              onChange={(e) => {
+                setTimesError(null)
+                setDepartedDraft(e.target.value)
+              }}
+              className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-sm text-foreground outline-none focus:border-primary/60"
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-muted-foreground">帰庫</span>
+            <input
+              type="datetime-local"
+              value={returnedDraft}
+              onChange={(e) => {
+                setTimesError(null)
+                setReturnedDraft(e.target.value)
+              }}
+              className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-sm text-foreground outline-none focus:border-primary/60"
+            />
+          </label>
+          {timesError && (
+            <p className="text-xs font-semibold text-destructive">
+              {timesError}
+            </p>
+          )}
+          <div className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirmingDelete(true)}
+              className="flex items-center gap-1 rounded-full border border-destructive/40 px-3.5 py-1.5 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/10 active:scale-95"
+            >
+              <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+              削除
+            </button>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setEditingTimes(false)}
+                className="rounded-full border border-border px-3.5 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground active:scale-95"
+              >
+                キャンセル
+              </button>
+              <button
+                type="button"
+                onClick={saveTimes}
+                disabled={savingTimes}
+                className="rounded-full bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95 disabled:opacity-40"
+              >
+                {savingTimes ? '保存中…' : '保存'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </li>
   )
 }
@@ -338,6 +457,9 @@ type DisplayMode = 'list' | 'calendar'
 
 export function TripHistoryView() {
   const [displayMode, setDisplayMode] = useState<DisplayMode>('list')
+  // 隠しコマンド（カードを5回連続タップ）で出た暗証番号入力を管理。一度解除すれば
+  // このタブを開いている間は再入力不要。
+  const { guard, prompt } = usePasswordGate(EDIT_UNLOCK_CODE)
   const {
     data: trips,
     isLoading,
@@ -380,6 +502,7 @@ export function TripHistoryView() {
 
   return (
     <div className="flex flex-col gap-4">
+      {prompt}
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold text-foreground">運行履歴</h2>
@@ -433,6 +556,7 @@ export function TripHistoryView() {
               trip={trip}
               restBeforeMs={restBeforeByIndex[i]}
               dayShift={dayShiftByIndex[i]}
+              guard={guard}
               onChanged={mutate}
             />
           ))}
