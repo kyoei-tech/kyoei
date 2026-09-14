@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import {
   Bell,
   Briefcase,
+  ChevronDown,
   ChevronRight,
   Monitor,
   Moon,
@@ -96,6 +97,7 @@ export function SettingsView() {
   )
   const [secretScreen, setSecretScreen] = useState<SecretScreen | null>(null)
   const [subScreen, setSubScreen] = useState<SubScreen | null>(null)
+  const [staffPickerOpen, setStaffPickerOpen] = useState(false)
   const currentVersion = useCurrentVersion()
   const bellTapCountRef = useRef(0)
   const bellTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -260,7 +262,7 @@ export function SettingsView() {
                 デバイスに合わせる
               </span>
               <span className="text-xs text-muted-foreground">
-                ONの場合、デバイスの文字サイズ設定に合わせて表示します。
+                ONの場合、デバイスの文字サイズ���定に合わせて表示します。
               </span>
             </span>
           </span>
@@ -357,39 +359,72 @@ export function SettingsView() {
         <p className="text-xs text-muted-foreground">
           出勤簿の自分の名前を選ぶと、ホームの出庫・帰庫がそのまま出勤簿の状態に反映されます。
         </p>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setStaffMemberId(null)}
-            aria-pressed={staffMemberId === null}
-            className={`flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-semibold transition-colors active:scale-95 ${
-              staffMemberId === null
-                ? 'border-primary bg-primary/15 text-primary'
-                : 'border-border bg-background text-muted-foreground hover:text-foreground'
+        <button
+          type="button"
+          onClick={() => setStaffPickerOpen((open) => !open)}
+          aria-expanded={staffPickerOpen}
+          className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-background px-4 py-3 text-left transition-colors active:scale-[0.99]"
+        >
+          <span className="flex items-center gap-2.5">
+            <UserRound
+              className="h-5 w-5 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <span className="text-sm font-semibold text-foreground">
+              {staffMemberId === null
+                ? '未設定'
+                : (staffOptions.find((m) => m.id === staffMemberId)?.name ??
+                  '未設定')}
+            </span>
+          </span>
+          <ChevronDown
+            className={`h-5 w-5 shrink-0 text-muted-foreground transition-transform ${
+              staffPickerOpen ? 'rotate-180' : ''
             }`}
-          >
-            未設定
-          </button>
-          {staffOptions.map((member) => {
-            const active = staffMemberId === member.id
-            return (
-              <button
-                key={member.id}
-                type="button"
-                onClick={() => setStaffMemberId(member.id)}
-                aria-pressed={active}
-                className={`flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-semibold transition-colors active:scale-95 ${
-                  active
-                    ? 'border-primary bg-primary/15 text-primary'
-                    : 'border-border bg-background text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <UserRound className="h-3.5 w-3.5" aria-hidden="true" />
-                {member.name}
-              </button>
-            )
-          })}
-        </div>
+            aria-hidden="true"
+          />
+        </button>
+        {staffPickerOpen ? (
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setStaffMemberId(null)
+                setStaffPickerOpen(false)
+              }}
+              aria-pressed={staffMemberId === null}
+              className={`flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-semibold transition-colors active:scale-95 ${
+                staffMemberId === null
+                  ? 'border-primary bg-primary/15 text-primary'
+                  : 'border-border bg-background text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              未設定
+            </button>
+            {staffOptions.map((member) => {
+              const active = staffMemberId === member.id
+              return (
+                <button
+                  key={member.id}
+                  type="button"
+                  onClick={() => {
+                    setStaffMemberId(member.id)
+                    setStaffPickerOpen(false)
+                  }}
+                  aria-pressed={active}
+                  className={`flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-semibold transition-colors active:scale-95 ${
+                    active
+                      ? 'border-primary bg-primary/15 text-primary'
+                      : 'border-border bg-background text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <UserRound className="h-3.5 w-3.5" aria-hidden="true" />
+                  {member.name}
+                </button>
+              )
+            })}
+          </div>
+        ) : null}
       </section>
 
       <section className="flex flex-col gap-3 rounded-2xl border border-border bg-card px-5 py-5">
