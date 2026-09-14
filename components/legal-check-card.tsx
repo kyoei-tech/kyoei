@@ -39,18 +39,18 @@ export function LegalCheckCard({
       <div className="flex flex-col gap-1.5 text-sm text-foreground">
         <div className="flex items-center justify-between gap-2">
           <span className="text-muted-foreground">
-            今週あと何回14時間超え運行ができるか
-          </span>
-          <span className="font-mono text-base font-bold tabular-nums">
-            {remainingOver14hCount}回
-          </span>
-        </div>
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-muted-foreground">
             今月あと何回分割休息を使えるか
           </span>
           <span className="font-mono text-base font-bold tabular-nums">
             {remainingSplitRestCount}回
+          </span>
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-muted-foreground">
+            今週あと何回14時間超え運行ができるか
+          </span>
+          <span className="font-mono text-base font-bold tabular-nums">
+            {remainingOver14hCount}回
           </span>
         </div>
         <div className="flex items-center justify-between gap-2">
