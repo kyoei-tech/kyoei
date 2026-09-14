@@ -8,7 +8,6 @@ import {
   Pause,
   Pencil,
   Play,
-  ShieldCheck,
   Trash2,
 } from 'lucide-react'
 import { formatClock, formatDuration, type ClockParts } from '@/lib/shift-time'
@@ -19,12 +18,6 @@ import {
 } from '@/lib/timecard-log'
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
-import { fetchTripHistory, type TripHistoryEntry } from '@/lib/trip-history'
-import {
-  canTakeHolidayShift,
-  getRemainingOver14hCount,
-  getRemainingSplitRestCount,
-} from '@/lib/legal-limits'
 import { ConfirmActionModal } from './confirm-action-modal'
 import { ConfirmDeleteInline } from './confirm-delete'
 import { TodoView } from './timecard-todo-view'
@@ -103,15 +96,6 @@ export function TimecardWorkStatusView({
 
   const { data: sharedMemos, mutate: refetchSharedMemos } =
     useRealtimeTable<SharedMemoRow>('timecard_shared_memos', fetchSharedMemos)
-
-  const { data: trips } = useRealtimeTable<TripHistoryEntry>(
-    'trip_history',
-    fetchTripHistory,
-    { cacheKey: 'device' },
-  )
-  const remainingOver14hCount = getRemainingOver14hCount(trips, now)
-  const remainingSplitRestCount = getRemainingSplitRestCount(trips, now)
-  const holidayShiftAvailable = canTakeHolidayShift(trips, now)
 
   const [sharedTapCount, setSharedTapCount] = useState(0)
   const sharedTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -340,51 +324,6 @@ export function TimecardWorkStatusView({
             やること
           </button>
         </div>
-
-        <section
-          aria-label="法定チェック"
-          className="flex flex-col gap-2.5 rounded-2xl border border-border bg-card px-5 py-4"
-        >
-          <div className="flex items-center gap-1.5">
-            <ShieldCheck
-              className="h-4 w-4 shrink-0 text-primary"
-              aria-hidden="true"
-            />
-            <span className="text-sm font-bold tracking-wide text-primary">
-              法定チェック
-            </span>
-          </div>
-          <div className="flex flex-col gap-1.5 text-sm text-foreground">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-muted-foreground">
-                今週あと何回14時間超え運行ができるか
-              </span>
-              <span className="font-mono text-base font-bold tabular-nums">
-                {remainingOver14hCount}回
-              </span>
-            </div>
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-muted-foreground">
-                今月あと何回分割休息を使えるか
-              </span>
-              <span className="font-mono text-base font-bold tabular-nums">
-                {remainingSplitRestCount}回
-              </span>
-            </div>
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-muted-foreground">
-                今週は休日出勤が可能か
-              </span>
-              <span
-                className={`text-sm font-bold ${
-                  holidayShiftAvailable ? 'text-secondary' : 'text-muted-foreground'
-                }`}
-              >
-                {holidayShiftAvailable ? '可能' : '不可'}
-              </span>
-            </div>
-          </div>
-        </section>
 
         <section
           aria-label="共有メモ"

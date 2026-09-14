@@ -35,6 +35,7 @@ import {
 } from '@/lib/attendance-overrides'
 import { ConfirmDeleteInline } from './confirm-delete'
 import { AttendanceCalendarView } from './attendance-calendar-view'
+import { LegalCheckCard } from './legal-check-card'
 import { usePasswordGate } from './password-prompt'
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000
@@ -671,7 +672,10 @@ export function TripHistoryView() {
       </div>
 
       {displayMode === 'calendar' ? (
-        <AttendanceCalendarView />
+        <div className="flex flex-col gap-4">
+          <AttendanceCalendarView />
+          <LegalCheckCard trips={trips} now={Date.now()} />
+        </div>
       ) : isLoading ? (
         <p className="py-8 text-center text-sm text-muted-foreground">
           読み込み中…

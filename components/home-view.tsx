@@ -324,6 +324,7 @@ export function HomeView({
   if (screen === 'rest' && mode === 'return' && startedAt != null) {
     return (
       <RestStatusView
+        now={now.getTime()}
         nowParts={formatClock(now, { hour12: false, seconds: false })}
         returnedAt={startedAt}
         restElapsedMs={restElapsedMs}

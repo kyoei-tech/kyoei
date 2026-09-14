@@ -1,11 +1,15 @@
 'use client'
 
 import { formatClock, formatDuration, type ClockParts } from '@/lib/shift-time'
+import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
+import { fetchTripHistory, type TripHistoryEntry } from '@/lib/trip-history'
 import { BackHeader } from './back-header'
+import { LegalCheckCard } from './legal-check-card'
 
 const COUNTDOWN_OPTIONS = [3, 9, 33]
 
 export function RestStatusView({
+  now,
   nowParts,
   returnedAt,
   restElapsedMs,
@@ -13,6 +17,7 @@ export function RestStatusView({
   onSelectCountdown,
   onBack,
 }: {
+  now: number
   nowParts: ClockParts
   returnedAt: number
   restElapsedMs: number
@@ -20,6 +25,12 @@ export function RestStatusView({
   onSelectCountdown: (hours: number) => void
   onBack: () => void
 }) {
+  const { data: trips } = useRealtimeTable<TripHistoryEntry>(
+    'trip_history',
+    fetchTripHistory,
+    { cacheKey: 'device' },
+  )
+
   const returnParts = formatClock(new Date(returnedAt), {
     hour12: false,
     seconds: false,
@@ -110,6 +121,8 @@ export function RestStatusView({
           以上になるように休息をとること。
         </p>
       </div>
+
+      <LegalCheckCard trips={trips} now={now} />
     </div>
   )
 }
