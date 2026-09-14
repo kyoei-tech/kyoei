@@ -253,7 +253,9 @@ export function HomeView({
     setMode('return')
     setStartedAt(returnedAt)
     setTrip(null)
-    setScreen('home')
+    // Jump straight into 休息状況 so the driver sees the rest countdown
+    // immediately after tapping 帰庫, mirroring the 出庫 -> 運行状況 flow.
+    setScreen('rest')
     setPendingHomeAction(null)
   }
 
