@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef, useState } from 'react'
+import { Fragment, useMemo, useRef, useState } from 'react'
 import {
   CalendarDays,
   Clock,
@@ -18,9 +18,12 @@ import {
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import {
   deleteTripHistory,
+  fetchRestDayNotes,
   fetchTripHistory,
+  updateRestDayNote,
   updateTripHistoryMemo,
   updateTripHistoryTimes,
+  type RestDayNote,
   type TripHistoryEntry,
 } from '@/lib/trip-history'
 import { formatHoursMinutes } from '@/lib/trip-log'
@@ -44,6 +47,22 @@ const UNLOCK_TAP_COUNT = 5
 const UNLOCK_TAP_WINDOW_MS = 2000
 const DOUBLE_TAP_MS = 350
 const EDIT_UNLOCK_CODE = '1357951'
+
+// A gap of 33+ hours between 帰庫 and the next 出庫 is shown as a 休日 card
+// instead of the usual small "休息時間" note inside the following trip's card.
+const REST_DAY_THRESHOLD_MS = 33 * 60 * 60 * 1000
+
+/** Whether any calendar day within [startMs, endMs] is a Sunday. */
+function restGapContainsSunday(startMs: number, endMs: number): boolean {
+  const cursor = new Date(startMs)
+  cursor.setHours(0, 0, 0, 0)
+  const end = new Date(endMs)
+  while (cursor.getTime() <= end.getTime()) {
+    if (cursor.getDay() === 0) return true
+    cursor.setDate(cursor.getDate() + 1)
+  }
+  return false
+}
 
 function formatDateTime(ms: number): { date: string; time: string } {
   const d = new Date(ms)
@@ -81,6 +100,92 @@ const MEMO_FIELDS: {
 
 function hasMemo(trip: TripHistoryEntry) {
   return !!(trip.processMemo || trip.trafficMemo || trip.freeMemo)
+}
+
+/**
+ * Shown in place of a trip's small "休息時間" note whenever the gap to the
+ * previous 帰庫 is 33+ hours. A gap spanning a Sunday is always a plain
+ * 通常休日 (no memo needed); other 33h+ gaps — 平日の点検・車検など — get an
+ * editable memo.
+ */
+function RestDayCard({
+  gapMs,
+  isRegularHoliday,
+  memo,
+  onSaveMemo,
+}: {
+  gapMs: number
+  isRegularHoliday: boolean
+  memo: string
+  onSaveMemo: (memo: string) => Promise<void>
+}) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(memo)
+  const [saving, setSaving] = useState(false)
+
+  function startEditing() {
+    setDraft(memo)
+    setEditing(true)
+  }
+
+  async function save() {
+    setSaving(true)
+    await onSaveMemo(draft)
+    setSaving(false)
+    setEditing(false)
+  }
+
+  return (
+    <li
+      onClick={() => {
+        if (!isRegularHoliday && !editing) startEditing()
+      }}
+      className="flex flex-col gap-2 rounded-2xl border border-dashed border-border bg-background px-5 py-4 select-none"
+    >
+      <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+        <Moon className="h-3.5 w-3.5" aria-hidden="true" />
+        休日（{formatHoursMinutes(gapMs)}）
+      </div>
+      {isRegularHoliday ? (
+        <span className="text-sm font-bold text-foreground">通常休日</span>
+      ) : editing ? (
+        <div
+          className="flex flex-col gap-2"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <input
+            type="text"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="例：点検、車検"
+            autoFocus
+            className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-sm text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-primary/60"
+          />
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              className="rounded-full border border-border px-3.5 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground active:scale-95"
+            >
+              キャンセル
+            </button>
+            <button
+              type="button"
+              onClick={save}
+              disabled={saving}
+              className="rounded-full bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95 disabled:opacity-40"
+            >
+              {saving ? '保存中…' : '保存'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <span className="text-sm text-foreground">
+          {memo || 'タップして理由を入力（点検・車検など）'}
+        </span>
+      )}
+    </li>
+  )
 }
 
 function TripCard({
@@ -474,6 +579,15 @@ export function TripHistoryView() {
     fetchAttendanceOverrides,
     { cacheKey: 'device' },
   )
+  const { data: restDayNotes, mutate: refetchRestDayNotes } =
+    useRealtimeTable<RestDayNote>('trip_rest_day_notes', fetchRestDayNotes, {
+      cacheKey: 'device',
+    })
+  const restDayNoteByTripId = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const note of restDayNotes) map.set(note.tripId, note.memo)
+    return map
+  }, [restDayNotes])
 
   const shiftByDay = useMemo(() => {
     const map = new Map<string, number>()
@@ -497,6 +611,24 @@ export function TripHistoryView() {
       const previous = trips[i + 1]
       if (!previous) return null
       return trip.departedAt - previous.returnedAt
+    })
+  }, [trips])
+
+  // Gaps of 33h+ get their own 休日 card (rendered just above the following
+  // trip) instead of the small "休息時間" note inside that trip's own card.
+  const restDayInfoByIndex = useMemo(() => {
+    return trips.map((trip, i) => {
+      const previous = trips[i + 1]
+      if (!previous) return null
+      const gapMs = trip.departedAt - previous.returnedAt
+      if (gapMs < REST_DAY_THRESHOLD_MS) return null
+      return {
+        gapMs,
+        isRegularHoliday: restGapContainsSunday(
+          previous.returnedAt,
+          trip.departedAt,
+        ),
+      }
     })
   }, [trips])
 
@@ -550,16 +682,31 @@ export function TripHistoryView() {
         </p>
       ) : (
         <ul className="flex flex-col gap-3">
-          {trips.map((trip, i) => (
-            <TripCard
-              key={trip.id}
-              trip={trip}
-              restBeforeMs={restBeforeByIndex[i]}
-              dayShift={dayShiftByIndex[i]}
-              guard={guard}
-              onChanged={mutate}
-            />
-          ))}
+          {trips.map((trip, i) => {
+            const restDayInfo = restDayInfoByIndex[i]
+            return (
+              <Fragment key={trip.id}>
+                {restDayInfo && (
+                  <RestDayCard
+                    gapMs={restDayInfo.gapMs}
+                    isRegularHoliday={restDayInfo.isRegularHoliday}
+                    memo={restDayNoteByTripId.get(trip.id) ?? ''}
+                    onSaveMemo={async (memo) => {
+                      await updateRestDayNote(trip.id, memo)
+                      await refetchRestDayNotes()
+                    }}
+                  />
+                )}
+                <TripCard
+                  trip={trip}
+                  restBeforeMs={restDayInfo ? null : restBeforeByIndex[i]}
+                  dayShift={dayShiftByIndex[i]}
+                  guard={guard}
+                  onChanged={mutate}
+                />
+              </Fragment>
+            )
+          })}
         </ul>
       )}
     </div>

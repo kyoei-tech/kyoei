@@ -135,6 +135,56 @@ export async function updateTripHistoryTimes(
   return { error: error?.message ?? null }
 }
 
+/**
+ * Memos for rest-day gaps in the trip history "全表示" list, keyed by the
+ * trip that follows the gap (see components/trip-history-view.tsx, which
+ * inserts a 休日 card before that trip whenever the gap to the previous
+ * trip's 帰庫 is 33 hours or more). Only used for gaps that don't contain a
+ * Sunday — those are always plain "通常休日" with no memo needed.
+ */
+export type RestDayNote = {
+  /** id of the trip immediately AFTER the rest gap. */
+  tripId: string
+  memo: string
+}
+
+type RestDayNoteRow = {
+  trip_id: string
+  memo: string
+}
+
+export async function fetchRestDayNotes(): Promise<RestDayNote[]> {
+  const deviceId = getDeviceId()
+  if (!deviceId) return []
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('trip_rest_day_notes')
+    .select('trip_id, memo')
+    .eq('device_id', deviceId)
+  if (error || !data) return []
+  return (data as RestDayNoteRow[]).map((row) => ({
+    tripId: row.trip_id,
+    memo: row.memo,
+  }))
+}
+
+/** Upserts the memo for the rest gap that precedes `tripId`. */
+export async function updateRestDayNote(
+  tripId: string,
+  memo: string,
+): Promise<{ error: string | null }> {
+  const deviceId = getDeviceId()
+  if (!deviceId) return { error: 'device id not found' }
+  const supabase = createClient()
+  const { error } = await supabase.from('trip_rest_day_notes').upsert({
+    device_id: deviceId,
+    trip_id: tripId,
+    memo: memo.trim(),
+    updated_at: new Date().toISOString(),
+  })
+  return { error: error?.message ?? null }
+}
+
 /** Updates the 工程 / 渋滞区間 / 自由欄 memo fields for one trip. */
 export async function updateTripHistoryMemo(
   id: string,
