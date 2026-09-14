@@ -14,6 +14,12 @@ export const metadata: Metadata = {
   title: 'KYOEI',
   description: '出庫・帰庫の時刻とシフトタイマーを管理するクロックアプリ',
   generator: 'v0.app',
+  // Stops iOS/Android from auto-linking phone-number-looking text (e.g. in
+  // the 事故報告 memo) into tap-to-call links on its own. Explicit tel:
+  // links from CallButton (lib/phone.ts) are unaffected by this setting.
+  formatDetection: {
+    telephone: false,
+  },
   icons: {
     icon: [
       {
