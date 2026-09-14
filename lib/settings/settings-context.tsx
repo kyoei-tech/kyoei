@@ -50,6 +50,11 @@ type StoredSettings = {
   // conditions and messages are editable from Settings' secret editor page
   // (see push-notification-editor-view.tsx) and stored in Supabase.
   pushNotificationsEnabled: boolean
+  // Links this device to a row in `staff_members` (出勤簿), so tapping 出庫/
+  // 帰庫 on the home tab also flips that staff member's status there. Null
+  // when unset. If the id no longer matches any row, the sync is a no-op —
+  // see lib/staff-member-sync.ts.
+  staffMemberId: string | null
 }
 
 function defaultSettings(): StoredSettings {
@@ -66,6 +71,7 @@ function defaultSettings(): StoredSettings {
     appMode: 'driver',
     partTimeMode: false,
     pushNotificationsEnabled: true,
+    staffMemberId: null,
   }
 }
 
@@ -84,6 +90,7 @@ function loadSettings(): StoredSettings {
       partTimeMode: parsed.partTimeMode ?? base.partTimeMode,
       pushNotificationsEnabled:
         parsed.pushNotificationsEnabled ?? base.pushNotificationsEnabled,
+      staffMemberId: parsed.staffMemberId ?? base.staffMemberId,
     }
   } catch {
     return defaultSettings()
@@ -104,6 +111,8 @@ type SettingsContextValue = {
   setPartTimeMode: (enabled: boolean) => void
   pushNotificationsEnabled: boolean
   setPushNotificationsEnabled: (enabled: boolean) => void
+  staffMemberId: string | null
+  setStaffMemberId: (id: string | null) => void
 }
 
 const SettingsContext = createContext<SettingsContextValue | null>(null)
@@ -178,6 +187,10 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       setSettings((p) => ({ ...p, pushNotificationsEnabled: enabled })),
     [],
   )
+  const setStaffMemberId = useCallback(
+    (id: string | null) => setSettings((p) => ({ ...p, staffMemberId: id })),
+    [],
+  )
   const fontScaleFor = useCallback(
     (tab: FontTabId) => {
       if (settings.deviceFont) return 1
@@ -203,6 +216,8 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       setPartTimeMode,
       pushNotificationsEnabled: settings.pushNotificationsEnabled,
       setPushNotificationsEnabled,
+      staffMemberId: settings.staffMemberId,
+      setStaffMemberId,
     }),
     [
       settings.theme,
@@ -211,6 +226,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       settings.appMode,
       settings.partTimeMode,
       settings.pushNotificationsEnabled,
+      settings.staffMemberId,
       setTheme,
       setFontLevel,
       fontScaleFor,
@@ -218,6 +234,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       setAppMode,
       setPartTimeMode,
       setPushNotificationsEnabled,
+      setStaffMemberId,
     ],
   )
 

@@ -20,6 +20,7 @@ import {
   type TripState,
 } from '@/lib/trip-log'
 import { saveCompletedTrip } from '@/lib/trip-history'
+import { syncStaffMemberStatus } from '@/lib/staff-member-sync'
 import { useSettings } from '@/lib/settings/settings-context'
 import {
   initialNotifyState,
@@ -100,7 +101,7 @@ export function HomeView({
   const [pendingHomeAction, setPendingHomeAction] =
     useState<PendingHomeAction>(null)
   const { data: confirmMessages } = useConfirmActionMessages()
-  const { pushNotificationsEnabled } = useSettings()
+  const { pushNotificationsEnabled, staffMemberId } = useSettings()
   const { data: notificationRules } = usePushNotificationRules()
 
   const toggleFormat = useCallback(() => setHour12((v) => !v), [])
@@ -214,6 +215,7 @@ export function HomeView({
     // screen.
     setScreen('driving')
     void syncDrivingSession(newTrip, now)
+    void syncStaffMemberStatus(staffMemberId, 'working')
   }
 
   function confirmDeparture() {
@@ -246,6 +248,7 @@ export function HomeView({
     // Trip is over — nothing left for the server-side driving-timer job to
     // evaluate against this device.
     void clearDrivingSession()
+    void syncStaffMemberStatus(staffMemberId, 'off')
     setCountdownOffset(isSaturday(new Date()) ? 33 : 9)
     setMode('return')
     setStartedAt(returnedAt)

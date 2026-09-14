@@ -11,6 +11,7 @@ import {
   Smartphone,
   Sun,
   Tag,
+  UserRound,
 } from 'lucide-react'
 import {
   FONT_SCALES,
@@ -28,6 +29,8 @@ import {
   ensurePushSubscription,
   removePushSubscription,
 } from '@/lib/notifications/web-push-subscription'
+import { createClient } from '@/lib/supabase/client'
+import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { usePasswordGate } from './password-prompt'
 import { PushNotificationEditorView } from './push-notification-editor-view'
 import { NotificationAdminMenu } from './notification-admin-menu'
@@ -55,6 +58,19 @@ const SECRET_TAP_WINDOW_MS = 2000
 type SecretScreen = 'menu' | 'push-editor' | 'alert-editor'
 type SubScreen = 'version'
 
+// Lightweight fetch for the 乗務員ID selector below — only the fields the
+// picker needs, distinct from staff-attendance-view.tsx's fuller StaffRow
+// shape (see the cacheKey note in use-realtime-table.ts).
+async function fetchStaffOptions(): Promise<{ id: string; name: string }[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('staff_members')
+    .select('id, name')
+    .order('sort_order', { ascending: true })
+  if (error) throw error
+  return (data as { id: string; name: string }[]) ?? []
+}
+
 export function SettingsView() {
   const {
     theme,
@@ -67,7 +83,13 @@ export function SettingsView() {
     setPartTimeMode,
     pushNotificationsEnabled,
     setPushNotificationsEnabled,
+    staffMemberId,
+    setStaffMemberId,
   } = useSettings()
+  const { data: staffOptions } = useRealtimeTable<{
+    id: string
+    name: string
+  }>('staff_members', fetchStaffOptions, { cacheKey: 'settings-picker' })
   const { guard, prompt } = usePasswordGate(PART_TIME_MODE_PASSCODE)
   const { guard: guardEditor, prompt: editorPrompt } = usePasswordGate(
     PUSH_NOTIFICATION_EDITOR_PASSCODE,
@@ -327,6 +349,46 @@ export function SettingsView() {
               >
                 <Icon className="h-5 w-5" aria-hidden="true" />
                 {label}
+              </button>
+            )
+          })}
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-3 rounded-2xl border border-border bg-card px-5 py-5">
+        <h3 className="text-base font-bold text-foreground">乗務員ID</h3>
+        <p className="text-xs text-muted-foreground">
+          出勤簿の自分の名前を選ぶと、ホームの出庫・帰庫がそのまま出勤簿の状態に反映されます。
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setStaffMemberId(null)}
+            aria-pressed={staffMemberId === null}
+            className={`flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-semibold transition-colors active:scale-95 ${
+              staffMemberId === null
+                ? 'border-primary bg-primary/15 text-primary'
+                : 'border-border bg-background text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            未設定
+          </button>
+          {staffOptions.map((member) => {
+            const active = staffMemberId === member.id
+            return (
+              <button
+                key={member.id}
+                type="button"
+                onClick={() => setStaffMemberId(member.id)}
+                aria-pressed={active}
+                className={`flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-semibold transition-colors active:scale-95 ${
+                  active
+                    ? 'border-primary bg-primary/15 text-primary'
+                    : 'border-border bg-background text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <UserRound className="h-3.5 w-3.5" aria-hidden="true" />
+                {member.name}
               </button>
             )
           })}
