@@ -382,7 +382,7 @@ export function HomeView({
           className={`flex flex-col items-center justify-center gap-2 rounded-3xl border py-4 text-base font-bold leading-tight transition-all active:scale-[0.97] ${
             mode === 'departure'
               ? 'border-secondary/25 bg-secondary/10 text-secondary/70'
-              : 'border-border bg-card text-secondary hover:border-secondary/60'
+              : 'border-secondary bg-secondary text-secondary-foreground shadow-lg shadow-secondary/20'
           }`}
         >
           <LogOut className="h-7 w-7" aria-hidden="true" />
@@ -395,11 +395,14 @@ export function HomeView({
         <button
           type="button"
           onClick={() => setPendingHomeAction('return')}
+          disabled={mode === 'idle'}
           aria-pressed={mode === 'return'}
-          className={`flex flex-col items-center justify-center gap-2 rounded-3xl border py-4 text-base font-bold leading-tight transition-all active:scale-[0.97] ${
+          className={`flex flex-col items-center justify-center gap-2 rounded-3xl border py-4 text-base font-bold leading-tight transition-all active:scale-[0.97] disabled:active:scale-100 ${
             mode === 'return'
               ? 'border-primary/25 bg-primary/10 text-primary/70'
-              : 'border-border bg-card text-primary hover:border-primary/60'
+              : mode === 'departure'
+                ? 'border-primary bg-primary text-primary-foreground shadow-lg shadow-primary/20'
+                : 'border-border bg-muted text-muted-foreground opacity-60'
           }`}
         >
           <LogIn className="h-7 w-7" aria-hidden="true" />
