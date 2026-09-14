@@ -345,9 +345,9 @@ export function StaffAttendanceView() {
     closeYardCommentEdit()
   }
 
-  // Mirrors handleTap for staff: a rapid triple tap toggles attendance
-  // immediately, while a tap sequence that stops at exactly two opens the
-  // comment-only editor after the pause.
+  // Mirrors handleTap for staff: a rapid triple tap opens the comment
+  // editor immediately, while a tap sequence that stops at exactly two
+  // toggles attendance after the pause.
   function handleYardTap(manager: YardManagerRow) {
     if (editMode) {
       openYardEdit(manager)
@@ -358,7 +358,7 @@ export function StaffAttendanceView() {
       const count = (current?.count ?? 0) + 1
       if (current?.timer) clearTimeout(current.timer)
       if (count >= 3) {
-        toggleYardCheckedIn(manager)
+        openYardCommentEdit(manager)
         return { ...prev, [manager.id]: { count: 0, timer: null } }
       }
       const timer = setTimeout(() => {
@@ -366,7 +366,7 @@ export function StaffAttendanceView() {
           ...p,
           [manager.id]: { count: 0, timer: null },
         }))
-        if (count === 2) openYardCommentEdit(manager)
+        if (count === 2) toggleYardCheckedIn(manager)
       }, 500)
       return { ...prev, [manager.id]: { count, timer } }
     })
@@ -396,10 +396,10 @@ export function StaffAttendanceView() {
     closeCommentEdit()
   }
 
-  // Taps are resolved once the input pauses: a rapid triple tap toggles
-  // attendance immediately (so it stays snappy), while a tap sequence that
-  // stops at exactly two opens the comment-only editor after the pause,
-  // since we can't know a 2nd tap is final until no 3rd tap follows.
+  // Taps are resolved once the input pauses: a rapid triple tap opens the
+  // comment editor immediately (so it stays snappy), while a tap sequence
+  // that stops at exactly two toggles attendance after the pause, since we
+  // can't know a 2nd tap is final until no 3rd tap follows.
   function handleTap(member: StaffRow) {
     if (editMode) {
       openEdit(member)
@@ -410,12 +410,12 @@ export function StaffAttendanceView() {
       const count = (current?.count ?? 0) + 1
       if (current?.timer) clearTimeout(current.timer)
       if (count >= 3) {
-        toggleStatus(member)
+        openCommentEdit(member)
         return { ...prev, [member.id]: { count: 0, timer: null } }
       }
       const timer = setTimeout(() => {
         setTapState((p) => ({ ...p, [member.id]: { count: 0, timer: null } }))
-        if (count === 2) openCommentEdit(member)
+        if (count === 2) toggleStatus(member)
       }, 500)
       return { ...prev, [member.id]: { count, timer } }
     })
@@ -515,8 +515,8 @@ export function StaffAttendanceView() {
           <h2 className="text-xl font-bold text-foreground">出勤簿</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             {partTimeMode
-              ? 'ボタンを3回連続でタップすると出勤状況が切り替わります。ヤード管理者は2回タップでコメントを編集できます。'
-              : 'ボタンを3回連続でタップすると出勤状況が切り替わります。2回タップでコメントを編集できます。'}
+              ? 'ボタンを2回連続でタップすると出勤状況が切り替わります。ヤード管理者は3回タップでコメントを編集できます。'
+              : 'ボタンを2回連続でタップすると出勤状況が切り替わります。3回タップでコメントを編集できます。'}
           </p>
         </div>
         {!partTimeMode && (
