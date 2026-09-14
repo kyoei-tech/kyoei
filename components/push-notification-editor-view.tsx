@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ArrowLeft, Loader2, Play, Plus, Trash2, X } from 'lucide-react'
+import { Loader2, Play, Plus, Trash2, X } from 'lucide-react'
 import type { NotificationTimerType } from '@/lib/notifications/driving-notifications'
 import {
   createPushNotificationRule,
@@ -12,6 +12,7 @@ import {
 import { NOTIFICATION_MARKUP_HELP } from '@/lib/notifications/notification-style'
 import { deliverNotification } from '@/lib/notifications/push-notifications'
 import { StyledNotificationText } from './styled-notification-text'
+import { BackHeader } from './back-header'
 
 const BREAK_FIXED_MS = 30 * 60 * 1000
 
@@ -292,14 +293,7 @@ export function PushNotificationEditorView({
 
   return (
     <div className="flex flex-col gap-4 pb-6">
-      <button
-        type="button"
-        onClick={onBack}
-        className="flex w-fit items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground active:scale-95"
-      >
-        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-        設定へ戻る
-      </button>
+      <BackHeader onBack={onBack} label="設定へ戻る" variant="subtle" />
 
       <div>
         <h2 className="text-xl font-bold text-foreground">

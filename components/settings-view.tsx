@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react'
 import {
-  ArrowLeft,
   Bell,
   Briefcase,
   ChevronRight,
@@ -32,6 +31,7 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { usePasswordGate } from './password-prompt'
+import { BackHeader } from './back-header'
 import { PushNotificationEditorView } from './push-notification-editor-view'
 import { NotificationAdminMenu } from './notification-admin-menu'
 import { AlertMessageEditorView } from './alert-message-editor-view'
@@ -187,14 +187,11 @@ export function SettingsView() {
   if (subScreen === 'version') {
     return (
       <div className="flex flex-col gap-4">
-        <button
-          type="button"
-          onClick={() => setSubScreen(null)}
-          className="flex w-fit items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground active:scale-95"
-        >
-          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          設定へ戻る
-        </button>
+        <BackHeader
+          onBack={() => setSubScreen(null)}
+          label="設定へ戻る"
+          variant="subtle"
+        />
         <VersionView />
       </div>
     )

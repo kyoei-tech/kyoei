@@ -7,10 +7,11 @@
 // shared Supabase tables do.
 
 import { useEffect, useRef, useState } from 'react'
-import { ArrowLeft, Camera, Pencil, RotateCcw } from 'lucide-react'
+import { Camera, Pencil, RotateCcw } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { usePasswordGate } from './password-prompt'
+import { BackHeader } from './back-header'
 import { CallButton } from './call-button'
 import { StyledNotificationText } from './styled-notification-text'
 import { ConfirmActionModal } from './confirm-action-modal'
@@ -187,14 +188,7 @@ export function AccidentReportView({ onBack }: { onBack: () => void }) {
 
   return (
     <div className="flex flex-1 flex-col gap-4 pb-6">
-      <button
-        type="button"
-        onClick={onBack}
-        className="flex items-center gap-1.5 self-start rounded-full bg-primary px-4 py-2 text-sm font-bold text-primary-foreground shadow-sm transition-transform active:scale-95"
-      >
-        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-        緊急連絡先
-      </button>
+      <BackHeader onBack={onBack} label="緊急連絡先" />
 
       <div>
         <h2 className="text-xl font-bold text-foreground">

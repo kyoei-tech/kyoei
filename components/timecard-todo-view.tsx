@@ -3,7 +3,6 @@
 import { useMemo, useState } from 'react'
 import Image from 'next/image'
 import {
-  ArrowLeft,
   ChevronDown,
   ClipboardList,
   ImagePlus,
@@ -18,6 +17,7 @@ import { NOTIFICATION_MARKUP_HELP } from '@/lib/notifications/notification-style
 import { StyledNotificationText } from './styled-notification-text'
 import { ConfirmDeleteInline, DeleteIconButton } from './confirm-delete'
 import { usePasswordGate } from './password-prompt'
+import { BackHeader } from './back-header'
 
 type TodoItem = {
   id: string
@@ -151,14 +151,7 @@ export function TodoView({ onBack }: { onBack: () => void }) {
 
   return (
     <div className="flex flex-col gap-4 pb-6">
-      <button
-        type="button"
-        onClick={onBack}
-        className="flex w-fit items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground active:scale-95"
-      >
-        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-        戻る
-      </button>
+      <BackHeader onBack={onBack} variant="subtle" />
 
       <div className="flex items-start justify-between gap-3">
         <div>

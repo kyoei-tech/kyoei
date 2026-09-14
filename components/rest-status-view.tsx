@@ -1,7 +1,7 @@
 'use client'
 
-import { ArrowLeft } from 'lucide-react'
 import { formatClock, formatDuration, type ClockParts } from '@/lib/shift-time'
+import { BackHeader } from './back-header'
 
 const COUNTDOWN_OPTIONS = [3, 9, 33]
 
@@ -33,14 +33,7 @@ export function RestStatusView({
 
   return (
     <div className="flex flex-1 flex-col gap-3">
-      <button
-        type="button"
-        onClick={onBack}
-        className="flex items-center gap-1.5 self-start rounded-full bg-primary px-4 py-2 text-sm font-bold text-primary-foreground shadow-sm transition-transform active:scale-95"
-      >
-        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-        出帰庫
-      </button>
+      <BackHeader onBack={onBack} label="出帰庫" />
 
       <div className="rounded-2xl border border-border bg-card px-5 py-3 text-center">
         <p className="text-sm font-medium text-muted-foreground">

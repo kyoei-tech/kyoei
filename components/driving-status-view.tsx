@@ -4,13 +4,13 @@ import type { ComponentType } from 'react'
 import { useState } from 'react'
 import {
   ArrowDownToLine,
-  ArrowLeft,
   ArrowUpFromLine,
   Boxes,
   CarFront,
   Coffee,
   TriangleAlert,
 } from 'lucide-react'
+import { BackHeader } from './back-header'
 import { formatClock, formatDuration, type ClockParts } from '@/lib/shift-time'
 import {
   FOUR_HOURS_MS,
@@ -138,26 +138,22 @@ export function DrivingStatusView({
 
   return (
     <div className="flex flex-1 flex-col gap-3 pb-2">
-      <div className="flex items-center justify-between gap-2">
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex items-center gap-1.5 self-start rounded-full bg-primary px-4 py-2 text-sm font-bold text-primary-foreground shadow-sm transition-transform active:scale-95"
-        >
-          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          出帰庫
-        </button>
-        {onOpenEmergencyContacts && (
-          <button
-            type="button"
-            onClick={onOpenEmergencyContacts}
-            className="flex shrink-0 items-center gap-1.5 rounded-full border border-destructive/30 bg-destructive/10 px-3 py-1.5 text-xs font-semibold text-destructive transition-colors active:scale-95"
-          >
-            <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
-            事故/トラブルの時は
-          </button>
-        )}
-      </div>
+      <BackHeader
+        onBack={onBack}
+        label="出帰庫"
+        trailing={
+          onOpenEmergencyContacts && (
+            <button
+              type="button"
+              onClick={onOpenEmergencyContacts}
+              className="ml-auto flex shrink-0 items-center gap-1.5 rounded-full border border-destructive/30 bg-destructive/10 px-3 py-1.5 text-xs font-semibold text-destructive transition-colors active:scale-95"
+            >
+              <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
+              事故/トラブルの時は
+            </button>
+          )
+        }
+      />
 
       {/* justify-between spreads the enlarged cards evenly down to the
           bottom action row instead of leaving one large gap in the middle. */}

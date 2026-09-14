@@ -1,11 +1,12 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { ArrowLeft, Check, Pencil, Plus, Search, X } from 'lucide-react'
+import { Check, Pencil, Plus, Search, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { useKanaSearch } from '@/lib/search/use-kana-search'
 import { ConfirmDeleteInline, DeleteIconButton } from './confirm-delete'
+import { BackHeader } from './back-header'
 
 // Shared across every browser via the `yard_destination_titles` /
 // `yard_destination_stores` Supabase tables.
@@ -191,14 +192,7 @@ export function YardDestinationRegistryView({
 
   return (
     <div className="flex flex-1 flex-col gap-4 pb-6">
-      <button
-        type="button"
-        onClick={onBack}
-        className="flex items-center gap-1.5 self-start rounded-full bg-primary px-4 py-2 text-sm font-bold text-primary-foreground shadow-sm transition-transform active:scale-95"
-      >
-        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-        ヤード配置
-      </button>
+      <BackHeader onBack={onBack} label="ヤード配置" />
 
       <h2 className="text-xl font-bold text-foreground">行き先の登録</h2>
 

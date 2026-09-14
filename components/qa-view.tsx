@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from 'react'
 import {
-  ArrowLeft,
   ChevronRight,
   FolderOpen,
   MessageCircleQuestion,
@@ -16,6 +15,7 @@ import { useKanaSearch } from '@/lib/search/use-kana-search'
 import { ConfirmDeleteInline, DeleteIconButton } from './confirm-delete'
 import { useSettings } from '@/lib/settings/settings-context'
 import { useScrollToTop } from '@/lib/use-scroll-to-top'
+import { BackHeader } from './back-header'
 
 const UNSET_CATEGORY = '未分類'
 
@@ -289,14 +289,11 @@ export function QAView() {
       </div>
 
       {level !== 'categories' && (
-        <button
-          type="button"
-          onClick={level === 'detail' ? backToTitles : backToCategories}
-          className="flex w-fit items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground active:scale-95"
-        >
-          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          {level === 'detail' ? activeCategory : 'カテゴリーへ戻る'}
-        </button>
+        <BackHeader
+          onBack={level === 'detail' ? backToTitles : backToCategories}
+          label={level === 'detail' ? activeCategory ?? '戻る' : 'カテゴリーへ戻る'}
+          variant="subtle"
+        />
       )}
 
       {level === 'categories' && (

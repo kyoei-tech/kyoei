@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from 'react'
 import {
-  ArrowLeft,
   Car,
   ChevronRight,
   Pencil,
@@ -13,6 +12,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
+import { BackHeader } from './back-header'
 import { useKanaSearch } from '@/lib/search/use-kana-search'
 import { useSettings } from '@/lib/settings/settings-context'
 import { useScrollToTop } from '@/lib/use-scroll-to-top'
@@ -269,24 +269,21 @@ export function HighValueCarsView() {
   if (view === 'detail' && selectedCar) {
     return (
       <div className="flex flex-col gap-4 pb-6">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={backToModels}
-            aria-label="車種一覧に戻る"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-card transition-colors hover:bg-accent active:scale-90"
-          >
-            <ArrowLeft className="h-4 w-4 text-foreground" aria-hidden="true" />
-          </button>
-          <div className="min-w-0">
-            <p className="truncate text-xs font-medium text-muted-foreground">
-              {selectedCar.maker.trim() || UNSET_MAKER}
-            </p>
-            <h2 className="truncate text-xl font-bold text-foreground">
-              {selectedCar.modelName || '（車種名なし）'}
-            </h2>
-          </div>
-        </div>
+        <BackHeader
+          onBack={backToModels}
+          label="車種一覧に戻る"
+          variant="icon"
+          trailing={
+            <div className="min-w-0">
+              <p className="truncate text-xs font-medium text-muted-foreground">
+                {selectedCar.maker.trim() || UNSET_MAKER}
+              </p>
+              <h2 className="truncate text-xl font-bold text-foreground">
+                {selectedCar.modelName || '（車種名なし）'}
+              </h2>
+            </div>
+          }
+        />
 
         {!partTimeMode && adding ? (
           renderForm()
@@ -389,49 +386,43 @@ export function HighValueCarsView() {
   if (view === 'models' && selectedMaker) {
     return (
       <div className="flex flex-col gap-4 pb-6">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={backToMakers}
-              aria-label="メーカー一覧に戻る"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-card transition-colors hover:bg-accent active:scale-90"
-            >
-              <ArrowLeft
-                className="h-4 w-4 text-foreground"
-                aria-hidden="true"
-              />
-            </button>
-            <div>
-              <p className="text-xs font-medium text-muted-foreground">
-                高額車一覧
-              </p>
-              <h2 className="text-xl font-bold text-foreground">
-                {selectedMaker}
-              </h2>
-            </div>
-          </div>
-          {!partTimeMode && (
-            <button
-              type="button"
-              onClick={() =>
-                adding
-                  ? closeForm()
-                  : startAdd(
-                      selectedMaker === UNSET_MAKER ? '' : selectedMaker,
-                    )
-              }
-              className="flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95"
-            >
-              {adding ? (
-                <X className="h-4 w-4" aria-hidden="true" />
-              ) : (
-                <Plus className="h-4 w-4" aria-hidden="true" />
+        <BackHeader
+          onBack={backToMakers}
+          label="メーカー一覧に戻る"
+          variant="icon"
+          trailing={
+            <>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground">
+                  高額車一覧
+                </p>
+                <h2 className="text-xl font-bold text-foreground">
+                  {selectedMaker}
+                </h2>
+              </div>
+              {!partTimeMode && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    adding
+                      ? closeForm()
+                      : startAdd(
+                          selectedMaker === UNSET_MAKER ? '' : selectedMaker,
+                        )
+                  }
+                  className="flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95"
+                >
+                  {adding ? (
+                    <X className="h-4 w-4" aria-hidden="true" />
+                  ) : (
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                  )}
+                  {adding ? '閉じる' : '追加'}
+                </button>
               )}
-              {adding ? '閉じる' : '追加'}
-            </button>
-          )}
-        </div>
+            </>
+          }
+        />
 
         {!partTimeMode && adding && renderForm()}
 

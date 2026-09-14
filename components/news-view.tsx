@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from 'react'
 import {
-  ArrowLeft,
   ChevronRight,
   History,
   Pencil,
@@ -12,6 +11,7 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { usePasswordGate } from './password-prompt'
+import { BackHeader } from './back-header'
 import { useSettings } from '@/lib/settings/settings-context'
 import { useScrollToTop } from '@/lib/use-scroll-to-top'
 
@@ -144,14 +144,7 @@ export function NewsView() {
   if (view === 'detail' && selected) {
     return (
       <div className="flex flex-col gap-5 pb-6">
-        <button
-          type="button"
-          onClick={() => setView('list')}
-          className="flex items-center gap-1.5 self-start text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          一覧へ戻る
-        </button>
+        <BackHeader onBack={() => setView('list')} label="一覧へ戻る" variant="subtle" />
         <div className="rounded-2xl border border-border bg-card px-5 py-6">
           <div className="mb-4 flex items-center justify-between gap-3">
             <h3 className="text-lg font-bold text-foreground">
@@ -177,24 +170,20 @@ export function NewsView() {
   if (view === 'create') {
     return (
       <div className="flex flex-col gap-5 pb-6">
-        <div className="flex items-center justify-between gap-3">
-          <button
-            type="button"
-            onClick={() => setView('list')}
-            className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-            戻る
-          </button>
-          <button
-            type="button"
-            onClick={() => setView('manage')}
-            className="flex shrink-0 items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <History className="h-3.5 w-3.5" aria-hidden="true" />
-            過去の投稿を編集
-          </button>
-        </div>
+        <BackHeader
+          onBack={() => setView('list')}
+          variant="subtle"
+          trailing={
+            <button
+              type="button"
+              onClick={() => setView('manage')}
+              className="ml-auto flex shrink-0 items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <History className="h-3.5 w-3.5" aria-hidden="true" />
+              過去の投稿を編集
+            </button>
+          }
+        />
 
         <h2 className="text-xl font-bold text-foreground">
           {editingId ? 'おしらせを編集' : '新しいおしらせ'}
@@ -270,14 +259,7 @@ export function NewsView() {
   if (view === 'manage') {
     return (
       <div className="flex flex-col gap-4 pb-6">
-        <button
-          type="button"
-          onClick={() => setView('create')}
-          className="flex items-center gap-1.5 self-start text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          戻る
-        </button>
+        <BackHeader onBack={() => setView('create')} variant="subtle" />
         <h2 className="text-xl font-bold text-foreground">
           過去の投稿を編集
         </h2>

@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from 'react'
 import {
-  ArrowLeft,
   ChevronRight,
   FolderOpen,
   LayoutGrid,
@@ -20,6 +19,7 @@ import { useKanaSearch } from '@/lib/search/use-kana-search'
 import { ConfirmDeleteInline } from './confirm-delete'
 import { useSettings } from '@/lib/settings/settings-context'
 import { useScrollToTop } from '@/lib/use-scroll-to-top'
+import { BackHeader } from './back-header'
 
 const UNSET_CATEGORY = '未分類'
 const NEW_CATEGORY_VALUE = '__new__'
@@ -410,14 +410,7 @@ export function DriverTermsView() {
   if (screen === 'detail' && selectedTerm) {
     return (
       <div className="flex flex-col gap-4 pb-6">
-        <button
-          type="button"
-          onClick={backFromDetail}
-          className="flex w-fit items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground active:scale-95"
-        >
-          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          一覧へ戻る
-        </button>
+        <BackHeader onBack={backFromDetail} label="一覧へ戻る" variant="subtle" />
 
         {!partTimeMode && adding ? (
           renderForm()
@@ -509,43 +502,37 @@ export function DriverTermsView() {
   if (screen === 'terms' && selectedCategory) {
     return (
       <div className="flex flex-col gap-4 pb-6">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={backToTop}
-              aria-label="カテゴリー一覧に戻る"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-card transition-colors hover:bg-accent active:scale-90"
-            >
-              <ArrowLeft
-                className="h-4 w-4 text-foreground"
-                aria-hidden="true"
-              />
-            </button>
-            <div>
-              <p className="text-xs font-medium text-muted-foreground">
-                ドライバー語録
-              </p>
-              <h2 className="text-xl font-bold text-foreground">
-                {selectedCategory}
-              </h2>
-            </div>
-          </div>
-          {!partTimeMode && (
-            <button
-              type="button"
-              onClick={() => (adding ? closeForm() : startAdd())}
-              className="flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95"
-            >
-              {adding ? (
-                <X className="h-4 w-4" aria-hidden="true" />
-              ) : (
-                <Plus className="h-4 w-4" aria-hidden="true" />
+        <BackHeader
+          onBack={backToTop}
+          label="カテゴリー一覧に戻る"
+          variant="icon"
+          trailing={
+            <>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground">
+                  ドライバー語録
+                </p>
+                <h2 className="text-xl font-bold text-foreground">
+                  {selectedCategory}
+                </h2>
+              </div>
+              {!partTimeMode && (
+                <button
+                  type="button"
+                  onClick={() => (adding ? closeForm() : startAdd())}
+                  className="flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95"
+                >
+                  {adding ? (
+                    <X className="h-4 w-4" aria-hidden="true" />
+                  ) : (
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                  )}
+                  {adding ? '閉じる' : '登録'}
+                </button>
               )}
-              {adding ? '閉じる' : '登録'}
-            </button>
-          )}
-        </div>
+            </>
+          }
+        />
 
         {!partTimeMode && adding && renderForm()}
 

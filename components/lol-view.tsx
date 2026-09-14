@@ -3,7 +3,6 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import {
   ChevronRight,
-  ArrowLeft,
   MapPin,
   Search,
   Plus,
@@ -16,6 +15,7 @@ import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { useKanaSearch } from '@/lib/search/use-kana-search'
 import { CallButton } from './call-button'
 import { telHref } from '@/lib/phone'
+import { BackHeader } from './back-header'
 
 type Destination = {
   id: string
@@ -783,29 +783,25 @@ export function LolView({
       : allEntries
     return (
       <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between gap-3">
-          <button
-            type="button"
-            onClick={() => setSelectedId(null)}
-            className="flex w-fit items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground active:scale-95"
-          >
-            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-            一覧へ戻る
-          </button>
-
-          <button
-            type="button"
-            onClick={() => (adding ? closeForm() : startAdd())}
-            className="flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-sm font-semibold text-primary-foreground transition-colors hover:opacity-90 active:scale-95"
-          >
-            {adding ? (
-              <X className="h-4 w-4" aria-hidden="true" />
-            ) : (
-              <Plus className="h-4 w-4" aria-hidden="true" />
-            )}
-            {adding ? '閉じる' : '情報を追加'}
-          </button>
-        </div>
+        <BackHeader
+          onBack={() => setSelectedId(null)}
+          label="一覧へ戻る"
+          variant="subtle"
+          trailing={
+            <button
+              type="button"
+              onClick={() => (adding ? closeForm() : startAdd())}
+              className="ml-auto flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-sm font-semibold text-primary-foreground transition-colors hover:opacity-90 active:scale-95"
+            >
+              {adding ? (
+                <X className="h-4 w-4" aria-hidden="true" />
+              ) : (
+                <Plus className="h-4 w-4" aria-hidden="true" />
+              )}
+              {adding ? '閉じる' : '情報を追加'}
+            </button>
+          }
+        />
 
         <div>
           <span className="text-xs font-semibold tracking-wide text-primary">

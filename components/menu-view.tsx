@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import {
-  ArrowLeft,
   BookMarked,
   BookOpen,
   CalendarCheck,
@@ -17,6 +16,7 @@ import {
   Settings,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { BackHeader } from './back-header'
 import { HighValueCarsView } from './high-value-cars-view'
 import { QAView } from './qa-view'
 import { LolView } from './lol-view'
@@ -151,14 +151,11 @@ export function MenuView({
     const item = MENU_ITEMS.find((m) => m.id === selected)
     return (
       <div className="flex flex-col gap-4">
-        <button
-          type="button"
-          onClick={goBack}
-          className="flex w-fit items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground active:scale-95"
-        >
-          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          {viaAAVenueDetail ? '開催日一覧へ戻る' : 'メニューへ戻る'}
-        </button>
+        <BackHeader
+          onBack={goBack}
+          label={viaAAVenueDetail ? '開催日一覧へ戻る' : 'メニューへ戻る'}
+          variant="subtle"
+        />
         {item?.id === 'lolmap' && <LolMapView />}
         {item?.id === 'lol' && (
           <LolView initialDestinationId={viaAAVenueDetail ? 'aa' : null} />

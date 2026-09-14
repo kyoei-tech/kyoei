@@ -1,10 +1,11 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { ArrowLeft, ChevronRight, Pencil, Plus, X } from 'lucide-react'
+import { ChevronRight, Pencil, Plus, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { ConfirmDeleteInline } from './confirm-delete'
+import { BackHeader } from './back-header'
 import { useSettings } from '@/lib/settings/settings-context'
 import { useScrollToTop } from '@/lib/use-scroll-to-top'
 
@@ -90,17 +91,14 @@ export function BeginnerNotesView() {
   if (selected) {
     return (
       <div className="flex flex-col gap-4 pb-6">
-        <button
-          type="button"
-          onClick={() => {
+        <BackHeader
+          onBack={() => {
             setSelectedId(null)
             setConfirmDeleteId(false)
           }}
-          className="flex w-fit items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground active:scale-95"
-        >
-          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          一覧へ戻る
-        </button>
+          label="一覧へ戻る"
+          variant="subtle"
+        />
         <section className="rounded-2xl border border-border bg-card px-5 py-5">
           <h3 className="text-base font-bold text-foreground">
             {selected.title}
