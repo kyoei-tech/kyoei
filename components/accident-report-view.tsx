@@ -7,7 +7,7 @@
 // shared Supabase tables do.
 
 import { useEffect, useRef, useState } from 'react'
-import { Camera, Pencil, RotateCcw } from 'lucide-react'
+import { Camera, Pencil, RotateCcw, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { usePasswordGate } from './password-prompt'
@@ -90,12 +90,40 @@ function isFormEmpty(form: ReportForm): boolean {
   )
 }
 
-function readFileAsDataUrl(file: File): Promise<string> {
+// A real camera photo can be several MB, and this record is persisted as
+// JSON in localStorage (quota is ~5MB per origin) alongside a second photo.
+// Storing the raw file would blow that quota and make saveForm() throw, so
+// every captured photo is downscaled and re-encoded as JPEG before it's
+// ever turned into a data URL.
+const MAX_PHOTO_DIMENSION = 1600
+const PHOTO_QUALITY = 0.8
+
+function readFileAsCompressedDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result as string)
-    reader.onerror = () => reject(reader.error)
-    reader.readAsDataURL(file)
+    const objectUrl = URL.createObjectURL(file)
+    const img = new Image()
+    img.onload = () => {
+      const scale = Math.min(
+        1,
+        MAX_PHOTO_DIMENSION / Math.max(img.width, img.height),
+      )
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.max(1, Math.round(img.width * scale))
+      canvas.height = Math.max(1, Math.round(img.height * scale))
+      const ctx = canvas.getContext('2d')
+      URL.revokeObjectURL(objectUrl)
+      if (!ctx) {
+        reject(new Error('canvas unsupported'))
+        return
+      }
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      resolve(canvas.toDataURL('image/jpeg', PHOTO_QUALITY))
+    }
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl)
+      reject(new Error('failed to load image'))
+    }
+    img.src = objectUrl
   })
 }
 
@@ -105,6 +133,12 @@ export function AccidentReportView({ onBack }: { onBack: () => void }) {
   const [saved, setSaved] = useState(false)
   const [editingForm, setEditingForm] = useState(false)
   const [confirmReset, setConfirmReset] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [photoError, setPhotoError] = useState<string | null>(null)
+  const [zoomPhoto, setZoomPhoto] = useState<{
+    src: string
+    alt: string
+  } | null>(null)
 
   const { data: memoRows, mutate: refetchMemo } = useRealtimeTable<MemoRow>(
     'accident_report_memo',
@@ -131,10 +165,22 @@ export function AccidentReportView({ onBack }: { onBack: () => void }) {
   }
 
   function saveForm() {
+    setSaveError(null)
+    let failed = false
     setForm((current) => {
-      persist(current)
+      try {
+        persist(current)
+      } catch {
+        failed = true
+      }
       return current
     })
+    if (failed) {
+      setSaveError(
+        '保存に失敗しました。写真のサイズが大きすぎる可能性があります。撮り直してもう一度お試しください。',
+      )
+      return
+    }
     setSaved(true)
     setEditingForm(false)
   }
@@ -183,9 +229,15 @@ export function AccidentReportView({ onBack }: { onBack: () => void }) {
     side: 'licensePhoto' | 'licensePhotoBack',
   ) {
     const file = e.target.files?.[0]
+    e.target.value = ''
     if (!file) return
-    const dataUrl = await readFileAsDataUrl(file)
-    setForm((prev) => ({ ...prev, [side]: dataUrl }))
+    setPhotoError(null)
+    try {
+      const dataUrl = await readFileAsCompressedDataUrl(file)
+      setForm((prev) => ({ ...prev, [side]: dataUrl }))
+    } catch {
+      setPhotoError('写真の読み込みに失敗しました。もう一度撮影してください。')
+    }
   }
 
   if (!hydrated) return null
@@ -279,11 +331,22 @@ export function AccidentReportView({ onBack }: { onBack: () => void }) {
             placeholder="相手の住所"
             className="w-full resize-none rounded-2xl border border-border bg-background px-4 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60 disabled:opacity-70"
           />
+        </label>
+
+        <div className="flex flex-col gap-1">
+          <span className="text-xs font-medium text-muted-foreground">
+            免許証
+          </span>
           <p className="text-xs text-muted-foreground">
             撮影の許可を貰い、免許証を撮影でも可。免許証は
             <span className="font-bold">「表面」と「裏面」の2枚</span>
             を撮影すること
           </p>
+          {photoError && (
+            <p className="text-xs font-semibold text-destructive">
+              {photoError}
+            </p>
+          )}
           <div className="mt-1 flex flex-col gap-3 sm:flex-row">
             <div className="flex flex-1 flex-col gap-1.5">
               <span className="text-xs font-medium text-muted-foreground">
@@ -303,14 +366,26 @@ export function AccidentReportView({ onBack }: { onBack: () => void }) {
                 </label>
               )}
               {form.licensePhoto && (
-                // eslint-disable-next-line @next/next/no-img-element -- a
-                // locally captured data URL, never a remote src, so
-                // next/image adds no value.
-                <img
-                  src={form.licensePhoto}
-                  alt="免許証の表面の撮影画像"
-                  className="max-h-48 w-full rounded-xl border border-border object-contain"
-                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    setZoomPhoto({
+                      src: form.licensePhoto as string,
+                      alt: '免許証の表面の撮影画像',
+                    })
+                  }
+                  className="block w-full active:scale-[0.98]"
+                  aria-label="免許証の表面の写真を拡大表示"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element -- a
+                  locally captured data URL, never a remote src, so
+                  next/image adds no value. */}
+                  <img
+                    src={form.licensePhoto}
+                    alt="免許証の表面の撮影画像"
+                    className="max-h-48 w-full rounded-xl border border-border object-contain"
+                  />
+                </button>
               )}
             </div>
             <div className="flex flex-1 flex-col gap-1.5">
@@ -331,18 +406,30 @@ export function AccidentReportView({ onBack }: { onBack: () => void }) {
                 </label>
               )}
               {form.licensePhotoBack && (
-                // eslint-disable-next-line @next/next/no-img-element -- a
-                // locally captured data URL, never a remote src, so
-                // next/image adds no value.
-                <img
-                  src={form.licensePhotoBack}
-                  alt="免許証の裏面の撮影画像"
-                  className="max-h-48 w-full rounded-xl border border-border object-contain"
-                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    setZoomPhoto({
+                      src: form.licensePhotoBack as string,
+                      alt: '免許証の裏面の撮影画像',
+                    })
+                  }
+                  className="block w-full active:scale-[0.98]"
+                  aria-label="免許証の裏面の写真を拡大表示"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element -- a
+                  locally captured data URL, never a remote src, so
+                  next/image adds no value. */}
+                  <img
+                    src={form.licensePhotoBack}
+                    alt="免許証の裏面の撮影画像"
+                    className="max-h-48 w-full rounded-xl border border-border object-contain"
+                  />
+                </button>
               )}
             </div>
           </div>
-        </label>
+        </div>
 
         <label className="flex flex-col gap-1">
           <span className="text-xs font-medium text-muted-foreground">
@@ -452,6 +539,11 @@ export function AccidentReportView({ onBack }: { onBack: () => void }) {
           </button>
         ) : (
           <div className="flex flex-col gap-2">
+            {saveError && (
+              <p className="text-xs font-semibold text-destructive">
+                {saveError}
+              </p>
+            )}
             <button
               type="button"
               onClick={saveForm}
@@ -494,6 +586,34 @@ export function AccidentReportView({ onBack }: { onBack: () => void }) {
           onConfirm={resetForm}
           onCancel={() => setConfirmReset(false)}
         />
+      )}
+
+      {zoomPhoto && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={zoomPhoto.alt}
+          onClick={() => setZoomPhoto(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
+        >
+          <button
+            type="button"
+            onClick={() => setZoomPhoto(null)}
+            aria-label="拡大表示を閉じる"
+            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20 active:scale-95"
+          >
+            <X className="h-5 w-5" aria-hidden="true" />
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element -- a
+          locally captured data URL, never a remote src, so next/image adds
+          no value. Long-press-to-save is handled natively by the browser. */}
+          <img
+            src={zoomPhoto.src}
+            alt={zoomPhoto.alt}
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-full max-w-full rounded-xl object-contain"
+          />
+        </div>
       )}
     </div>
   )
