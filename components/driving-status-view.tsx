@@ -13,12 +13,13 @@ import {
 import { BackHeader } from './back-header'
 import { formatClock, formatDuration, type ClockParts } from '@/lib/shift-time'
 import {
+  FIFTEEN_HOURS_MS,
   FOUR_HOURS_MS,
-  FOURTEEN_HOURS_MS,
   TEN_MINUTES_MS,
+  THIRTEEN_HOURS_MS,
   THIRTY_MINUTES_MS,
   THREE_HOURS_30_MS,
-  TEN_HOURS_MS,
+  TWELVE_HOURS_MS,
   formatHoursMinutes,
   liveBreakTimerMs,
   liveCategoryMs,
@@ -110,10 +111,14 @@ export function DrivingStatusView({
   const continuousMs = liveContinuousDrivingMs(trip, now)
   const breakTimerMs = liveBreakTimerMs(trip, now)
 
-  const drivingAccent =
-    drivingDurationMs >= FOURTEEN_HOURS_MS
+  // 拘束時間（運行時間）: 12時間超でオレンジ、13時間超で赤文字、15時間超で
+  // 赤背景+視認性の高い文字色に切り替える改善基準告示の目安。
+  const drivingOverFifteen = drivingDurationMs >= FIFTEEN_HOURS_MS
+  const drivingAccent = drivingOverFifteen
+    ? 'text-destructive-foreground'
+    : drivingDurationMs >= THIRTEEN_HOURS_MS
       ? 'text-destructive'
-      : drivingDurationMs >= 10 * 3600 * 1000
+      : drivingDurationMs >= TWELVE_HOURS_MS
         ? 'text-orange-500'
         : 'text-secondary'
 
@@ -180,7 +185,13 @@ export function DrivingStatusView({
             {departureDateLabel}
           </p>
         </div>
-        <div className="rounded-2xl border border-border bg-card px-3 py-3 text-center">
+        <div
+          className={`rounded-2xl border px-3 py-3 text-center transition-colors ${
+            drivingOverFifteen
+              ? 'border-destructive bg-destructive'
+              : 'border-border bg-card'
+          }`}
+        >
           <p className={`text-sm font-bold ${drivingAccent}`}>運行時間</p>
           <p
             className={`font-mono text-2xl font-bold tabular-nums ${drivingAccent}`}
@@ -188,7 +199,11 @@ export function DrivingStatusView({
             {formatDuration(drivingDurationMs)}
           </p>
           {trip.splitRestRemainingMs != null && (
-            <p className="mt-1 text-xs font-bold text-destructive">
+            <p
+              className={`mt-1 text-xs font-bold ${
+                drivingOverFifteen ? 'text-destructive-foreground' : 'text-destructive'
+              }`}
+            >
               分割休息による運行中
             </p>
           )}

@@ -53,7 +53,11 @@ export const THIRTY_MINUTES_MS = 30 * 60 * 1000
 export const THREE_HOURS_30_MS = 3.5 * 3600 * 1000
 export const FOUR_HOURS_MS = 4 * 3600 * 1000
 export const TEN_HOURS_MS = 10 * 3600 * 1000
+export const TWELVE_HOURS_MS = 12 * 3600 * 1000
+export const THIRTEEN_HOURS_MS = 13 * 3600 * 1000
+/** Used for the weekly 拘束14時間超え count, distinct from the 運行時間 timer's color thresholds. */
 export const FOURTEEN_HOURS_MS = 14 * 3600 * 1000
+export const FIFTEEN_HOURS_MS = 15 * 3600 * 1000
 
 /** e.g. 2h15m30s -> "2時間15分" (no seconds, per the driving-status page spec). */
 export function formatHoursMinutes(ms: number): string {
