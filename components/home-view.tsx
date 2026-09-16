@@ -8,7 +8,11 @@ import {
   formatDuration,
   isSaturday,
 } from '@/lib/shift-time'
-import { registerSplitRest, resetSplitRestState } from '@/lib/split-rest'
+import {
+  registerSplitRest,
+  resetSplitRestState,
+  wouldEscalateSplitRest,
+} from '@/lib/split-rest'
 import {
   finalizeTotals,
   formatHoursMinutes,
@@ -56,6 +60,7 @@ type PendingHomeAction =
   | 'departure'
   | 'return'
   | 'split-rest-near-full'
+  | 'split-rest-escalation'
   | 'split-rest'
   | null
 
@@ -215,6 +220,13 @@ export function HomeView({
   // confirmation before the usual 分割休息 warning.
   const isRestNearNineHours =
     isSplitRestEligible && restElapsedMs >= EIGHT_HOURS_MS
+  // Departing now would fail to close out a still-open 2-split (10h)
+  // sequence, forcing an inefficient 3rd split (12h total) — worth a
+  // dedicated warning distinct from the usual 分割休息 confirmation.
+  const isSplitRestEscalating =
+    isSplitRestEligible &&
+    !isRestNearNineHours &&
+    wouldEscalateSplitRest(restElapsedMs)
 
   function startDeparture(now: number, splitRestRemainingMs: number | null) {
     const newTrip = startTrip(now, splitRestRemainingMs)
@@ -399,7 +411,9 @@ export function HomeView({
                 ? 'departure'
                 : isRestNearNineHours
                   ? 'split-rest-near-full'
-                  : 'split-rest',
+                  : isSplitRestEscalating
+                    ? 'split-rest-escalation'
+                    : 'split-rest',
             )
           }
           aria-pressed={mode === 'departure'}
@@ -498,6 +512,33 @@ export function HomeView({
           body={
             <StyledNotificationText
               text={`あと${formatHoursMinutes(NINE_HOURS_MS - restElapsedMs)}で通常の9時間休息が完了します。ここで分割休息として出庫すると、この休息は9時間休息としては扱われません。`}
+              className="block whitespace-pre-line rounded-xl bg-destructive/10 px-3 py-2.5 text-sm font-bold leading-relaxed text-destructive"
+            />
+          }
+        />
+      )}
+      {pendingHomeAction === 'split-rest-escalation' && (
+        <ConfirmActionModal
+          message={getConfirmActionMessage(
+            confirmMessages,
+            'home-split-rest-escalation',
+            '本当に分割休息で出庫しますか？',
+          )}
+          confirmLabel={getConfirmActionConfirmLabel(
+            confirmMessages,
+            'home-split-rest-escalation',
+            '分割休息で出庫する',
+          )}
+          cancelLabel={getConfirmActionCancelLabel(
+            confirmMessages,
+            'home-split-rest-escalation',
+            'キャンセル',
+          )}
+          onConfirm={() => setPendingHomeAction('split-rest')}
+          onCancel={() => setPendingHomeAction(null)}
+          body={
+            <StyledNotificationText
+              text="この休息では2分割（合計10時間以上）を満たせません。このまま出庫すると3分割が必要になり、休息の合計が12時間以上になります。"
               className="block whitespace-pre-line rounded-xl bg-destructive/10 px-3 py-2.5 text-sm font-bold leading-relaxed text-destructive"
             />
           }
