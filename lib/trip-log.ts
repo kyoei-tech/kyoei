@@ -173,9 +173,11 @@ export function tapResumeDriving(trip: TripState, now: number): TripState {
     continuousDrivingMs = 0
     continuousStreakStartedAt = now
     breakTimerMs = 0
-  } else {
-    const newBreakTimerMs = breakTimerMs + elapsed
-    breakTimerMs = newBreakTimerMs < TEN_MINUTES_MS ? 0 : newBreakTimerMs
+  } else if (elapsed >= TEN_MINUTES_MS) {
+    // Only a break segment of 10+ minutes counts toward the 累計休憩時間
+    // (30-minute) total. A shorter segment doesn't count at all, and must
+    // not be added on top of whatever was already legitimately banked.
+    breakTimerMs = breakTimerMs + elapsed
   }
 
   return {

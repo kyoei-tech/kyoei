@@ -11,6 +11,7 @@ import {
 import { registerSplitRest, resetSplitRestState } from '@/lib/split-rest'
 import {
   finalizeTotals,
+  formatHoursMinutes,
   liveContinuousDrivingMs,
   startTrip,
   tapBreakCategory as tapBreakCategoryPure,
@@ -51,9 +52,15 @@ import { RestStatusView } from './rest-status-view'
 
 type Mode = 'idle' | 'departure' | 'return'
 type Screen = 'home' | 'driving' | 'rest'
-type PendingHomeAction = 'departure' | 'return' | 'split-rest' | null
+type PendingHomeAction =
+  | 'departure'
+  | 'return'
+  | 'split-rest-near-full'
+  | 'split-rest'
+  | null
 
 const MS_PER_HOUR = 3600 * 1000
+const EIGHT_HOURS_MS = 8 * MS_PER_HOUR
 const NINE_HOURS_MS = 9 * MS_PER_HOUR
 const STORAGE_KEY = 'kyoei-shift-state'
 
@@ -203,6 +210,11 @@ export function HomeView({
   const restElapsedMs =
     mode === 'return' && startedAt != null ? now.getTime() - startedAt : 0
   const isSplitRestEligible = mode === 'return' && restElapsedMs < NINE_HOURS_MS
+  // Rest is close enough to a full 9-hour rest that taking a shorter split
+  // rest now would forfeit a nearly-complete legal rest — worth a second
+  // confirmation before the usual 分割休息 warning.
+  const isRestNearNineHours =
+    isSplitRestEligible && restElapsedMs >= EIGHT_HOURS_MS
 
   function startDeparture(now: number, splitRestRemainingMs: number | null) {
     const newTrip = startTrip(now, splitRestRemainingMs)
@@ -382,7 +394,13 @@ export function HomeView({
         <button
           type="button"
           onClick={() =>
-            setPendingHomeAction(isSplitRestEligible ? 'split-rest' : 'departure')
+            setPendingHomeAction(
+              !isSplitRestEligible
+                ? 'departure'
+                : isRestNearNineHours
+                  ? 'split-rest-near-full'
+                  : 'split-rest',
+            )
           }
           aria-pressed={mode === 'departure'}
           className={`flex flex-col items-center justify-center gap-2 rounded-3xl border py-4 text-base font-bold leading-tight transition-all active:scale-[0.97] ${
@@ -456,6 +474,33 @@ export function HomeView({
           )}
           onConfirm={confirmReturn}
           onCancel={() => setPendingHomeAction(null)}
+        />
+      )}
+      {pendingHomeAction === 'split-rest-near-full' && (
+        <ConfirmActionModal
+          message={getConfirmActionMessage(
+            confirmMessages,
+            'home-split-rest-near-full',
+            '本当に分割休息で出庫しますか？',
+          )}
+          confirmLabel={getConfirmActionConfirmLabel(
+            confirmMessages,
+            'home-split-rest-near-full',
+            '分割休息で出庫する',
+          )}
+          cancelLabel={getConfirmActionCancelLabel(
+            confirmMessages,
+            'home-split-rest-near-full',
+            'キャンセル',
+          )}
+          onConfirm={() => setPendingHomeAction('split-rest')}
+          onCancel={() => setPendingHomeAction(null)}
+          body={
+            <StyledNotificationText
+              text={`あと${formatHoursMinutes(NINE_HOURS_MS - restElapsedMs)}で通常の9時間休息が完了します。ここで分割休息として出庫すると、この休息は9時間休息としては扱われません。`}
+              className="block whitespace-pre-line rounded-xl bg-destructive/10 px-3 py-2.5 text-sm font-bold leading-relaxed text-destructive"
+            />
+          }
         />
       )}
       {pendingHomeAction === 'split-rest' && (

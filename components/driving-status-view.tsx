@@ -15,6 +15,7 @@ import { formatClock, formatDuration, type ClockParts } from '@/lib/shift-time'
 import {
   FOUR_HOURS_MS,
   FOURTEEN_HOURS_MS,
+  TEN_MINUTES_MS,
   THIRTY_MINUTES_MS,
   THREE_HOURS_30_MS,
   TEN_HOURS_MS,
@@ -27,6 +28,7 @@ import {
   type TripState,
 } from '@/lib/trip-log'
 import { ConfirmActionModal } from './confirm-action-modal'
+import { StyledNotificationText } from './styled-notification-text'
 import {
   getConfirmActionCancelLabel,
   getConfirmActionConfirmLabel,
@@ -339,6 +341,14 @@ export function DrivingStatusView({
             setPendingAction(null)
           }}
           onCancel={() => setPendingAction(null)}
+          body={
+            !trip.breakSatisfied && breakTimerMs < TEN_MINUTES_MS ? (
+              <StyledNotificationText
+                text={`まだ休憩が10分未満です（現在${formatDuration(breakTimerMs)}）。このまま再開すると、この休憩は累計休憩時間にカウントされません。もう少し休憩しますか？`}
+                className="block rounded-xl bg-destructive/10 px-3 py-2.5 text-sm font-bold leading-relaxed text-destructive"
+              />
+            ) : undefined
+          }
         />
       )}
     </div>

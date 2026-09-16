@@ -262,7 +262,7 @@ export function SettingsView() {
                 デバイスに合わせる
               </span>
               <span className="text-xs text-muted-foreground">
-                ONの場合、デバイスの文字サイズ���定に合わせて表示します。
+                ONの場合、デバイスの文字サイズ設定に合わせて表示します。
               </span>
             </span>
           </span>
