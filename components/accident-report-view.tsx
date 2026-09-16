@@ -98,32 +98,47 @@ function isFormEmpty(form: ReportForm): boolean {
 const MAX_PHOTO_DIMENSION = 1600
 const PHOTO_QUALITY = 0.8
 
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = () => reject(reader.error ?? new Error('failed to read file'))
+    reader.readAsDataURL(file)
+  })
+}
+
 function readFileAsCompressedDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
-    const objectUrl = URL.createObjectURL(file)
-    const img = new Image()
-    img.onload = () => {
-      const scale = Math.min(
-        1,
-        MAX_PHOTO_DIMENSION / Math.max(img.width, img.height),
-      )
-      const canvas = document.createElement('canvas')
-      canvas.width = Math.max(1, Math.round(img.width * scale))
-      canvas.height = Math.max(1, Math.round(img.height * scale))
-      const ctx = canvas.getContext('2d')
-      URL.revokeObjectURL(objectUrl)
-      if (!ctx) {
-        reject(new Error('canvas unsupported'))
-        return
+    readFileAsDataUrl(file).then((rawDataUrl) => {
+      const img = new Image()
+      img.onload = () => {
+        const scale = Math.min(
+          1,
+          MAX_PHOTO_DIMENSION / Math.max(img.width, img.height),
+        )
+        const canvas = document.createElement('canvas')
+        canvas.width = Math.max(1, Math.round(img.width * scale))
+        canvas.height = Math.max(1, Math.round(img.height * scale))
+        const ctx = canvas.getContext('2d')
+        if (!ctx) {
+          reject(new Error('canvas unsupported'))
+          return
+        }
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+        try {
+          resolve(canvas.toDataURL('image/jpeg', PHOTO_QUALITY))
+        } catch {
+          // toDataURL can throw on a tainted canvas; fall back to the
+          // original (uncompressed) photo rather than losing it entirely.
+          resolve(rawDataUrl)
+        }
       }
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-      resolve(canvas.toDataURL('image/jpeg', PHOTO_QUALITY))
-    }
-    img.onerror = () => {
-      URL.revokeObjectURL(objectUrl)
-      reject(new Error('failed to load image'))
-    }
-    img.src = objectUrl
+      // Some browsers fail to decode a data URL through the Image element
+      // (e.g. very large HEIC-derived JPEGs). Fall back to the original,
+      // uncompressed photo instead of blocking the report.
+      img.onerror = () => resolve(rawDataUrl)
+      img.src = rawDataUrl
+    }, reject)
   })
 }
 
