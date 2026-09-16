@@ -42,6 +42,7 @@ type ReportForm = {
   name: string
   address: string
   licensePhoto: string | null
+  licensePhotoBack: string | null
   phone: string
   insuranceCompany: string
   policyNumber: string
@@ -54,6 +55,7 @@ function emptyForm(): ReportForm {
     name: '',
     address: '',
     licensePhoto: null,
+    licensePhotoBack: null,
     phone: '',
     insuranceCompany: '',
     policyNumber: '',
@@ -79,6 +81,7 @@ function isFormEmpty(form: ReportForm): boolean {
     !form.name.trim() &&
     !form.address.trim() &&
     !form.licensePhoto &&
+    !form.licensePhotoBack &&
     !form.phone.trim() &&
     !form.insuranceCompany.trim() &&
     !form.policyNumber.trim() &&
@@ -175,11 +178,14 @@ export function AccidentReportView({ onBack }: { onBack: () => void }) {
     }
   }
 
-  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handlePhotoChange(
+    e: React.ChangeEvent<HTMLInputElement>,
+    side: 'licensePhoto' | 'licensePhotoBack',
+  ) {
     const file = e.target.files?.[0]
     if (!file) return
     const dataUrl = await readFileAsDataUrl(file)
-    setForm((prev) => ({ ...prev, licensePhoto: dataUrl }))
+    setForm((prev) => ({ ...prev, [side]: dataUrl }))
   }
 
   if (!hydrated) return null
@@ -274,32 +280,68 @@ export function AccidentReportView({ onBack }: { onBack: () => void }) {
             className="w-full resize-none rounded-2xl border border-border bg-background px-4 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/60 disabled:opacity-70"
           />
           <p className="text-xs text-muted-foreground">
-            撮影の許可を貰い、免許証を撮影でも可。免許証を撮影する場合は
-            <span className="font-bold">「裏面」</span>
-            も忘れずに
+            撮影の許可を貰い、免許証を撮影でも可。免許証は
+            <span className="font-bold">「表面」と「裏面」の2枚</span>
+            を撮影すること
           </p>
-          {!readOnly && (
-            <label className="mt-1 flex w-fit items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-accent active:scale-95">
-              <Camera className="h-3.5 w-3.5" aria-hidden="true" />
-              免許証を撮影する
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={handlePhotoChange}
-                className="hidden"
-              />
-            </label>
-          )}
-          {form.licensePhoto && (
-            // eslint-disable-next-line @next/next/no-img-element -- a locally
-            // captured data URL, never a remote src, so next/image adds no value.
-            <img
-              src={form.licensePhoto}
-              alt="免許証の撮影画像"
-              className="mt-1 max-h-48 w-full rounded-xl border border-border object-contain"
-            />
-          )}
+          <div className="mt-1 flex flex-col gap-3 sm:flex-row">
+            <div className="flex flex-1 flex-col gap-1.5">
+              <span className="text-xs font-medium text-muted-foreground">
+                表面
+              </span>
+              {!readOnly && (
+                <label className="flex w-fit items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-accent active:scale-95">
+                  <Camera className="h-3.5 w-3.5" aria-hidden="true" />
+                  表面を撮影する
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={(e) => handlePhotoChange(e, 'licensePhoto')}
+                    className="hidden"
+                  />
+                </label>
+              )}
+              {form.licensePhoto && (
+                // eslint-disable-next-line @next/next/no-img-element -- a
+                // locally captured data URL, never a remote src, so
+                // next/image adds no value.
+                <img
+                  src={form.licensePhoto}
+                  alt="免許証の表面の撮影画像"
+                  className="max-h-48 w-full rounded-xl border border-border object-contain"
+                />
+              )}
+            </div>
+            <div className="flex flex-1 flex-col gap-1.5">
+              <span className="text-xs font-medium text-muted-foreground">
+                裏面
+              </span>
+              {!readOnly && (
+                <label className="flex w-fit items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-accent active:scale-95">
+                  <Camera className="h-3.5 w-3.5" aria-hidden="true" />
+                  裏面を撮影する
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={(e) => handlePhotoChange(e, 'licensePhotoBack')}
+                    className="hidden"
+                  />
+                </label>
+              )}
+              {form.licensePhotoBack && (
+                // eslint-disable-next-line @next/next/no-img-element -- a
+                // locally captured data URL, never a remote src, so
+                // next/image adds no value.
+                <img
+                  src={form.licensePhotoBack}
+                  alt="免許証の裏面の撮影画像"
+                  className="max-h-48 w-full rounded-xl border border-border object-contain"
+                />
+              )}
+            </div>
+          </div>
         </label>
 
         <label className="flex flex-col gap-1">
