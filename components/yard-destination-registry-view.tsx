@@ -192,9 +192,9 @@ export function YardDestinationRegistryView({
 
   return (
     <div className="flex flex-1 flex-col gap-4 pb-6">
-      <BackHeader onBack={onBack} label="ヤード配置" />
+      <BackHeader onBack={onBack} label="通知の管理へ戻る" variant="subtle" />
 
-      <h2 className="text-xl font-bold text-foreground">行き先の登録</h2>
+      <h2 className="text-xl font-bold text-foreground">検索結果登録</h2>
 
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2">

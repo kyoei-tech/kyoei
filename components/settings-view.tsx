@@ -36,6 +36,7 @@ import { BackHeader } from './back-header'
 import { PushNotificationEditorView } from './push-notification-editor-view'
 import { NotificationAdminMenu } from './notification-admin-menu'
 import { AlertMessageEditorView } from './alert-message-editor-view'
+import { YardDestinationRegistryView } from './yard-destination-registry-view'
 import { VersionView } from './version-view'
 import { useCurrentVersion } from '@/lib/changelog'
 
@@ -56,7 +57,11 @@ const PUSH_NOTIFICATION_EDITOR_PASSCODE = '0525'
 const SECRET_TAP_COUNT = 5
 const SECRET_TAP_WINDOW_MS = 2000
 
-type SecretScreen = 'menu' | 'push-editor' | 'alert-editor'
+type SecretScreen =
+  | 'menu'
+  | 'push-editor'
+  | 'alert-editor'
+  | 'destination-registry'
 type SubScreen = 'version'
 
 // Lightweight fetch for the 乗務員ID selector below — only the fields the
@@ -206,6 +211,9 @@ export function SettingsView() {
           onBack={() => setSecretScreen(null)}
           onOpenPushEditor={() => setSecretScreen('push-editor')}
           onOpenAlertEditor={() => setSecretScreen('alert-editor')}
+          onOpenDestinationRegistry={() =>
+            setSecretScreen('destination-registry')
+          }
         />
         {editorPrompt}
       </>
@@ -225,6 +233,15 @@ export function SettingsView() {
     return (
       <>
         <AlertMessageEditorView onBack={() => setSecretScreen('menu')} />
+        {editorPrompt}
+      </>
+    )
+  }
+
+  if (secretScreen === 'destination-registry') {
+    return (
+      <>
+        <YardDestinationRegistryView onBack={() => setSecretScreen('menu')} />
         {editorPrompt}
       </>
     )

@@ -1,6 +1,6 @@
 'use client'
 
-import { Bell, ChevronRight, ShieldAlert } from 'lucide-react'
+import { Bell, ChevronRight, ClipboardList, ShieldAlert } from 'lucide-react'
 import { BackHeader } from './back-header'
 
 /**
@@ -9,15 +9,20 @@ import { BackHeader } from './back-header'
  * additions have an obvious place to go:
  *   - プッシュ通知の管理 -> push-notification-editor-view.tsx
  *   - アラートの管理     -> alert-message-editor-view.tsx (誤タップ防止 dialogs)
+ *   - 検索結果登録       -> yard-destination-registry-view.tsx (ヤード配置の
+ *                          「中継表の降地を入力して移動先を検索」機能で使う
+ *                          店舗名/タイトルの登録)
  */
 export function NotificationAdminMenu({
   onBack,
   onOpenPushEditor,
   onOpenAlertEditor,
+  onOpenDestinationRegistry,
 }: {
   onBack: () => void
   onOpenPushEditor: () => void
   onOpenAlertEditor: () => void
+  onOpenDestinationRegistry: () => void
 }) {
   const ITEMS = [
     {
@@ -33,6 +38,13 @@ export function NotificationAdminMenu({
       description:
         '誤タップ防止の確認画面に表示される文言を編集します。',
       onClick: onOpenAlertEditor,
+    },
+    {
+      Icon: ClipboardList,
+      label: '検索結果登録',
+      description:
+        'ヤード配置の行き先検索に表示される店舗名・タイトルを編集します。',
+      onClick: onOpenDestinationRegistry,
     },
   ]
 
