@@ -1,63 +1,21 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import type { AuthChangeEvent, Session, User } from '@supabase/supabase-js'
+import { useAuthenticatedStaff } from '@/lib/supabase/use-authenticated-staff'
 import { ChevronRight, IdCard, LogOut } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
-import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { tenureDuration, formatTenure, formatHireDate } from '@/lib/tenure'
 import { AuthForm } from './auth-form'
-
-type StaffOption = {
-  id: string
-  name: string
-  hire_date: string | null
-  auth_user_id: string | null
-}
-
-// Same table, only the fields this page needs — distinct from
-// staff-attendance-view.tsx's fuller StaffRow shape (see the cacheKey note
-// in use-realtime-table.ts).
-async function fetchStaffProfiles(): Promise<StaffOption[]> {
-  const supabase = createClient()
-  const { data, error } = await supabase
-    .from('staff_members')
-    .select('id, name, hire_date, auth_user_id')
-  if (error) throw error
-  return (data as StaffOption[]) ?? []
-}
 
 /**
  * マイページ。メール+パスワードでログインした本人のアカウントに、乗務員
  * 一覧から自分の名前を1回だけ紐づけると、名前・入社年月日・勤続年数が
  * 表示される。紐づけ後は auth_user_id で本人確認するので、2台目以降の端末
- * でログインしても同じ情報が見える。
+ * でログインしても同じ情報が見える。このログイン+紐づけの流れは配車表
+ * （dispatch-sheet-view.tsx）でも使うため、共通ロジックは
+ * use-authenticated-staff.ts に切り出してある。
  */
 export function MyPageView() {
-  const [user, setUser] = useState<User | null | undefined>(undefined)
-  const [linking, setLinking] = useState(false)
-  const [linkError, setLinkError] = useState<string | null>(null)
-
-  const { data: profiles, mutate } = useRealtimeTable<StaffOption>(
-    'staff_members',
-    fetchStaffProfiles,
-    { cacheKey: 'mypage-profile' },
-  )
-
-  useEffect(() => {
-    const supabase = createClient()
-    supabase.auth
-      .getUser()
-      .then(({ data }: { data: { user: User | null } }) =>
-        setUser(data.user ?? null),
-      )
-    const { data: sub } = supabase.auth.onAuthStateChange(
-      (_event: AuthChangeEvent, session: Session | null) => {
-        setUser(session?.user ?? null)
-      },
-    )
-    return () => sub.subscription.unsubscribe()
-  }, [])
+  const { user, me, unlinked, linking, linkError, linkTo, signOut } =
+    useAuthenticatedStaff()
 
   if (user === undefined) {
     return (
@@ -75,31 +33,6 @@ export function MyPageView() {
         <AuthForm onSignedIn={() => {}} />
       </div>
     )
-  }
-
-  const me = profiles.find((p) => p.auth_user_id === user.id) ?? null
-  const unlinked = profiles.filter((p) => p.auth_user_id === null)
-
-  async function linkTo(staffId: string) {
-    setLinking(true)
-    setLinkError(null)
-    const supabase = createClient()
-    const { error } = await supabase
-      .from('staff_members')
-      .update({ auth_user_id: user!.id })
-      .eq('id', staffId)
-      .is('auth_user_id', null)
-    setLinking(false)
-    if (error) {
-      setLinkError('紐づけに失敗しました。もう一度お試しください。')
-      return
-    }
-    await mutate()
-  }
-
-  async function handleSignOut() {
-    const supabase = createClient()
-    await supabase.auth.signOut()
   }
 
   if (!me) {
@@ -147,7 +80,7 @@ export function MyPageView() {
         </div>
         <button
           type="button"
-          onClick={handleSignOut}
+          onClick={signOut}
           className="flex items-center justify-center gap-2 rounded-full border border-border px-4 py-2.5 text-sm font-semibold text-muted-foreground transition-colors hover:bg-accent active:scale-95"
         >
           <LogOut className="h-4 w-4" aria-hidden="true" />
@@ -187,7 +120,7 @@ export function MyPageView() {
       </div>
       <button
         type="button"
-        onClick={handleSignOut}
+        onClick={signOut}
         className="flex items-center justify-center gap-2 rounded-full border border-border px-4 py-2.5 text-sm font-semibold text-muted-foreground transition-colors hover:bg-accent active:scale-95"
       >
         <LogOut className="h-4 w-4" aria-hidden="true" />

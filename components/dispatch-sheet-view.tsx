@@ -4,10 +4,13 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, FileText, Loader2, Upload } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
-import { usePasswordGate } from './password-prompt'
+import { StaffAuthGate } from './staff-auth-gate'
 
-// Shared across every browser via the `dispatch_sheets` table (see the
-// app-wide "共有端末" convention: open RLS, no per-user authorization).
+// Each driver uploads and views only their own dispatch sheets — scoped
+// by `uploaded_by_staff_id` (their linked staff_members.id, see
+// staff-auth-gate.tsx). RLS on this table is still open (app-wide "共有
+// 端末" convention), so the per-driver scoping below is enforced
+// client-side, same trust model as the rest of this app.
 // `pathname` (not a direct blob URL) is stored for every file — the
 // connected Blob store is private, so images are served through
 // /api/dispatch-sheet/file (see fileUrl below).
@@ -24,11 +27,14 @@ function fileUrl(pathname: string): string {
   return `/api/dispatch-sheet/file?pathname=${encodeURIComponent(pathname)}`
 }
 
-async function fetchDispatchSheets(): Promise<DispatchSheetRow[]> {
+async function fetchOwnDispatchSheets(
+  staffId: string,
+): Promise<DispatchSheetRow[]> {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('dispatch_sheets')
     .select('id, blob_url, original_filename, uploaded_at, page_images')
+    .eq('uploaded_by_staff_id', staffId)
     .order('uploaded_at', { ascending: false })
   if (error) throw error
   return (data as DispatchSheetRow[]) ?? []
@@ -146,9 +152,31 @@ async function convertPdfToPageImages(
 }
 
 export function DispatchSheetView() {
+  return (
+    <StaffAuthGate
+      title="配車表"
+      description="ご自身の配車表PDFをアップロードして、スマホで見やすい縦画面で確認できます。"
+    >
+      {(staff) => (
+        <DispatchSheetContent staffId={staff.id} staffName={staff.name} />
+      )}
+    </StaffAuthGate>
+  )
+}
+
+function DispatchSheetContent({
+  staffId,
+  staffName,
+}: {
+  staffId: string
+  staffName: string
+}) {
   const { data: sheets, mutate: refetchSheets } =
-    useRealtimeTable<DispatchSheetRow>('dispatch_sheets', fetchDispatchSheets)
-  const { guard, prompt } = usePasswordGate('2486')
+    useRealtimeTable<DispatchSheetRow>(
+      'dispatch_sheets',
+      () => fetchOwnDispatchSheets(staffId),
+      { cacheKey: `own:${staffId}` },
+    )
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [status, setStatus] = useState<
     | { state: 'idle' }
@@ -184,6 +212,7 @@ export function DispatchSheetView() {
           blob_url: pdfPathname,
           original_filename: file.name,
           page_images: pageImages,
+          uploaded_by_staff_id: staffId,
         })
         if (error) throw error
 
@@ -197,7 +226,7 @@ export function DispatchSheetView() {
         })
       }
     },
-    [refetchSheets],
+    [refetchSheets, staffId],
   )
 
   if (selectedSheet) {
@@ -247,11 +276,9 @@ export function DispatchSheetView() {
       <div>
         <h2 className="text-xl font-bold text-foreground">配車表</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          アップロードされた配車表をスマホで見やすい縦画面で確認できます。
+          {staffName}さんの配車表です。PDFをアップロードすると、スマホで見やすい縦画面で確認できます。
         </p>
       </div>
-
-      {prompt}
 
       <input
         ref={fileInputRef}
@@ -268,7 +295,7 @@ export function DispatchSheetView() {
       <button
         type="button"
         disabled={status.state === 'converting'}
-        onClick={() => guard(() => fileInputRef.current?.click())}
+        onClick={() => fileInputRef.current?.click()}
         className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-card px-4 py-4 text-sm font-semibold text-foreground transition-colors hover:bg-accent active:scale-[0.99] disabled:opacity-60"
       >
         {status.state === 'converting' ? (
@@ -293,7 +320,7 @@ export function DispatchSheetView() {
       <div className="flex flex-col gap-2">
         {sheets.length === 0 ? (
           <p className="py-10 text-center text-sm text-muted-foreground">
-            まだ配車表がアップロードされていません。
+            まだ配車表をアップロードしていません。
           </p>
         ) : (
           sheets.map((sheet) => (
