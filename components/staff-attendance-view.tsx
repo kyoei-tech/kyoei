@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { ConfirmDeleteInline } from './confirm-delete'
 import { useSettings } from '@/lib/settings/settings-context'
+import { tenureDuration, formatTenure } from '@/lib/tenure'
 
 // Shared across every browser via the `staff_members` Supabase table.
 type StaffRow = {
@@ -86,27 +87,6 @@ function splitIsoDate(iso: string | null) {
   if (!iso) return { hireYear: '', hireMonth: '', hireDay: '' }
   const [y, m, d] = iso.split('-')
   return { hireYear: y ?? '', hireMonth: m ?? '', hireDay: d ?? '' }
-}
-
-// Full years and months of service as of today, or null if no hire date is
-// on record.
-function tenureDuration(
-  iso: string | null,
-): { years: number; months: number } | null {
-  if (!iso) return null
-  const hire = new Date(iso)
-  if (Number.isNaN(hire.getTime())) return null
-  const now = new Date()
-  let totalMonths =
-    (now.getFullYear() - hire.getFullYear()) * 12 +
-    (now.getMonth() - hire.getMonth())
-  if (now.getDate() < hire.getDate()) totalMonths -= 1
-  totalMonths = Math.max(totalMonths, 0)
-  return { years: Math.floor(totalMonths / 12), months: totalMonths % 12 }
-}
-
-function formatTenure(duration: { years: number; months: number }): string {
-  return `勤続${duration.years}年${duration.months}ヶ月`
 }
 
 const CURRENT_YEAR = new Date().getFullYear()

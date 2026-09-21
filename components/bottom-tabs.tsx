@@ -16,6 +16,8 @@ const TABS: { id: TabId; label: string; Icon: LucideIcon }[] = [
 // switches between 乗務員モード and タイムカードモード. It has no visible
 // affordance on purpose (office staff who only use timecard mode never need
 // to see it), and does not interfere with normal single taps on the tab.
+// The same convention (5 taps, same window) also gates 試験運転モード via
+// the メニュー tab — see onSecretMenuGesture below.
 const SECRET_TAP_COUNT = 5
 const SECRET_TAP_WINDOW_MS = 2000
 
@@ -23,13 +25,17 @@ export function BottomTabs({
   active,
   onChange,
   onSecretHomeGesture,
+  onSecretMenuGesture,
 }: {
   active: TabId
   onChange: (id: TabId) => void
   onSecretHomeGesture?: () => void
+  onSecretMenuGesture?: () => void
 }) {
   const homeTapCountRef = useRef(0)
   const homeTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const menuTapCountRef = useRef(0)
+  const menuTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   function handleHomeTap() {
     homeTapCountRef.current += 1
@@ -41,6 +47,19 @@ export function BottomTabs({
     }
     homeTapTimerRef.current = setTimeout(() => {
       homeTapCountRef.current = 0
+    }, SECRET_TAP_WINDOW_MS)
+  }
+
+  function handleMenuTap() {
+    menuTapCountRef.current += 1
+    if (menuTapTimerRef.current) clearTimeout(menuTapTimerRef.current)
+    if (menuTapCountRef.current >= SECRET_TAP_COUNT) {
+      menuTapCountRef.current = 0
+      onSecretMenuGesture?.()
+      return
+    }
+    menuTapTimerRef.current = setTimeout(() => {
+      menuTapCountRef.current = 0
     }, SECRET_TAP_WINDOW_MS)
   }
 
@@ -60,6 +79,7 @@ export function BottomTabs({
             type="button"
             onClick={() => {
               if (id === 'home') handleHomeTap()
+              if (id === 'menu') handleMenuTap()
               onChange(id)
             }}
             aria-current={isActive ? 'page' : undefined}
