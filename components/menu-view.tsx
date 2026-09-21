@@ -2,26 +2,19 @@
 
 import { useState } from 'react'
 import {
-  Award,
   BookMarked,
   BookOpen,
   CalendarCheck,
   CalendarDays,
-  CalendarOff,
   Car,
   ChevronRight,
-  ClipboardCheck,
-  ClipboardList,
-  FileText,
   History,
   IdCard,
   MapPin,
   MapPinned,
   MessageCircleQuestion,
-  PackageSearch,
   Phone,
   Settings,
-  Wrench,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { BackHeader } from './back-header'
@@ -37,8 +30,6 @@ import { DriverTermsView } from './driver-terms-view'
 import { TripHistoryView } from './trip-history-view'
 import { SettingsView } from './settings-view'
 import { MyPageView } from './mypage-view'
-import { DispatchSheetView } from './dispatch-sheet-view'
-import { ComingSoonView } from './coming-soon-view'
 import { useScrollToTop } from '@/lib/use-scroll-to-top'
 import { useSettings } from '@/lib/settings/settings-context'
 
@@ -55,17 +46,11 @@ export type MenuItemId =
   | 'emergency'
   | 'settings'
   | 'mypage'
-  | 'dispatch-sheet'
-  | 'inspection'
-  | 'self-eval'
-  | 'award-vote'
-  | 'leave-request'
-  | 'repair-request'
-  | 'packaging-history'
 
 // Shown at the top of the menu only while 試験運転モード is on (see
-// bottom-tabs.tsx's hidden 5-tap gesture + settings-context.tsx). 運行履歴
-// moves up into this group and is hidden from its old spot below.
+// bottom-tabs.tsx's hidden 5-tap gesture + settings-context.tsx). マイページ
+// now hosts 配車表・運行履歴・点検簿など itself (see mypage-view.tsx), so
+// this only ever needs to link to マイページ.
 const TEST_DRIVE_MENU_ITEMS: {
   id: MenuItemId
   label: string
@@ -77,54 +62,6 @@ const TEST_DRIVE_MENU_ITEMS: {
     label: 'マイページ',
     description: '名前・入社年月日・勤続年数を確認できます。',
     Icon: IdCard,
-  },
-  {
-    id: 'dispatch-sheet',
-    label: '配車表',
-    description: '配車表を確認できます。',
-    Icon: FileText,
-  },
-  {
-    id: 'trip-history',
-    label: '運行履歴',
-    description: '過去の出庫・帰庫と休息時間を確認できます。',
-    Icon: History,
-  },
-  {
-    id: 'inspection',
-    label: '点検簿',
-    description: '車両の点検記録を確認できます。',
-    Icon: ClipboardCheck,
-  },
-  {
-    id: 'self-eval',
-    label: '自己評価シート',
-    description: '自己評価を記入・確認できます。',
-    Icon: ClipboardList,
-  },
-  {
-    id: 'award-vote',
-    label: '社長賞投票',
-    description: '社長賞にふさわしい方へ投票できます。',
-    Icon: Award,
-  },
-  {
-    id: 'leave-request',
-    label: '休暇申請',
-    description: '休暇の申請ができます。',
-    Icon: CalendarOff,
-  },
-  {
-    id: 'repair-request',
-    label: '修理申請',
-    description: '車両の修理を申請できます。',
-    Icon: Wrench,
-  },
-  {
-    id: 'packaging-history',
-    label: '荷姿履歴',
-    description: '荷姿の履歴を確認できます。',
-    Icon: PackageSearch,
   },
 ]
 
@@ -269,43 +206,6 @@ export function MenuView({
         {item?.id === 'emergency' && <EmergencyContactsView />}
         {item?.id === 'settings' && <SettingsView />}
         {item?.id === 'mypage' && <MyPageView />}
-          {item?.id === 'dispatch-sheet' && <DispatchSheetView />}
-        {item?.id === 'inspection' && (
-          <ComingSoonView
-            title="点検簿"
-            description="車両の点検記録を確認できます。"
-          />
-        )}
-        {item?.id === 'self-eval' && (
-          <ComingSoonView
-            title="自己評価シート"
-            description="自己評価を記入・確認できます。"
-          />
-        )}
-        {item?.id === 'award-vote' && (
-          <ComingSoonView
-            title="社長賞投票"
-            description="社長賞にふさわしい方へ投票できます。"
-          />
-        )}
-        {item?.id === 'leave-request' && (
-          <ComingSoonView
-            title="休暇申請"
-            description="休暇の申請ができます。"
-          />
-        )}
-        {item?.id === 'repair-request' && (
-          <ComingSoonView
-            title="修理申請"
-            description="車両の修理を申請できます。"
-          />
-        )}
-        {item?.id === 'packaging-history' && (
-          <ComingSoonView
-            title="荷姿履歴"
-            description="荷姿の履歴を確認できます。"
-          />
-        )}
       </div>
     )
   }
