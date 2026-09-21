@@ -1,30 +1,40 @@
 'use client'
 
 import { useCallback, useMemo, useRef, useState } from 'react'
-import { ChevronLeft, FileText, Loader2, Upload } from 'lucide-react'
+import {
+  ChevronLeft,
+  FileText,
+  LayoutGrid,
+  List,
+  Loader2,
+  Phone,
+  Upload,
+} from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
+import {
+  parseDispatchSheetPdf,
+  type ParsedDispatchSheet,
+} from '@/lib/dispatch-sheet-parser'
 
 // Each driver uploads and views only their own dispatch sheets — scoped
 // by `uploaded_by_staff_id` (their linked staff_members.id, resolved by
 // the caller via use-authenticated-staff.ts). RLS on this table is still
 // open (app-wide "共有端末" convention), so the per-driver scoping below
 // is enforced client-side, same trust model as the rest of this app.
-// `pathname` (not a direct blob URL) is stored for every file — the
-// connected Blob store is private, so images are served through
-// /api/dispatch-sheet/file (see fileUrl below).
-type PageImage = { page: number; index: number; pathname: string }
+// The original PDF is kept in the connected (private) Blob store purely
+// for reference/download — all display data comes from `extracted_data`,
+// produced by a rule-based text-position parser (no AI, no page images).
 type DispatchSheetRow = {
   id: string
   blob_url: string
   original_filename: string
   uploaded_at: string
-  page_images: PageImage[] | null
+  dispatch_date: string | null
+  extracted_data: ParsedDispatchSheet | null
 }
 
-function fileUrl(pathname: string): string {
-  return `/api/dispatch-sheet/file?pathname=${encodeURIComponent(pathname)}`
-}
+type ViewMode = 'detail' | 'compact'
 
 async function fetchOwnDispatchSheets(
   staffId: string,
@@ -32,7 +42,9 @@ async function fetchOwnDispatchSheets(
   const supabase = createClient()
   const { data, error } = await supabase
     .from('dispatch_sheets')
-    .select('id, blob_url, original_filename, uploaded_at, page_images')
+    .select(
+      'id, blob_url, original_filename, uploaded_at, dispatch_date, extracted_data',
+    )
     .eq('uploaded_by_staff_id', staffId)
     .order('uploaded_at', { ascending: false })
   if (error) throw error
@@ -40,8 +52,9 @@ async function fetchOwnDispatchSheets(
 }
 
 // Sends the file as the raw request body (filename via header) rather
-// than multipart/form-data — see the upload route for why.
-async function uploadFile(file: File | Blob, filename: string): Promise<string> {
+// than multipart/form-data so the request body can stay the raw PDF
+// bytes, avoiding a multipart parse step for a single-file upload.
+async function uploadFile(file: File, filename: string): Promise<string> {
   const res = await fetch('/api/dispatch-sheet/upload', {
     method: 'POST',
     headers: { 'x-filename': encodeURIComponent(filename) },
@@ -50,15 +63,6 @@ async function uploadFile(file: File | Blob, filename: string): Promise<string> 
   if (!res.ok) throw new Error('upload failed')
   const { pathname } = (await res.json()) as { pathname: string }
   return pathname
-}
-
-// A dispatch sheet page is a wide landscape table. Splitting it into 2-3
-// vertical bands (rather than showing the whole page shrunk to fit) keeps
-// each band's text legible on a phone without pinch-zooming.
-function chooseSliceCount(width: number, height: number): number {
-  const aspect = width / height
-  if (aspect > 2.5) return 3
-  return 2
 }
 
 function formatUploadedAt(iso: string): string {
@@ -71,83 +75,204 @@ function formatUploadedAt(iso: string): string {
   })
 }
 
-// Renders every page of a PDF to canvas via pdfjs-dist, splits each into
-// vertical slices, and uploads each slice as a PNG. Runs entirely
-// client-side; pdfjs-dist is dynamically imported so it never ends up in
-// the server bundle.
-async function convertPdfToPageImages(
-  file: File,
-  onProgress: (done: number, total: number) => void,
-): Promise<PageImage[]> {
-  const pdfjs = await import('pdfjs-dist')
-  pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-    'pdfjs-dist/build/pdf.worker.min.mjs',
-    import.meta.url,
-  ).toString()
+function DetailCard({ vehicle }: { vehicle: ParsedDispatchSheet['rounds'][number]['vehicles'][number] }) {
+  return (
+    <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
+      <h3 className="text-balance text-xl font-bold text-foreground">
+        {vehicle.vehicleName || '車種名不明'}
+      </h3>
 
-  const arrayBuffer = await file.arrayBuffer()
-  const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise
+      <div className="overflow-x-auto rounded-lg border border-border bg-muted px-3 py-2">
+        <p className="whitespace-nowrap font-mono text-sm tracking-tight text-foreground">
+          {vehicle.chassisNumber || '車台番号不明'}
+        </p>
+      </div>
 
-  const images: PageImage[] = []
-  onProgress(0, pdf.numPages)
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+          {vehicle.pickup || '積地不明'}
+        </span>
+        <span className="text-muted-foreground" aria-hidden="true">
+          ➔
+        </span>
+        <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800 dark:bg-green-950 dark:text-green-300">
+          {vehicle.dropoff || '降地不明'}
+        </span>
+      </div>
 
-  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
-    const page = await pdf.getPage(pageNumber)
-    // Target a render width comfortably above phone screen width so text
-    // stays sharp after the vertical split.
-    const targetWidth = 1400
-    const baseViewport = page.getViewport({ scale: 1 })
-    const scale = targetWidth / baseViewport.width
-    const viewport = page.getViewport({ scale })
+      {vehicle.notes && (
+        <div className="rounded-lg border border-yellow-300 bg-yellow-50 px-3 py-2 dark:border-yellow-800 dark:bg-yellow-950">
+          <p className="text-pretty text-sm font-medium text-yellow-900 dark:text-yellow-200">
+            {vehicle.notes}
+          </p>
+        </div>
+      )}
 
-    const canvas = document.createElement('canvas')
-    canvas.width = Math.ceil(viewport.width)
-    canvas.height = Math.ceil(viewport.height)
-    const context = canvas.getContext('2d')
-    if (!context) throw new Error('canvas context unavailable')
-    await page.render({ canvasContext: context, viewport }).promise
+      {vehicle.phone && (
+        <a
+          href={`tel:${vehicle.phone}`}
+          className="flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-colors active:scale-[0.99]"
+        >
+          <Phone className="h-4 w-4" aria-hidden="true" />
+          {vehicle.phone} に電話する
+        </a>
+      )}
+    </div>
+  )
+}
 
-    const sliceCount = chooseSliceCount(canvas.width, canvas.height)
-    const sliceHeight = Math.ceil(canvas.height / sliceCount)
+function CompactRow({ vehicle }: { vehicle: ParsedDispatchSheet['rounds'][number]['vehicles'][number] }) {
+  return (
+    <div className="flex items-start gap-2 border-b border-border px-1 py-1.5 last:border-0">
+      <span className="mt-0.5 shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">
+        第{vehicle.round}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-semibold text-foreground">
+          {vehicle.vehicleName || '車種名不明'}
+        </p>
+        <p className="truncate font-mono text-xs text-muted-foreground">
+          {vehicle.chassisNumber || '車台番号不明'}
+        </p>
+        <p className="truncate text-xs text-muted-foreground">
+          {vehicle.pickup || '？'}
+          <span aria-hidden="true"> ➔ </span>
+          {vehicle.dropoff || '？'}
+        </p>
+      </div>
+    </div>
+  )
+}
 
-    for (let index = 0; index < sliceCount; index++) {
-      const y = index * sliceHeight
-      const height = Math.min(sliceHeight, canvas.height - y)
-      if (height <= 0) continue
+function DispatchSheetDetail({
+  sheet,
+  onBack,
+}: {
+  sheet: DispatchSheetRow
+  onBack: () => void
+}) {
+  const data = sheet.extracted_data
+  const [viewMode, setViewMode] = useState<ViewMode>('detail')
+  const [activeRound, setActiveRound] = useState<string | null>(
+    data?.rounds[0]?.round ?? null,
+  )
 
-      const sliceCanvas = document.createElement('canvas')
-      sliceCanvas.width = canvas.width
-      sliceCanvas.height = height
-      const sliceContext = sliceCanvas.getContext('2d')
-      if (!sliceContext) throw new Error('canvas context unavailable')
-      sliceContext.drawImage(
-        canvas,
-        0,
-        y,
-        canvas.width,
-        height,
-        0,
-        0,
-        canvas.width,
-        height,
-      )
+  const activeVehicles = useMemo(
+    () => data?.rounds.find((r) => r.round === activeRound)?.vehicles ?? [],
+    [data, activeRound],
+  )
 
-      const blob = await new Promise<Blob | null>((resolve) =>
-        sliceCanvas.toBlob(resolve, 'image/png'),
-      )
-      if (!blob) throw new Error('failed to encode slice')
+  return (
+    <div className="flex flex-col gap-4">
+      <button
+        type="button"
+        onClick={onBack}
+        className="flex w-fit items-center gap-1.5 self-start rounded-full border border-border bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground active:scale-95"
+      >
+        <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+        一覧に戻る
+      </button>
 
-      const pathname = await uploadFile(
-        blob,
-        `page-${pageNumber}-slice-${index}.png`,
-      )
-      images.push({ page: pageNumber, index, pathname })
-    }
+      <div className="grid grid-cols-2 gap-2 rounded-xl border border-border bg-card p-3 text-sm">
+        <div>
+          <p className="text-xs text-muted-foreground">配車日</p>
+          <p className="font-semibold text-foreground">
+            {data?.dispatchDate || '—'}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">号車</p>
+          <p className="font-semibold text-foreground">
+            {data?.vehicleNumber || '—'}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">乗務員名</p>
+          <p className="font-semibold text-foreground">
+            {data?.driverName || '—'}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">配車番号</p>
+          <p className="font-semibold text-foreground">
+            {data?.dispatchNumber || '—'}
+          </p>
+        </div>
+      </div>
 
-    onProgress(pageNumber, pdf.numPages)
-  }
+      {!data || data.rounds.length === 0 ? (
+        <p className="py-8 text-center text-sm text-muted-foreground">
+          データを読み取れませんでした。
+        </p>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-1 rounded-full border border-border bg-muted p-1">
+            <button
+              type="button"
+              onClick={() => setViewMode('detail')}
+              className={`flex items-center justify-center gap-1.5 rounded-full py-2 text-sm font-semibold transition-colors ${
+                viewMode === 'detail'
+                  ? 'bg-card text-foreground shadow-sm'
+                  : 'text-muted-foreground'
+              }`}
+            >
+              <LayoutGrid className="h-4 w-4" aria-hidden="true" />
+              1台詳細
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('compact')}
+              className={`flex items-center justify-center gap-1.5 rounded-full py-2 text-sm font-semibold transition-colors ${
+                viewMode === 'compact'
+                  ? 'bg-card text-foreground shadow-sm'
+                  : 'text-muted-foreground'
+              }`}
+            >
+              <List className="h-4 w-4" aria-hidden="true" />
+              8台一覧
+            </button>
+          </div>
 
-  return images
+          <div
+            className="flex gap-2 overflow-x-auto"
+            role="tablist"
+            aria-label="回戦"
+          >
+            {data.rounds.map(({ round, vehicles }) => (
+              <button
+                key={round}
+                type="button"
+                role="tab"
+                aria-selected={activeRound === round}
+                onClick={() => setActiveRound(round)}
+                className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${
+                  activeRound === round
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-muted-foreground'
+                }`}
+              >
+                第{round}回戦（{vehicles.length}台）
+              </button>
+            ))}
+          </div>
+
+          {viewMode === 'detail' ? (
+            <div className="flex flex-col gap-3">
+              {activeVehicles.map((vehicle, index) => (
+                <DetailCard key={index} vehicle={vehicle} />
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-border bg-card px-2">
+              {activeVehicles.map((vehicle, index) => (
+                <CompactRow key={index} vehicle={vehicle} />
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
 }
 
 export function DispatchSheetView({
@@ -166,7 +291,7 @@ export function DispatchSheetView({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [status, setStatus] = useState<
     | { state: 'idle' }
-    | { state: 'converting'; done: number; total: number }
+    | { state: 'processing' }
     | { state: 'error'; message: string }
   >({ state: 'idle' })
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -175,29 +300,24 @@ export function DispatchSheetView({
     () => sheets.find((s) => s.id === selectedId) ?? null,
     [sheets, selectedId],
   )
-  const sortedPageImages = useMemo(() => {
-    if (!selectedSheet?.page_images) return []
-    return [...selectedSheet.page_images].sort(
-      (a, b) => a.page - b.page || a.index - b.index,
-    )
-  }, [selectedSheet])
 
   const handleFileSelected = useCallback(
     async (file: File) => {
-      setStatus({ state: 'converting', done: 0, total: 1 })
+      setStatus({ state: 'processing' })
       try {
-        const pdfPathname = await uploadFile(file, file.name)
-        const pageImages = await convertPdfToPageImages(file, (done, total) =>
-          setStatus({ state: 'converting', done, total }),
-        )
+        const [extractedData, pdfPathname] = await Promise.all([
+          parseDispatchSheetPdf(file),
+          uploadFile(file, file.name),
+        ])
 
         const supabase = createClient()
         // `blob_url` stores a Blob pathname (not a direct URL) since the
-        // connected store is private — see fileUrl() above.
+        // connected store is private — see fileUrl() in the file route.
         const { error } = await supabase.from('dispatch_sheets').insert({
           blob_url: pdfPathname,
           original_filename: file.name,
-          page_images: pageImages,
+          dispatch_date: extractedData.dispatchDate,
+          extracted_data: extractedData,
           uploaded_by_staff_id: staffId,
         })
         if (error) throw error
@@ -205,10 +325,10 @@ export function DispatchSheetView({
         setStatus({ state: 'idle' })
         await refetchSheets()
       } catch (error) {
-        console.error('[v0] dispatch sheet conversion failed:', error)
+        console.error('[v0] dispatch sheet parsing failed:', error)
         setStatus({
           state: 'error',
-          message: '変換に失敗しました。もう一度お試しください。',
+          message: '読み取りに失敗しました。もう一度お試しください。',
         })
       }
     },
@@ -217,43 +337,10 @@ export function DispatchSheetView({
 
   if (selectedSheet) {
     return (
-      <div className="flex flex-col gap-4">
-        <button
-          type="button"
-          onClick={() => setSelectedId(null)}
-          className="flex w-fit items-center gap-1.5 self-start rounded-full border border-border bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground active:scale-95"
-        >
-          <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-          一覧に戻る
-        </button>
-        <div>
-          <h2 className="truncate text-lg font-bold text-foreground">
-            {selectedSheet.original_filename}
-          </h2>
-          <p className="mt-1 text-xs text-muted-foreground">
-            アップロード：{formatUploadedAt(selectedSheet.uploaded_at)}
-          </p>
-        </div>
-        {sortedPageImages.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">
-            画像がありません。
-          </p>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {sortedPageImages.map((img) => (
-              <img
-                key={`${img.page}-${img.index}`}
-                src={fileUrl(img.pathname) || '/placeholder.svg'}
-                alt={`配車表 ${img.page}ページ目 ${img.index + 1}/${
-                  sortedPageImages.filter((p) => p.page === img.page).length
-                }`}
-                className="w-full rounded-xl border border-border"
-                crossOrigin="anonymous"
-              />
-            ))}
-          </div>
-        )}
-      </div>
+      <DispatchSheetDetail
+        sheet={selectedSheet}
+        onBack={() => setSelectedId(null)}
+      />
     )
   }
 
@@ -262,7 +349,7 @@ export function DispatchSheetView({
       <div>
         <h2 className="text-xl font-bold text-foreground">配車表</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          {staffName}さんの配車表です。PDFをアップロードすると、スマホで見やすい縦画面で確認できます。
+          {staffName}さんの配車表です。PDFをアップロードすると、車両ごとのカードに自動で整理されます。
         </p>
       </div>
 
@@ -280,14 +367,14 @@ export function DispatchSheetView({
 
       <button
         type="button"
-        disabled={status.state === 'converting'}
+        disabled={status.state === 'processing'}
         onClick={() => fileInputRef.current?.click()}
         className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-card px-4 py-4 text-sm font-semibold text-foreground transition-colors hover:bg-accent active:scale-[0.99] disabled:opacity-60"
       >
-        {status.state === 'converting' ? (
+        {status.state === 'processing' ? (
           <>
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-            変換中… ({status.done}/{status.total}ページ)
+            読み取り中…
           </>
         ) : (
           <>
@@ -322,9 +409,10 @@ export function DispatchSheetView({
               />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-foreground">
-                  {sheet.original_filename}
+                  {sheet.dispatch_date || sheet.original_filename}
                 </p>
                 <p className="text-xs text-muted-foreground">
+                  {sheet.extracted_data?.vehicleCount ?? 0}台 ・{' '}
                   {formatUploadedAt(sheet.uploaded_at)}
                 </p>
               </div>
