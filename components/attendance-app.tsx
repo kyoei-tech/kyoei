@@ -17,7 +17,7 @@ import { usePasswordGate } from './password-prompt'
 // PIN for the メニュー tab's hidden 5-tap gesture that unlocks 試験運転モード
 // (see bottom-tabs.tsx and lib/settings/settings-context.tsx). Distinct from
 // the other PINs in the app (settings-view.tsx, trip-history-view.tsx).
-const TEST_DRIVE_MODE_PASSCODE = '3141'
+const TEST_DRIVE_MODE_PASSCODE = '0525'
 
 export function AttendanceApp() {
   const [tab, setTab] = useState<TabId>('home')

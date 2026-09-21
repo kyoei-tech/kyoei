@@ -5,14 +5,21 @@ import { Mail, MailCheck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 /**
- * Embedded email + password sign-up / login, used by マイページ (see
- * mypage-view.tsx). Not a routed page — the app has no other navigation
- * beyond its bottom tabs, so this renders inline where マイページ needs it.
- * Errors are genericized per the Supabase skill (no raw signUp /
- * signInWithPassword messages), except for the specific signals users must
- * act on (unconfirmed email, weak password, rate limit).
+ * Embedded email + password sign-up / login, used by マイページ and 配車表
+ * (see mypage-view.tsx, staff-auth-gate.tsx). Not a routed page — the app
+ * has no other navigation beyond its bottom tabs, so this renders inline
+ * wherever a per-driver feature needs it. Errors are genericized per the
+ * Supabase skill (no raw signUp / signInWithPassword messages), except for
+ * the specific signals users must act on (unconfirmed email, weak
+ * password, rate limit).
  */
-export function AuthForm({ onSignedIn }: { onSignedIn: () => void }) {
+export function AuthForm({
+  onSignedIn,
+  description = 'マイページを利用するにはアカウント登録が必要です。',
+}: {
+  onSignedIn: () => void
+  description?: string
+}) {
   const [mode, setMode] = useState<'login' | 'sign-up'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -97,9 +104,7 @@ export function AuthForm({ onSignedIn }: { onSignedIn: () => void }) {
           <p className="text-base font-bold text-foreground">
             {mode === 'login' ? 'ログイン' : '新規登録'}
           </p>
-          <p className="text-xs text-muted-foreground">
-            マイページを利用するにはアカウント登録が必要です。
-          </p>
+          <p className="text-xs text-muted-foreground">{description}</p>
         </div>
       </div>
 
