@@ -19,9 +19,8 @@ export const maxDuration = 60
 // the model use its rendered layout, the same way a human would.
 //
 // The filename travels in a header rather than a multipart/form-data
-// body — see the sibling dispatch-sheet upload route (previously at this
-// path) for why: multipart bodies were observed to intermittently arrive
-// corrupted through this environment's preview network path.
+// body so the request body can stay the raw PDF bytes, avoiding a
+// multipart parse step for a single-file upload.
 export async function POST(request: NextRequest) {
   try {
     const filename = request.headers.get('x-filename')
@@ -37,7 +36,7 @@ export async function POST(request: NextRequest) {
         addRandomSuffix: true,
       }),
       generateText({
-        model: 'google/gemini-3.5-flash',
+        model: 'google/gemini-3.5-flash-lite',
         output: Output.object({ schema: dispatchSheetSchema }),
         messages: [
           {
