@@ -37,6 +37,7 @@ import { DriverTermsView } from './driver-terms-view'
 import { TripHistoryView } from './trip-history-view'
 import { SettingsView } from './settings-view'
 import { MyPageView } from './mypage-view'
+import { DispatchSheetView } from './dispatch-sheet-view'
 import { ComingSoonView } from './coming-soon-view'
 import { useScrollToTop } from '@/lib/use-scroll-to-top'
 import { useSettings } from '@/lib/settings/settings-context'
@@ -268,12 +269,7 @@ export function MenuView({
         {item?.id === 'emergency' && <EmergencyContactsView />}
         {item?.id === 'settings' && <SettingsView />}
         {item?.id === 'mypage' && <MyPageView />}
-        {item?.id === 'dispatch-sheet' && (
-          <ComingSoonView
-            title="配車表"
-            description="配車表をスマホで見やすい形で確認できます。"
-          />
-        )}
+          {item?.id === 'dispatch-sheet' && <DispatchSheetView />}
         {item?.id === 'inspection' && (
           <ComingSoonView
             title="点検簿"
