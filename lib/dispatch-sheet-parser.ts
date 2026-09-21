@@ -126,27 +126,31 @@ function clusterByCoordinate(
   return clusters
 }
 
+// Finds the printed column-header row and returns a label -> item map for
+// it. Header labels that visually sit on the same row can still land on
+// slightly different y values from pdfjs (sub-pixel baseline differences
+// between glyph runs, often under 1pt), so header candidates are grouped
+// with the same y-tolerance clustering used for data rows rather than by
+// exact y equality — exact equality silently splits one header row into
+// several tiny buckets and starves buildColumnRanges of the labels it needs.
 function findHeaderRow(items: TextItem[]): Map<string, TextItem> {
-  const byY = new Map<number, TextItem[]>()
-  for (const item of items) {
-    if (!(HEADER_LABELS as readonly string[]).includes(item.str)) continue
-    const bucket = byY.get(item.y) ?? []
-    bucket.push(item)
-    byY.set(item.y, bucket)
-  }
+  const candidates = items.filter((item) =>
+    (HEADER_LABELS as readonly string[]).includes(item.str),
+  )
+  const clusters = clusterByCoordinate(
+    candidates,
+    (item) => item.y,
+    ROW_CLUSTER_GAP,
+  )
 
-  let bestY: number | null = null
-  let bestCount = 0
-  for (const [y, bucket] of byY) {
-    if (bucket.length > bestCount) {
-      bestCount = bucket.length
-      bestY = y
-    }
+  let best: TextItem[] | null = null
+  for (const cluster of clusters) {
+    if (!best || cluster.length > best.length) best = cluster
   }
 
   const result = new Map<string, TextItem>()
-  if (bestY === null) return result
-  for (const item of byY.get(bestY) ?? []) {
+  if (!best) return result
+  for (const item of best) {
     if (!result.has(item.str)) result.set(item.str, item)
   }
   return result
@@ -267,9 +271,11 @@ function parseVehicleRows(
     const round = joinColumnItems(byColumn.round)
     const vehicleName = joinColumnItems(byColumn.vehicleName)
     const chassisNumber = joinColumnItems(byColumn.chassisNumber)
-    // A row with no round number and no vehicle name isn't a real vehicle
-    // row (e.g. stray items caught between the header and the data area).
-    if (!round && !vehicleName && !chassisNumber) continue
+    // A row identifies an actual vehicle only if it has a name or a chassis
+    // number. Some sheets print a standalone scheduling note between two
+    // vehicle blocks (e.g. "○○海運 9/14予約OK") that still lands inside a
+    // round's row band and gets a round number, but it isn't a vehicle.
+    if (!vehicleName && !chassisNumber) continue
 
     const notes = joinColumnItems(byColumn.notes)
     const phoneMatch = notes.match(PHONE_PATTERN)
@@ -322,11 +328,15 @@ export function parseExtractedPages(pages: TextItem[][]): ParsedDispatchSheet {
 
   for (const items of pages) {
     const header = findHeaderRow(items)
-    const headerRowItem = [...header.values()][0]
-    if (headerRowItem) {
+    const headerValues = [...header.values()]
+    if (headerValues.length > 0) {
       const ranges = buildColumnRanges(header)
       if (ranges) {
-        allVehicles.push(...parseVehicleRows(items, headerRowItem.y, ranges))
+        // Use the lowest y among the matched header items, not just one of
+        // them, so every header item (which can span a fraction of a point
+        // in y — see findHeaderRow) is excluded from the data rows below it.
+        const headerY = Math.min(...headerValues.map((item) => item.y))
+        allVehicles.push(...parseVehicleRows(items, headerY, ranges))
       }
     }
 
