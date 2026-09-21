@@ -1,7 +1,9 @@
 import { createBrowserClient } from '@supabase/ssr'
 
-// Singleton browser client. This app has no authentication - all data is
-// shared across every browser via open (anon-accessible) RLS policies.
+// Singleton browser client. Most data is still shared across every browser
+// via open (anon-accessible) RLS policies — see the Supabase-on-Vercel
+// skill note in mypage-view.tsx / staff_members.auth_user_id for the one
+// feature (マイページ) that layers real authentication on top.
 let client: ReturnType<typeof createBrowserClient> | undefined
 
 export function createClient() {
