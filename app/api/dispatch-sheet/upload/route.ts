@@ -3,9 +3,9 @@ import { type NextRequest, NextResponse } from 'next/server'
 
 export const maxDuration = 60
 
-// Accepts either the original PDF or one rendered page-slice PNG per
-// request (see dispatch-sheet-view.tsx, which renders/splits pages
-// client-side with pdfjs-dist and uploads each slice separately).
+// Stores the original PDF for reference (see dispatch-sheet-view.tsx,
+// which parses it client-side with pdfjs-dist's text layer — no AI, no
+// page images — and uploads the original file here purely as a backup).
 //
 // The filename travels in a header rather than a multipart/form-data
 // body: multipart bodies sent from the browser were observed to
@@ -15,9 +15,10 @@ export const maxDuration = 60
 // multipart parsing entirely.
 //
 // This project's Blob store is provisioned as private, so blob.url is
-// not publicly reachable — we return `pathname` instead, and the client
-// must render images via /api/dispatch-sheet/file?pathname=... (see that
-// route), never blob.url directly.
+// not publicly reachable — we return `pathname` instead. If the original
+// PDF ever needs to be served back, that must go through
+// /api/dispatch-sheet/file?pathname=... (see that route), never blob.url
+// directly.
 export async function POST(request: NextRequest) {
   try {
     const filename = request.headers.get('x-filename')

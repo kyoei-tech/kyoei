@@ -1,0 +1,145 @@
+{
+  "dispatchDate": "09月19日",
+  "vehicleNumber": "2176",
+  "driverName": "小西芳輝",
+  "dispatchNumber": "0000034368",
+  "rounds": [
+    {
+      "round": "1",
+      "vehicles": [
+        {
+          "round": "1",
+          "vehicleName": "BMWﾐﾆｸｰﾊﾟｰ",
+          "chassisNumber": "WMWXU92040TE40418",
+          "pickup": "共栄 本郷ﾔｰﾄﾞ",
+          "dropoff": "USS横浜  9/22開催分(K8104)",
+          "notes": "042-768-8300/水・第2,3火定休",
+          "phone": "042-768-8300"
+        },
+        {
+          "round": "1",
+          "vehicleName": "ｺﾞﾙﾌｳﾞｧﾘｱﾝﾄ",
+          "chassisNumber": "WVWZZZAUZHP550417",
+          "pickup": "共栄 本郷ﾔｰﾄﾞ",
+          "dropoff": "USS横浜  【搬出】(K8104)",
+          "notes": "R129側正面から入場可/046-220-4400",
+          "phone": "046-220-4400"
+        },
+        {
+          "round": "1",
+          "vehicleName": "ｱｳﾃﾞｨ Q3",
+          "chassisNumber": "WAUZZZ8U1JR102829",
+          "pickup": "共栄 本郷ﾔｰﾄﾞ",
+          "dropoff": "USS横浜  9/22開催分(K8104)",
+          "notes": "042-768-8300/水・第2,3火定休",
+          "phone": "042-768-8300"
+        },
+        {
+          "round": "1",
+          "vehicleName": "ﾎﾞﾙﾎﾞXC40",
+          "chassisNumber": "YV1XZL1MCM2559855",
+          "pickup": "共栄 本郷ﾔｰﾄﾞ",
+          "dropoff": "USS横浜  【搬出】(K8104)",
+          "notes": "R129側正面から入場可/046-220-4400",
+          "phone": "046-220-4400"
+        },
+        {
+          "round": "1",
+          "vehicleName": "ｱｳﾃﾞｨ A1SB",
+          "chassisNumber": "WAUZZZGB2MR009855",
+          "pickup": "共栄 本郷ﾔｰﾄﾞ",
+          "dropoff": "USS横浜  9/22開催分(K8104)",
+          "notes": "042-768-8300/水・第2,3火定休",
+          "phone": "042-768-8300"
+        },
+        {
+          "round": "1",
+          "vehicleName": "ｱｳﾃﾞｨ Q2",
+          "chassisNumber": "WAUZZZGA8JA042327",
+          "pickup": "共栄 本郷ﾔｰﾄﾞ",
+          "dropoff": "USS横浜(K8104)",
+          "notes": "R129側正面から入場可/046-220-4400",
+          "phone": "046-220-4400"
+        },
+        {
+          "round": "1",
+          "vehicleName": "ｺﾞﾙﾌ",
+          "chassisNumber": "WVWZZZ1KZAW256440",
+          "pickup": "共栄 本郷ﾔｰﾄﾞ",
+          "dropoff": "USS横浜(K8104)",
+          "notes": "R129側正面から入場可/046-220-4400",
+          "phone": "046-220-4400"
+        }
+      ]
+    },
+    {
+      "round": "2",
+      "vehicles": [
+        {
+          "round": "2",
+          "vehicleName": "ﾎﾞﾙﾎﾞV40",
+          "chassisNumber": "YV1MV29020K2600201",
+          "pickup": "USS  東京 【搬出】(N3801)",
+          "dropoff": "共栄 本郷ﾔｰﾄﾞ",
+          "notes": "VC鎌倉",
+          "phone": null
+        },
+        {
+          "round": "2",
+          "vehicleName": "ﾎﾟﾙ718ﾎﾞｸｽ",
+          "chassisNumber": "982H1-210862",
+          "pickup": "USS東京会場(Y3587)",
+          "dropoff": "共栄 本郷ﾔｰﾄﾞ",
+          "notes": "ｷｽﾞ申告の上引取/TELの上",
+          "phone": null
+        },
+        {
+          "round": "2",
+          "vehicleName": "ｴﾌﾞﾘｨW",
+          "chassisNumber": "DA64W-110690",
+          "pickup": "USS  東京 【搬出】(M432)",
+          "dropoff": "共栄 本郷ﾔｰﾄﾞ",
+          "notes": "ｵｰﾄｻｰﾊﾞｰ落札  ｶｷﾞは裏の洗濯機にｾｯﾄ",
+          "phone": null
+        },
+        {
+          "round": "2",
+          "vehicleName": "ｱﾙﾋﾟﾅ B34D",
+          "chassisNumber": "3E50-50108",
+          "pickup": "USS東京会場(Y0250)",
+          "dropoff": "共栄 本郷ﾔｰﾄﾞ",
+          "notes": "045-945-1331：TELの上/池辺町1820-3/月火休/S",
+          "phone": "045-945-1331"
+        },
+        {
+          "round": "2",
+          "vehicleName": "BMW M6CP",
+          "chassisNumber": "EH50-77159",
+          "pickup": "USS東京会場(Y4382)",
+          "dropoff": "共栄 本郷ﾔｰﾄﾞ",
+          "notes": "045-812-4911：TELの上/上矢部町2194-2/S",
+          "phone": "045-812-4911"
+        },
+        {
+          "round": "2",
+          "vehicleName": "ﾎﾞﾙﾎﾞV40",
+          "chassisNumber": "YV1MVA8RDJ2498131",
+          "pickup": "USS  東京 【搬出】(N3801)",
+          "dropoff": "ﾎﾞﾙﾎﾞ・ｶｰ港南台",
+          "notes": "VC港南台",
+          "phone": null
+        },
+        {
+          "round": "2",
+          "vehicleName": "ｴﾌﾞﾘｨW",
+          "chassisNumber": "DA64W-371581",
+          "pickup": "USS  東京 【搬出】(Y1325)",
+          "dropoff": "K'sｵｰﾄ伊勢原店",
+          "notes": "0463-73-8817  夜間納車時  カギは裏のポストへ",
+          "phone": "0463-73-8817"
+        }
+      ]
+    }
+  ],
+  "vehicleCount": 14
+}
