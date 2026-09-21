@@ -11,6 +11,7 @@ import {
   Smartphone,
   Sun,
   Tag,
+  TestTube,
   UserRound,
 } from 'lucide-react'
 import {
@@ -91,6 +92,8 @@ export function SettingsView() {
     setPushNotificationsEnabled,
     staffMemberId,
     setStaffMemberId,
+    testDriveMode,
+    setTestDriveMode,
   } = useSettings()
   const { data: staffOptions } = useRealtimeTable<{
     id: string
@@ -482,6 +485,30 @@ export function SettingsView() {
           </span>
         </button>
       </section>
+
+      {testDriveMode && (
+        <section className="flex flex-col gap-3 rounded-2xl border border-border bg-card px-5 py-5">
+          <h3 className="text-base font-bold text-foreground">試験運転モード</h3>
+          <p className="text-xs text-muted-foreground">
+            メニュー上部に試験運転メニュー（マイページ・配車表など）を表示しています。不要になったらここから終了できます。
+          </p>
+          <button
+            type="button"
+            onClick={() => setTestDriveMode(false)}
+            className="flex items-center justify-between gap-3 rounded-2xl border border-primary bg-primary/15 px-4 py-3 text-left transition-colors active:scale-[0.99]"
+          >
+            <span className="flex items-center gap-2.5">
+              <TestTube className="h-5 w-5 text-primary" aria-hidden="true" />
+              <span className="text-sm font-semibold text-foreground">
+                試験運転モードを終了
+              </span>
+            </span>
+            <span className="relative h-6 w-11 shrink-0 rounded-full bg-primary">
+              <span className="absolute top-0.5 h-5 w-5 translate-x-5 rounded-full bg-card transition-transform" />
+            </span>
+          </button>
+        </section>
+      )}
 
       <section className="flex flex-col gap-3 rounded-2xl border border-border bg-card px-5 py-5">
         <h3 className="text-base font-bold text-foreground">プッシュ通知</h3>

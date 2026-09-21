@@ -12,6 +12,12 @@ import { YardLayoutView } from './yard-layout-view'
 import { StaffAttendanceView } from './staff-attendance-view'
 import { NewsNotifier } from './news-notifier'
 import { PendingNotificationModal } from './pending-notification-modal'
+import { usePasswordGate } from './password-prompt'
+
+// PIN for the メニュー tab's hidden 5-tap gesture that unlocks 試験運転モード
+// (see bottom-tabs.tsx and lib/settings/settings-context.tsx). Distinct from
+// the other PINs in the app (settings-view.tsx, trip-history-view.tsx).
+const TEST_DRIVE_MODE_PASSCODE = '3141'
 
 export function AttendanceApp() {
   const [tab, setTab] = useState<TabId>('home')
@@ -27,7 +33,11 @@ export function AttendanceApp() {
   // Bumped every time the home tab is tapped (even while already on it), so
   // HomeView can jump back to its top-level screen out of 運行状況/休息状況.
   const [homeSignal, setHomeSignal] = useState(0)
-  const { fontScaleFor, appMode, setAppMode, partTimeMode } = useSettings()
+  const { fontScaleFor, appMode, setAppMode, partTimeMode, setTestDriveMode } =
+    useSettings()
+  const { guard: guardTestDrive, prompt: testDrivePrompt } = usePasswordGate(
+    TEST_DRIVE_MODE_PASSCODE,
+  )
   useScrollToTop([tab])
 
   // Font size is configured per bottom tab in Settings (メニュー > 設定).
@@ -100,7 +110,9 @@ export function AttendanceApp() {
           if (partTimeMode) return
           setAppMode(appMode === 'driver' ? 'timecard' : 'driver')
         }}
+        onSecretMenuGesture={() => guardTestDrive(() => setTestDriveMode(true))}
       />
+      {testDrivePrompt}
     </div>
   )
 }

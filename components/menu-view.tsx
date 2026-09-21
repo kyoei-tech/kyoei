@@ -2,18 +2,26 @@
 
 import { useState } from 'react'
 import {
+  Award,
   BookMarked,
   BookOpen,
   CalendarCheck,
   CalendarDays,
+  CalendarOff,
   Car,
   ChevronRight,
+  ClipboardCheck,
+  ClipboardList,
+  FileText,
   History,
+  IdCard,
   MapPin,
   MapPinned,
   MessageCircleQuestion,
+  PackageSearch,
   Phone,
   Settings,
+  Wrench,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { BackHeader } from './back-header'
@@ -28,6 +36,9 @@ import { AccidentCalendarView } from './accident-calendar-view'
 import { DriverTermsView } from './driver-terms-view'
 import { TripHistoryView } from './trip-history-view'
 import { SettingsView } from './settings-view'
+import { MyPageView } from './mypage-view'
+import { DispatchSheetView } from './dispatch-sheet-view'
+import { ComingSoonView } from './coming-soon-view'
 import { useScrollToTop } from '@/lib/use-scroll-to-top'
 import { useSettings } from '@/lib/settings/settings-context'
 
@@ -43,6 +54,79 @@ export type MenuItemId =
   | 'trip-history'
   | 'emergency'
   | 'settings'
+  | 'mypage'
+  | 'dispatch-sheet'
+  | 'inspection'
+  | 'self-eval'
+  | 'award-vote'
+  | 'leave-request'
+  | 'repair-request'
+  | 'packaging-history'
+
+// Shown at the top of the menu only while 試験運転モード is on (see
+// bottom-tabs.tsx's hidden 5-tap gesture + settings-context.tsx). 運行履歴
+// moves up into this group and is hidden from its old spot below.
+const TEST_DRIVE_MENU_ITEMS: {
+  id: MenuItemId
+  label: string
+  description: string
+  Icon: LucideIcon
+}[] = [
+  {
+    id: 'mypage',
+    label: 'マイページ',
+    description: '名前・入社年月日・勤続年数を確認できます。',
+    Icon: IdCard,
+  },
+  {
+    id: 'dispatch-sheet',
+    label: '配車表',
+    description: '配車表を確認できます。',
+    Icon: FileText,
+  },
+  {
+    id: 'trip-history',
+    label: '運行履歴',
+    description: '過去の出庫・帰庫と休息時間を確認できます。',
+    Icon: History,
+  },
+  {
+    id: 'inspection',
+    label: '点検簿',
+    description: '車両の点検記録を確認できます。',
+    Icon: ClipboardCheck,
+  },
+  {
+    id: 'self-eval',
+    label: '自己評価シート',
+    description: '自己評価を記入・確認できます。',
+    Icon: ClipboardList,
+  },
+  {
+    id: 'award-vote',
+    label: '社長賞投票',
+    description: '社長賞にふさわしい方へ投票できます。',
+    Icon: Award,
+  },
+  {
+    id: 'leave-request',
+    label: '休暇申請',
+    description: '休暇の申請ができます。',
+    Icon: CalendarOff,
+  },
+  {
+    id: 'repair-request',
+    label: '修理申請',
+    description: '車両の修理を申請できます。',
+    Icon: Wrench,
+  },
+  {
+    id: 'packaging-history',
+    label: '荷姿履歴',
+    description: '荷姿の履歴を確認できます。',
+    Icon: PackageSearch,
+  },
+]
 
 const MENU_ITEMS: {
   id: MenuItemId
@@ -129,14 +213,22 @@ export function MenuView({
   // than a normal tap on the List of Location menu item — changes the back
   // button's label/destination to return to the AA page instead of the menu.
   const [viaAAVenueDetail, setViaAAVenueDetail] = useState(false)
-  const { partTimeMode } = useSettings()
+  const { partTimeMode, testDriveMode } = useSettings()
   useScrollToTop([selected])
 
   // LoL (delivery destination info) is hidden for part-time staff, who only
-  // need the day-to-day reference pages below.
-  const visibleItems = partTimeMode
-    ? MENU_ITEMS.filter((m) => m.id !== 'lol')
-    : MENU_ITEMS
+  // need the day-to-day reference pages below. 運行履歴 moves up into the
+  // 試験運転モード group above, so it's dropped from this list while that's
+  // active to avoid showing it twice.
+  const visibleItems = MENU_ITEMS.filter((m) => {
+    if (partTimeMode && m.id === 'lol') return false
+    if (testDriveMode && m.id === 'trip-history') return false
+    return true
+  })
+
+  const allItems = testDriveMode
+    ? [...TEST_DRIVE_MENU_ITEMS, ...visibleItems]
+    : visibleItems
 
   function goBack() {
     if (viaAAVenueDetail) {
@@ -148,7 +240,7 @@ export function MenuView({
   }
 
   if (selected) {
-    const item = MENU_ITEMS.find((m) => m.id === selected)
+    const item = allItems.find((m) => m.id === selected)
     return (
       <div className="flex flex-col gap-4">
         <BackHeader
@@ -176,6 +268,44 @@ export function MenuView({
         {item?.id === 'trip-history' && <TripHistoryView />}
         {item?.id === 'emergency' && <EmergencyContactsView />}
         {item?.id === 'settings' && <SettingsView />}
+        {item?.id === 'mypage' && <MyPageView />}
+          {item?.id === 'dispatch-sheet' && <DispatchSheetView />}
+        {item?.id === 'inspection' && (
+          <ComingSoonView
+            title="点検簿"
+            description="車両の点検記録を確認できます。"
+          />
+        )}
+        {item?.id === 'self-eval' && (
+          <ComingSoonView
+            title="自己評価シート"
+            description="自己評価を記入・確認できます。"
+          />
+        )}
+        {item?.id === 'award-vote' && (
+          <ComingSoonView
+            title="社長賞投票"
+            description="社長賞にふさわしい方へ投票できます。"
+          />
+        )}
+        {item?.id === 'leave-request' && (
+          <ComingSoonView
+            title="休暇申請"
+            description="休暇の申請ができます。"
+          />
+        )}
+        {item?.id === 'repair-request' && (
+          <ComingSoonView
+            title="修理申請"
+            description="車両の修理を申請できます。"
+          />
+        )}
+        {item?.id === 'packaging-history' && (
+          <ComingSoonView
+            title="荷姿履歴"
+            description="荷姿の履歴を確認できます。"
+          />
+        )}
       </div>
     )
   }
@@ -188,6 +318,43 @@ export function MenuView({
           その他の項目はこちらから確認できます。
         </p>
       </div>
+
+      {testDriveMode && (
+        <div className="flex flex-col gap-2">
+          <p className="px-1 text-xs font-semibold text-primary">
+            試験運転モード
+          </p>
+          <ul className="flex flex-col gap-2.5">
+            {TEST_DRIVE_MENU_ITEMS.map(({ id, label, description, Icon }) => (
+              <li key={id}>
+                <button
+                  type="button"
+                  onClick={() => setSelected(id)}
+                  className="flex w-full items-center justify-between gap-3 rounded-2xl border border-primary/40 bg-primary/5 px-5 py-4 text-left transition-colors hover:border-primary/60 hover:bg-accent active:scale-[0.99]"
+                >
+                  <span className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                      <Icon className="h-5 w-5" aria-hidden="true" />
+                    </span>
+                    <span className="flex flex-col">
+                      <span className="text-base font-semibold text-foreground">
+                        {label}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {description}
+                      </span>
+                    </span>
+                  </span>
+                  <ChevronRight
+                    className="h-5 w-5 text-muted-foreground"
+                    aria-hidden="true"
+                  />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <ul className="flex flex-col gap-2.5">
         {visibleItems.map(({ id, label, description, Icon }) => (

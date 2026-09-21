@@ -55,6 +55,11 @@ type StoredSettings = {
   // when unset. If the id no longer matches any row, the sync is a no-op —
   // see lib/staff-member-sync.ts.
   staffMemberId: string | null
+  // When true, unlocks the trial/preview menu section (マイページ, 配車表,
+  // 運行履歴, 点検簿 etc.) at the top of メニュー. Entered via a hidden 5-tap
+  // + PIN gesture on the メニュー tab (see bottom-tabs.tsx); can be turned
+  // back off from 設定 without a PIN.
+  testDriveMode: boolean
 }
 
 function defaultSettings(): StoredSettings {
@@ -72,6 +77,7 @@ function defaultSettings(): StoredSettings {
     partTimeMode: false,
     pushNotificationsEnabled: true,
     staffMemberId: null,
+    testDriveMode: false,
   }
 }
 
@@ -91,6 +97,7 @@ function loadSettings(): StoredSettings {
       pushNotificationsEnabled:
         parsed.pushNotificationsEnabled ?? base.pushNotificationsEnabled,
       staffMemberId: parsed.staffMemberId ?? base.staffMemberId,
+      testDriveMode: parsed.testDriveMode ?? base.testDriveMode,
     }
   } catch {
     return defaultSettings()
@@ -113,6 +120,8 @@ type SettingsContextValue = {
   setPushNotificationsEnabled: (enabled: boolean) => void
   staffMemberId: string | null
   setStaffMemberId: (id: string | null) => void
+  testDriveMode: boolean
+  setTestDriveMode: (enabled: boolean) => void
 }
 
 const SettingsContext = createContext<SettingsContextValue | null>(null)
@@ -191,6 +200,10 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     (id: string | null) => setSettings((p) => ({ ...p, staffMemberId: id })),
     [],
   )
+  const setTestDriveMode = useCallback(
+    (enabled: boolean) => setSettings((p) => ({ ...p, testDriveMode: enabled })),
+    [],
+  )
   const fontScaleFor = useCallback(
     (tab: FontTabId) => {
       if (settings.deviceFont) return 1
@@ -218,6 +231,8 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       setPushNotificationsEnabled,
       staffMemberId: settings.staffMemberId,
       setStaffMemberId,
+      testDriveMode: settings.testDriveMode,
+      setTestDriveMode,
     }),
     [
       settings.theme,
@@ -227,6 +242,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       settings.partTimeMode,
       settings.pushNotificationsEnabled,
       settings.staffMemberId,
+      settings.testDriveMode,
       setTheme,
       setFontLevel,
       fontScaleFor,
@@ -235,6 +251,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       setPartTimeMode,
       setPushNotificationsEnabled,
       setStaffMemberId,
+      setTestDriveMode,
     ],
   )
 
