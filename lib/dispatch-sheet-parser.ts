@@ -185,6 +185,14 @@ type ColumnRanges = {
   round: [number, number]
   pickup: [number, number]
   dropoff: [number, number]
+  // The printed ｵｰｸｼｮﾝ (auction lot number) column, between dropoff and
+  // 品名 (vehicle name). Usually holds a lot number that's discarded, but
+  // when a vehicle has no auction lot (e.g. a direct/private transfer),
+  // the sheet instead prints "<plate> <model name>" as a single wide text
+  // run starting from this column's x position, overflowing left of where
+  // 品名 data normally starts — see the auction/vehicleName fallback in
+  // parseVehicleRows.
+  auction: [number, number]
   vehicleName: [number, number]
   chassisNumber: [number, number]
   notes: [number, number]
@@ -225,6 +233,7 @@ function buildColumnRanges(header: Map<string, TextItem>): ColumnRanges | null {
     // part of pickup.
     pickup: [pickup.x - 25, dropoff.x - 20],
     dropoff: [dropoff.x - 20, auction.x - 15],
+    auction: [auction.x - 15, vehicleName.x - 25],
     vehicleName: [vehicleName.x - 25, chassisNumber.x - 8],
     chassisNumber: [chassisNumber.x - 8, pickupDate.x - 5],
     notes: [510, shipOrigin.x - 10],
@@ -253,6 +262,7 @@ function parseVehicleRows(
       round: [] as TextItem[],
       pickup: [] as TextItem[],
       dropoff: [] as TextItem[],
+      auction: [] as TextItem[],
       vehicleName: [] as TextItem[],
       chassisNumber: [] as TextItem[],
       notes: [] as TextItem[],
@@ -261,6 +271,7 @@ function parseVehicleRows(
       if (inRange(item.x, ranges.round)) byColumn.round.push(item)
       else if (inRange(item.x, ranges.pickup)) byColumn.pickup.push(item)
       else if (inRange(item.x, ranges.dropoff)) byColumn.dropoff.push(item)
+      else if (inRange(item.x, ranges.auction)) byColumn.auction.push(item)
       else if (inRange(item.x, ranges.vehicleName))
         byColumn.vehicleName.push(item)
       else if (inRange(item.x, ranges.chassisNumber))
@@ -269,7 +280,14 @@ function parseVehicleRows(
     }
 
     const round = joinColumnItems(byColumn.round)
-    const vehicleName = joinColumnItems(byColumn.vehicleName)
+    // Normally the auction column holds a lot number that's unused here,
+    // and 品名 alone is the vehicle name. But when there's no lot number,
+    // the plate+model run described above lands entirely in the auction
+    // column and 品名 is empty — fall back to it in that case so the
+    // vehicle name isn't lost.
+    const vehicleName =
+      joinColumnItems(byColumn.vehicleName) ||
+      joinColumnItems(byColumn.auction)
     const chassisNumber = joinColumnItems(byColumn.chassisNumber)
     // A row identifies an actual vehicle only if it has a name or a chassis
     // number. Some sheets print a standalone scheduling note between two
