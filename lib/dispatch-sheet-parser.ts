@@ -15,6 +15,12 @@
 export type DispatchSheetVehicle = {
   round: string
   vehicleName: string
+  // The printed ｵｰｸｼｮﾝ column's own content (the auction lot number, e.g.
+  // "28034"), when the sheet actually prints one. Empty for vehicles with
+  // no auction lot (direct/private transfers) — see the nameArea split in
+  // parseVehicleRows for why this is never confused with vehicleName
+  // itself.
+  auctionInfo: string
   chassisNumber: string
   pickup: string
   dropoff: string
@@ -59,6 +65,13 @@ const PHONE_PATTERN = /0\d{1,4}-\d{1,4}-\d{3,4}/
 const ROW_CLUSTER_GAP = 7
 const LINE_CLUSTER_GAP = 3
 const WORD_GAP_THRESHOLD = 3
+// Gap (in pt) used to split the merged ｵｰｸｼｮﾝ/品名 print area into its two
+// possible fields on the same line. Real word gaps within a field are a
+// couple points at most (see WORD_GAP_THRESHOLD); the gap between a
+// printed auction lot number and the vehicle name that follows it is
+// reliably much wider (~15-20pt in this template), so a larger threshold
+// tells the two apart.
+const NAME_RUN_GAP = 10
 
 async function loadPdfJs() {
   const pdfjs = await import('pdfjs-dist')
@@ -181,19 +194,58 @@ function joinColumnItems(items: TextItem[]): string {
   return lineStrings.join('').trim()
 }
 
+// Splits the merged ｵｰｸｼｮﾝ (auction lot) + 品名 (vehicle name) print area
+// into its two fields. The two columns are handled together, rather than
+// by their printed header x-positions, because 品名 is right-aligned to
+// end just before 車体番号: when there's no auction lot (a direct/private
+// transfer), the vehicle name text alone is long enough to start under
+// where the ｵｰｸｼｮﾝ header sits, and a fixed per-column x boundary would
+// wrongly read it as "品名 empty, ｵｰｸｼｮﾝ = registration + model name".
+// The vehicle name column position always has the same available width in
+// this template, so it's always the last (rightmost) text run on the
+// item's first line — the number of runs printed there tells the two
+// fields apart:
+//   - 1 run  -> that run is the vehicle name; no auction lot printed.
+//   - 2 runs -> the earlier run is the auction lot, the last is the name.
+// Any further lines below the first (a long vehicle name wraps) are pure
+// name continuation and never contain auction content.
+function splitNameArea(items: TextItem[]): {
+  auctionInfo: string
+  vehicleName: string
+} {
+  const lines = clusterByCoordinate(items, (item) => item.y, LINE_CLUSTER_GAP)
+  if (lines.length === 0) return { auctionInfo: '', vehicleName: '' }
+
+  const [firstLine, ...wrappedLines] = lines
+  const sortedFirstLine = [...firstLine].sort((a, b) => a.x - b.x)
+  const runs: TextItem[][] = []
+  let currentRun: TextItem[] = []
+  let previous: TextItem | null = null
+  for (const item of sortedFirstLine) {
+    if (previous && item.x - (previous.x + previous.w) > NAME_RUN_GAP) {
+      runs.push(currentRun)
+      currentRun = []
+    }
+    currentRun.push(item)
+    previous = item
+  }
+  if (currentRun.length > 0) runs.push(currentRun)
+
+  const auctionInfo =
+    runs.length >= 2 ? joinColumnItems(runs.slice(0, -1).flat()) : ''
+  const nameItems = [...(runs.length > 0 ? runs[runs.length - 1] : []), ...wrappedLines.flat()]
+
+  return { auctionInfo, vehicleName: joinColumnItems(nameItems) }
+}
+
 type ColumnRanges = {
   round: [number, number]
   pickup: [number, number]
   dropoff: [number, number]
-  // The printed ｵｰｸｼｮﾝ (auction lot number) column, between dropoff and
-  // 品名 (vehicle name). Usually holds a lot number that's discarded, but
-  // when a vehicle has no auction lot (e.g. a direct/private transfer),
-  // the sheet instead prints "<plate> <model name>" as a single wide text
-  // run starting from this column's x position, overflowing left of where
-  // 品名 data normally starts — see the auction/vehicleName fallback in
-  // parseVehicleRows.
-  auction: [number, number]
-  vehicleName: [number, number]
+  // The merged ｵｰｸｼｮﾝ + 品名 print area — see splitNameArea for why these
+  // two printed columns have to be read together rather than as separate
+  // fixed x-ranges.
+  nameArea: [number, number]
   chassisNumber: [number, number]
   notes: [number, number]
 }
@@ -233,8 +285,7 @@ function buildColumnRanges(header: Map<string, TextItem>): ColumnRanges | null {
     // part of pickup.
     pickup: [pickup.x - 25, dropoff.x - 20],
     dropoff: [dropoff.x - 20, auction.x - 15],
-    auction: [auction.x - 15, vehicleName.x - 25],
-    vehicleName: [vehicleName.x - 25, chassisNumber.x - 8],
+    nameArea: [auction.x - 15, chassisNumber.x - 8],
     chassisNumber: [chassisNumber.x - 8, pickupDate.x - 5],
     notes: [510, shipOrigin.x - 10],
   }
@@ -262,8 +313,7 @@ function parseVehicleRows(
       round: [] as TextItem[],
       pickup: [] as TextItem[],
       dropoff: [] as TextItem[],
-      auction: [] as TextItem[],
-      vehicleName: [] as TextItem[],
+      nameArea: [] as TextItem[],
       chassisNumber: [] as TextItem[],
       notes: [] as TextItem[],
     }
@@ -271,23 +321,14 @@ function parseVehicleRows(
       if (inRange(item.x, ranges.round)) byColumn.round.push(item)
       else if (inRange(item.x, ranges.pickup)) byColumn.pickup.push(item)
       else if (inRange(item.x, ranges.dropoff)) byColumn.dropoff.push(item)
-      else if (inRange(item.x, ranges.auction)) byColumn.auction.push(item)
-      else if (inRange(item.x, ranges.vehicleName))
-        byColumn.vehicleName.push(item)
+      else if (inRange(item.x, ranges.nameArea)) byColumn.nameArea.push(item)
       else if (inRange(item.x, ranges.chassisNumber))
         byColumn.chassisNumber.push(item)
       else if (inRange(item.x, ranges.notes)) byColumn.notes.push(item)
     }
 
     const round = joinColumnItems(byColumn.round)
-    // Normally the auction column holds a lot number that's unused here,
-    // and 品名 alone is the vehicle name. But when there's no lot number,
-    // the plate+model run described above lands entirely in the auction
-    // column and 品名 is empty — fall back to it in that case so the
-    // vehicle name isn't lost.
-    const vehicleName =
-      joinColumnItems(byColumn.vehicleName) ||
-      joinColumnItems(byColumn.auction)
+    const { auctionInfo, vehicleName } = splitNameArea(byColumn.nameArea)
     const chassisNumber = joinColumnItems(byColumn.chassisNumber)
     // A row identifies an actual vehicle only if it has a name or a chassis
     // number. Some sheets print a standalone scheduling note between two
@@ -301,6 +342,7 @@ function parseVehicleRows(
     vehicles.push({
       round: round || '不明',
       vehicleName,
+      auctionInfo,
       chassisNumber,
       pickup: joinColumnItems(byColumn.pickup),
       dropoff: joinColumnItems(byColumn.dropoff),
