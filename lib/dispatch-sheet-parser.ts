@@ -65,13 +65,16 @@ const PHONE_PATTERN = /0\d{1,4}-\d{1,4}-\d{3,4}/
 const ROW_CLUSTER_GAP = 7
 const LINE_CLUSTER_GAP = 3
 const WORD_GAP_THRESHOLD = 3
-// Gap (in pt) used to split the merged ｵｰｸｼｮﾝ/品名 print area into its two
-// possible fields on the same line. Real word gaps within a field are a
-// couple points at most (see WORD_GAP_THRESHOLD); the gap between a
-// printed auction lot number and the vehicle name that follows it is
-// reliably much wider (~15-20pt in this template), so a larger threshold
-// tells the two apart.
-const NAME_RUN_GAP = 10
+// The merged ｵｰｸｼｮﾝ/品名 print area (see splitNameArea) starts with one of
+// two possible prefixes before the actual vehicle name: a registration
+// plate ("練馬3266", kanji region name + digits) or an auction lot number
+// ("28034" or even just "0", pure digits of no fixed length — seen from
+// 1 to 7 digits across real sheets). Both are matched against the *text
+// content*, not by measuring gaps between pdf text items — pdfjs
+// sometimes emits the whole "練馬3266 ﾉｰﾄ" run as a single text item with
+// the space baked into the string, so there is no item boundary to split
+// on there at all.
+const NAME_AREA_PREFIX = /^([\u4E00-\u9FFF]{1,4}\d{1,4}|\d{1,8})[\s\u3000]*/
 
 async function loadPdfJs() {
   const pdfjs = await import('pdfjs-dist')
@@ -201,14 +204,11 @@ function joinColumnItems(items: TextItem[]): string {
 // transfer), the vehicle name text alone is long enough to start under
 // where the ｵｰｸｼｮﾝ header sits, and a fixed per-column x boundary would
 // wrongly read it as "品名 empty, ｵｰｸｼｮﾝ = registration + model name".
-// The vehicle name column position always has the same available width in
-// this template, so it's always the last (rightmost) text run on the
-// item's first line — the number of runs printed there tells the two
-// fields apart:
-//   - 1 run  -> that run is the vehicle name; no auction lot printed.
-//   - 2 runs -> the earlier run is the auction lot, the last is the name.
-// Any further lines below the first (a long vehicle name wraps) are pure
-// name continuation and never contain auction content.
+// Only the first line can ever hold a prefix — any further line below it
+// (a long vehicle name wrapping) is pure name continuation, never auction
+// content — so only that line is checked against NAME_AREA_PREFIX;
+// whatever remains after stripping a matched prefix, plus any wrapped
+// lines, is the vehicle name.
 function splitNameArea(items: TextItem[]): {
   auctionInfo: string
   vehicleName: string
@@ -217,25 +217,14 @@ function splitNameArea(items: TextItem[]): {
   if (lines.length === 0) return { auctionInfo: '', vehicleName: '' }
 
   const [firstLine, ...wrappedLines] = lines
-  const sortedFirstLine = [...firstLine].sort((a, b) => a.x - b.x)
-  const runs: TextItem[][] = []
-  let currentRun: TextItem[] = []
-  let previous: TextItem | null = null
-  for (const item of sortedFirstLine) {
-    if (previous && item.x - (previous.x + previous.w) > NAME_RUN_GAP) {
-      runs.push(currentRun)
-      currentRun = []
-    }
-    currentRun.push(item)
-    previous = item
-  }
-  if (currentRun.length > 0) runs.push(currentRun)
+  const firstLineText = joinColumnItems(firstLine)
+  const wrappedText = joinColumnItems(wrappedLines.flat())
 
-  const auctionInfo =
-    runs.length >= 2 ? joinColumnItems(runs.slice(0, -1).flat()) : ''
-  const nameItems = [...(runs.length > 0 ? runs[runs.length - 1] : []), ...wrappedLines.flat()]
+  const match = firstLineText.match(NAME_AREA_PREFIX)
+  const auctionInfo = match ? match[1] : ''
+  const nameFirstLine = match ? firstLineText.slice(match[0].length) : firstLineText
 
-  return { auctionInfo, vehicleName: joinColumnItems(nameItems) }
+  return { auctionInfo, vehicleName: (nameFirstLine + wrappedText).trim() }
 }
 
 type ColumnRanges = {
