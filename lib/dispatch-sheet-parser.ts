@@ -22,8 +22,18 @@ export type DispatchSheetVehicle = {
   // itself.
   auctionInfo: string
   chassisNumber: string
+  // 請求先 — the billing/consignee name printed just left of 積地.
+  billTo: string
   pickup: string
   dropoff: string
+  // 積日 (pickup date, e.g. "08/19") plus its 条件 sub-column (e.g. "以降"),
+  // joined into one string like "08/19 以降". The sheet also prints a
+  // "詳細" sub-column between them, but it's consistently blank on every
+  // real sheet seen so far.
+  pickupDateDetail: string
+  // 卸日 (dropoff date) plus its 条件 sub-column, same shape as
+  // pickupDateDetail (e.g. "09/04 迄").
+  dropoffDateDetail: string
   notes: string
   phone: string | null
 }
@@ -53,6 +63,7 @@ const HEADER_LABELS = [
   '品名',
   '車体番号',
   '積日',
+  '卸日',
   '摘要１',
   '出荷地',
   '納入地',
@@ -229,6 +240,7 @@ function splitNameArea(items: TextItem[]): {
 
 type ColumnRanges = {
   round: [number, number]
+  billTo: [number, number]
   pickup: [number, number]
   dropoff: [number, number]
   // The merged ｵｰｸｼｮﾝ + 品名 print area — see splitNameArea for why these
@@ -236,6 +248,8 @@ type ColumnRanges = {
   // fixed x-ranges.
   nameArea: [number, number]
   chassisNumber: [number, number]
+  pickupDateDetail: [number, number]
+  dropoffDateDetail: [number, number]
   notes: [number, number]
 }
 
@@ -248,6 +262,7 @@ function buildColumnRanges(header: Map<string, TextItem>): ColumnRanges | null {
   const vehicleName = header.get('品名')
   const chassisNumber = header.get('車体番号')
   const pickupDate = header.get('積日')
+  const dropoffDate = header.get('卸日')
   const notes = header.get('摘要１')
   const shipOrigin = header.get('出荷地')
   if (
@@ -259,6 +274,7 @@ function buildColumnRanges(header: Map<string, TextItem>): ColumnRanges | null {
     !vehicleName ||
     !chassisNumber ||
     !pickupDate ||
+    !dropoffDate ||
     !notes ||
     !shipOrigin
   ) {
@@ -267,6 +283,10 @@ function buildColumnRanges(header: Map<string, TextItem>): ColumnRanges | null {
 
   return {
     round: [round.x - 15, round.x + 20],
+    // 請求先's data sits left of where its own header is printed (same
+    // layout quirk as pickup/dropoff below), so its range is anchored off
+    // the *next* column's header (積地) rather than its own.
+    billTo: [round.x + 20, pickup.x - 25],
     // Pickup/dropoff text almost touches at the print scale used here (a
     // couple points of gap at most), so the boundary between them has to
     // sit close to the dropoff header itself rather than partway back
@@ -276,6 +296,11 @@ function buildColumnRanges(header: Map<string, TextItem>): ColumnRanges | null {
     dropoff: [dropoff.x - 20, auction.x - 15],
     nameArea: [auction.x - 15, chassisNumber.x - 8],
     chassisNumber: [chassisNumber.x - 8, pickupDate.x - 5],
+    // Each date column also covers its own printed 詳細/条件 sub-columns
+    // (see the DispatchSheetVehicle comments) — 卸日's sub-columns extend
+    // up to just before 摘要１'s fixed left bound below.
+    pickupDateDetail: [pickupDate.x - 5, dropoffDate.x - 15],
+    dropoffDateDetail: [dropoffDate.x - 15, 510],
     notes: [510, shipOrigin.x - 10],
   }
 }
@@ -300,19 +325,27 @@ function parseVehicleRows(
   for (const rowItems of rowClusters) {
     const byColumn = {
       round: [] as TextItem[],
+      billTo: [] as TextItem[],
       pickup: [] as TextItem[],
       dropoff: [] as TextItem[],
       nameArea: [] as TextItem[],
       chassisNumber: [] as TextItem[],
+      pickupDateDetail: [] as TextItem[],
+      dropoffDateDetail: [] as TextItem[],
       notes: [] as TextItem[],
     }
     for (const item of rowItems) {
       if (inRange(item.x, ranges.round)) byColumn.round.push(item)
+      else if (inRange(item.x, ranges.billTo)) byColumn.billTo.push(item)
       else if (inRange(item.x, ranges.pickup)) byColumn.pickup.push(item)
       else if (inRange(item.x, ranges.dropoff)) byColumn.dropoff.push(item)
       else if (inRange(item.x, ranges.nameArea)) byColumn.nameArea.push(item)
       else if (inRange(item.x, ranges.chassisNumber))
         byColumn.chassisNumber.push(item)
+      else if (inRange(item.x, ranges.pickupDateDetail))
+        byColumn.pickupDateDetail.push(item)
+      else if (inRange(item.x, ranges.dropoffDateDetail))
+        byColumn.dropoffDateDetail.push(item)
       else if (inRange(item.x, ranges.notes)) byColumn.notes.push(item)
     }
 
@@ -333,8 +366,11 @@ function parseVehicleRows(
       vehicleName,
       auctionInfo,
       chassisNumber,
+      billTo: joinColumnItems(byColumn.billTo),
       pickup: joinColumnItems(byColumn.pickup),
       dropoff: joinColumnItems(byColumn.dropoff),
+      pickupDateDetail: joinColumnItems(byColumn.pickupDateDetail),
+      dropoffDateDetail: joinColumnItems(byColumn.dropoffDateDetail),
       notes,
       phone: phoneMatch ? phoneMatch[0] : null,
     })
