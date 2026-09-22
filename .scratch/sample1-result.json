@@ -1,0 +1,159 @@
+{
+  "dispatchDate": "09月14日",
+  "vehicleNumber": "2176",
+  "driverName": "小西芳輝",
+  "dispatchNumber": "0000034066",
+  "rounds": [
+    {
+      "round": "1",
+      "vehicles": [
+        {
+          "round": "1",
+          "vehicleName": "ｳﾞｪｾﾞﾙ4WD",
+          "auctionInfo": "30407",
+          "chassisNumber": "RV4-1203835",
+          "pickup": "積置き",
+          "dropoff": "ｱﾍﾞ 横浜ﾔｰﾄﾞ",
+          "notes": "AS/FALCON JAPAN/9/10入金後納※ﾅﾝﾊﾞｰｶｯﾄ",
+          "phone": null
+        },
+        {
+          "round": "1",
+          "vehicleName": "VANGUARD",
+          "auctionInfo": "10152",
+          "chassisNumber": "ACA38-5194690",
+          "pickup": "積置き",
+          "dropoff": "本牧常盤海運",
+          "notes": "ｴｽﾋﾞｰﾃｨｰ|ﾅﾝﾊﾞｰあればｶｯﾄ",
+          "phone": null
+        },
+        {
+          "round": "1",
+          "vehicleName": "FIT",
+          "auctionInfo": "10217",
+          "chassisNumber": "GE6-1756384",
+          "pickup": "積置き",
+          "dropoff": "本牧常盤海運",
+          "notes": "ｴｽﾋﾞｰﾃｨｰ|ﾅﾝﾊﾞｰあればｶｯﾄ",
+          "phone": null
+        },
+        {
+          "round": "1",
+          "vehicleName": "CX5",
+          "auctionInfo": "10223",
+          "chassisNumber": "KE2FW-209105",
+          "pickup": "積置き",
+          "dropoff": "本牧常盤海運",
+          "notes": "ｴｽﾋﾞｰﾃｨｰ|ﾅﾝﾊﾞｰあればｶｯﾄ",
+          "phone": null
+        },
+        {
+          "round": "1",
+          "vehicleName": "X1",
+          "auctionInfo": "35054",
+          "chassisNumber": "WBAVL32010VP88640",
+          "pickup": "積置き",
+          "dropoff": "本牧常盤海運",
+          "notes": "ｴｽﾋﾞｰﾃｨｰ|ﾅﾝﾊﾞｰあればｶｯﾄ",
+          "phone": null
+        },
+        {
+          "round": "1",
+          "vehicleName": "FITHYBRID",
+          "auctionInfo": "70191",
+          "chassisNumber": "GP1-1055032",
+          "pickup": "積置き",
+          "dropoff": "本牧常盤海運",
+          "notes": "ｴｽﾋﾞｰﾃｨｰ|ﾅﾝﾊﾞｰあればｶｯﾄ",
+          "phone": null
+        },
+        {
+          "round": "1",
+          "vehicleName": "JUKE",
+          "auctionInfo": "85114",
+          "chassisNumber": "YF15-200584",
+          "pickup": "積置き",
+          "dropoff": "本牧常盤海運",
+          "notes": "ｴｽﾋﾞｰﾃｨｰ|ﾅﾝﾊﾞｰあればｶｯﾄ",
+          "phone": null
+        }
+      ]
+    },
+    {
+      "round": "2",
+      "vehicles": [
+        {
+          "round": "2",
+          "vehicleName": "ｽﾍﾟｰｼｱｶｽﾀﾑ",
+          "auctionInfo": "0",
+          "chassisNumber": "MK54S-123751",
+          "pickup": "品川栗林運輸(----)",
+          "dropoff": "共栄 本郷ﾔｰﾄﾞ",
+          "notes": "【納車日指定】※前日までの事前連絡必須!",
+          "phone": null
+        },
+        {
+          "round": "2",
+          "vehicleName": "7143311 ｼﾞﾑﾆｰﾉﾏﾄﾞ2",
+          "auctionInfo": "",
+          "chassisNumber": "MA3JJC74W00311378",
+          "pickup": "品川栗林運輸",
+          "dropoff": "共栄 本郷ﾔｰﾄﾞ",
+          "notes": "9/11着",
+          "phone": null
+        },
+        {
+          "round": "2",
+          "vehicleName": "ﾉｱ",
+          "auctionInfo": "0",
+          "chassisNumber": "ZWR90-0315367",
+          "pickup": "品川栗林運輸(----)",
+          "dropoff": "共栄 本郷ﾔｰﾄﾞ",
+          "notes": "【納車日指定】※前日までの事前連絡必須!",
+          "phone": null
+        },
+        {
+          "round": "2",
+          "vehicleName": "ﾌｨｯﾄ",
+          "auctionInfo": "6186",
+          "chassisNumber": "GE6-1280922",
+          "pickup": "品川栗林運輸(12540)",
+          "dropoff": "伸共東扇島106ﾔｰﾄﾞ【090-5526-1246】",
+          "notes": "ﾅﾝﾊﾞｰあればｶｯﾄ",
+          "phone": null
+        },
+        {
+          "round": "2",
+          "vehicleName": "ﾌﾟﾚﾐｵ",
+          "auctionInfo": "293",
+          "chassisNumber": "NZT260-3116320",
+          "pickup": "品川栗林運輸(37536)",
+          "dropoff": "千鳥町C・T・S",
+          "notes": "(株)ﾄﾗｲｽﾞ|【土曜AM搬入可 要事前連絡】",
+          "phone": null
+        },
+        {
+          "round": "2",
+          "vehicleName": "ﾊﾘｱｰ",
+          "auctionInfo": "5962",
+          "chassisNumber": "AXUH80-0109100",
+          "pickup": "品川栗林運輸 ｻﾝﾌｪﾆｯｸｽ浮島",
+          "dropoff": "",
+          "notes": "",
+          "phone": null
+        },
+        {
+          "round": "2",
+          "vehicleName": "ﾗｲｽﾞ",
+          "auctionInfo": "2045",
+          "chassisNumber": "A210A-0093594",
+          "pickup": "品川栗林運輸(45604)",
+          "dropoff": "ｻﾝﾌｪﾆｯｸｽ浮島 ﾓﾘｼﾀ分",
+          "notes": "SAS3ﾄﾚｰﾃﾞｨﾝｸﾞ|ﾅﾝﾊﾞｰあればｶｯﾄ",
+          "phone": null
+        }
+      ]
+    }
+  ],
+  "vehicleCount": 14
+}

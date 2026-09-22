@@ -78,9 +78,16 @@ function formatUploadedAt(iso: string): string {
 function DetailCard({ vehicle }: { vehicle: ParsedDispatchSheet['rounds'][number]['vehicles'][number] }) {
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
-      <h3 className="text-balance text-xl font-bold text-foreground">
-        {vehicle.vehicleName || '車種名不明'}
-      </h3>
+      <div>
+        {vehicle.auctionInfo && (
+          <p className="truncate text-xs font-medium text-muted-foreground">
+            {vehicle.auctionInfo}
+          </p>
+        )}
+        <h3 className="text-balance text-xl font-bold text-foreground">
+          {vehicle.vehicleName || '車種名不明'}
+        </h3>
+      </div>
 
       <div className="overflow-x-auto rounded-lg border border-border bg-muted px-3 py-2">
         <p className="whitespace-nowrap font-mono text-sm tracking-tight text-foreground">
@@ -128,6 +135,11 @@ function CompactRow({ vehicle }: { vehicle: ParsedDispatchSheet['rounds'][number
         第{vehicle.round}
       </span>
       <div className="min-w-0 flex-1">
+        {vehicle.auctionInfo && (
+          <p className="truncate text-[11px] font-medium leading-tight text-muted-foreground">
+            {vehicle.auctionInfo}
+          </p>
+        )}
         <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
           <p className="truncate text-lg font-bold leading-tight text-foreground">
             {vehicle.vehicleName || '車種名不明'}
