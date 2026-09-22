@@ -2,11 +2,13 @@
 
 import { useCallback, useMemo, useRef, useState } from 'react'
 import {
+  Check,
   ChevronLeft,
   FileText,
   LayoutGrid,
   List,
   Loader2,
+  Pencil,
   Phone,
   Upload,
 } from 'lucide-react'
@@ -16,6 +18,7 @@ import {
   parseDispatchSheetPdf,
   type ParsedDispatchSheet,
 } from '@/lib/dispatch-sheet-parser'
+import { ConfirmDeleteInline, DeleteIconButton } from './confirm-delete'
 
 // Each driver uploads and views only their own dispatch sheets — scoped
 // by `uploaded_by_staff_id` (their linked staff_members.id, resolved by
@@ -63,6 +66,14 @@ async function uploadFile(file: File, filename: string): Promise<string> {
   if (!res.ok) throw new Error('upload failed')
   const { pathname } = (await res.json()) as { pathname: string }
   return pathname
+}
+
+async function deleteFile(pathname: string): Promise<void> {
+  const res = await fetch(
+    `/api/dispatch-sheet/file?pathname=${encodeURIComponent(pathname)}`,
+    { method: 'DELETE' },
+  )
+  if (!res.ok) throw new Error('delete failed')
 }
 
 function formatUploadedAt(iso: string): string {
@@ -309,10 +320,40 @@ export function DispatchSheetView({
     | { state: 'error'; message: string }
   >({ state: 'idle' })
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [isEditing, setIsEditing] = useState(false)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const selectedSheet = useMemo(
     () => sheets.find((s) => s.id === selectedId) ?? null,
     [sheets, selectedId],
+  )
+
+  const handleDelete = useCallback(
+    async (sheet: DispatchSheetRow) => {
+      setDeletingId(sheet.id)
+      try {
+        const supabase = createClient()
+        const { error } = await supabase
+          .from('dispatch_sheets')
+          .delete()
+          .eq('id', sheet.id)
+        if (error) throw error
+        // Best-effort: the row is already gone once the DB delete above
+        // succeeds, so a failure here (e.g. the blob was already
+        // removed) shouldn't block removing it from the list.
+        await deleteFile(sheet.blob_url).catch((error) => {
+          console.error('[v0] dispatch sheet blob delete failed:', error)
+        })
+        setConfirmDeleteId(null)
+        await refetchSheets()
+      } catch (error) {
+        console.error('[v0] dispatch sheet delete failed:', error)
+      } finally {
+        setDeletingId(null)
+      }
+    },
+    [refetchSheets],
   )
 
   const handleFileSelected = useCallback(
@@ -360,11 +401,39 @@ export function DispatchSheetView({
 
   return (
     <div className="flex flex-col gap-5 pb-6">
-      <div>
-        <h2 className="text-xl font-bold text-foreground">配車表</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {staffName}さんの配車表です���PDFをアップロードすると、車両ごとのカードに自動で整理されます。
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-bold text-foreground">配車表</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {staffName}さんの配車表です。PDFをアップロードすると、車両ごとのカードに自動で整理されます。
+          </p>
+        </div>
+        {sheets.length > 0 && (
+          <button
+            type="button"
+            onClick={() => {
+              setIsEditing((v) => !v)
+              setConfirmDeleteId(null)
+            }}
+            className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold transition-colors active:scale-95 ${
+              isEditing
+                ? 'bg-primary text-primary-foreground'
+                : 'border border-border text-muted-foreground hover:bg-accent'
+            }`}
+          >
+            {isEditing ? (
+              <>
+                <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                完了
+              </>
+            ) : (
+              <>
+                <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                編集
+              </>
+            )}
+          </button>
+        )}
       </div>
 
       <input
@@ -410,28 +479,55 @@ export function DispatchSheetView({
             まだ配車表をアップロードしていません。
           </p>
         ) : (
-          sheets.map((sheet) => (
-            <button
-              key={sheet.id}
-              type="button"
-              onClick={() => setSelectedId(sheet.id)}
-              className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left transition-colors hover:bg-accent active:scale-[0.99]"
-            >
-              <FileText
-                className="h-5 w-5 shrink-0 text-primary"
-                aria-hidden="true"
+          sheets.map((sheet) =>
+            confirmDeleteId === sheet.id ? (
+              <ConfirmDeleteInline
+                key={sheet.id}
+                message={`「${sheet.dispatch_date || sheet.original_filename}」を削除しますか？`}
+                onConfirm={() => handleDelete(sheet)}
+                onCancel={() => setConfirmDeleteId(null)}
               />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-foreground">
-                  {sheet.dispatch_date || sheet.original_filename}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {sheet.extracted_data?.vehicleCount ?? 0}台 ・{' '}
-                  {formatUploadedAt(sheet.uploaded_at)}
-                </p>
+            ) : (
+              <div
+                key={sheet.id}
+                className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 transition-colors hover:bg-accent"
+              >
+                <button
+                  type="button"
+                  disabled={isEditing}
+                  onClick={() => setSelectedId(sheet.id)}
+                  className="flex min-w-0 flex-1 items-center gap-3 text-left active:scale-[0.99]"
+                >
+                  <FileText
+                    className="h-5 w-5 shrink-0 text-primary"
+                    aria-hidden="true"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-foreground">
+                      {sheet.dispatch_date || sheet.original_filename}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {sheet.extracted_data?.vehicleCount ?? 0}台 ・{' '}
+                      {formatUploadedAt(sheet.uploaded_at)}
+                    </p>
+                  </div>
+                </button>
+                {isEditing &&
+                  (deletingId === sheet.id ? (
+                    <Loader2
+                      className="h-4 w-4 shrink-0 animate-spin text-muted-foreground"
+                      aria-hidden="true"
+                    />
+                  ) : (
+                    <DeleteIconButton
+                      label={`${sheet.dispatch_date || sheet.original_filename}を削除`}
+                      onClick={() => setConfirmDeleteId(sheet.id)}
+                      className="shrink-0"
+                    />
+                  ))}
               </div>
-            </button>
-          ))
+            ),
+          )
         )}
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { get } from '@vercel/blob'
+import { del, get } from '@vercel/blob'
 import { type NextRequest, NextResponse } from 'next/server'
 
 // Streams a private dispatch-sheet blob (original PDF or a rendered page
@@ -44,5 +44,26 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('[v0] dispatch-sheet file error:', error)
     return NextResponse.json({ error: 'Failed to serve file' }, { status: 500 })
+  }
+}
+
+// Removes the original PDF from the private Blob store when a driver
+// deletes an uploaded dispatch sheet (see dispatch-sheet-view.tsx). The
+// corresponding `dispatch_sheets` row is deleted separately by the
+// client directly via Supabase, consistent with the insert path above.
+export async function DELETE(request: NextRequest) {
+  try {
+    const pathname = request.nextUrl.searchParams.get('pathname')
+
+    if (!pathname) {
+      return NextResponse.json({ error: 'Missing pathname' }, { status: 400 })
+    }
+
+    await del(pathname)
+
+    return NextResponse.json({ ok: true })
+  } catch (error) {
+    console.error('[v0] dispatch-sheet delete error:', error)
+    return NextResponse.json({ error: 'Failed to delete file' }, { status: 500 })
   }
 }
