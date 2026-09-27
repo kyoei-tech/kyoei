@@ -1,11 +1,12 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import {
   ChevronDown,
   ClipboardList,
   ImagePlus,
+  Loader2,
   Pencil,
   Plus,
   X,
@@ -57,7 +58,38 @@ async function fetchTodoRows(): Promise<TodoRow[]> {
 }
 
 function emptyForm() {
-  return { title: '', body: '', imageUrl: '' }
+  return { title: '', body: '', imagePathname: '' }
+}
+
+// `image_url` historically stored an arbitrary URL typed in by hand; it now
+// stores the pathname of an uploaded Blob (see uploadTodoImage below).
+// Resolve both so already-saved rows keep working after this change.
+function resolveTodoImageSrc(value: string): string {
+  if (/^https?:\/\//.test(value) || value.startsWith('/')) return value
+  return `/api/timecard-todo/file?pathname=${encodeURIComponent(value)}`
+}
+
+async function uploadTodoImage(file: File): Promise<string> {
+  const res = await fetch('/api/timecard-todo/upload', {
+    method: 'POST',
+    headers: {
+      'x-filename': encodeURIComponent(file.name),
+      'Content-Type': file.type,
+    },
+    body: file,
+  })
+  if (!res.ok) throw new Error('upload failed')
+  const data = await res.json()
+  return data.pathname as string
+}
+
+async function deleteTodoImage(pathname: string): Promise<void> {
+  // Only Blob-hosted images (not pre-existing raw URLs) can be deleted here.
+  if (/^https?:\/\//.test(pathname) || pathname.startsWith('/')) return
+  await fetch(
+    `/api/timecard-todo/file?pathname=${encodeURIComponent(pathname)}`,
+    { method: 'DELETE' },
+  ).catch(() => {})
 }
 
 /**
@@ -83,6 +115,10 @@ export function TodoView({ onBack }: { onBack: () => void }) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState(emptyForm)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [uploadingAdd, setUploadingAdd] = useState(false)
+  const [uploadingEdit, setUploadingEdit] = useState(false)
+  const addFileInputRef = useRef<HTMLInputElement>(null)
+  const editFileInputRef = useRef<HTMLInputElement>(null)
 
   function toggleOpen(id: string) {
     setOpenId((prev) => (prev === id ? null : id))
@@ -95,6 +131,24 @@ export function TodoView({ onBack }: { onBack: () => void }) {
     })
   }
 
+  async function handleAddImageSelect(file: File | undefined) {
+    if (!file) return
+    setUploadingAdd(true)
+    try {
+      const pathname = await uploadTodoImage(file)
+      setForm((p) => ({ ...p, imagePathname: pathname }))
+    } catch {
+      // Silently ignore failed uploads; user can retry.
+    } finally {
+      setUploadingAdd(false)
+    }
+  }
+
+  function removeAddImage() {
+    if (form.imagePathname) void deleteTodoImage(form.imagePathname)
+    setForm((p) => ({ ...p, imagePathname: '' }))
+  }
+
   async function submitAdd() {
     const title = form.title.trim()
     if (!title) return
@@ -102,7 +156,7 @@ export function TodoView({ onBack }: { onBack: () => void }) {
     await supabase.from('timecard_todo_items').insert({
       title,
       body: form.body.trim(),
-      image_url: form.imageUrl.trim() || null,
+      image_url: form.imagePathname || null,
     })
     await refetch()
     setForm(emptyForm())
@@ -114,10 +168,28 @@ export function TodoView({ onBack }: { onBack: () => void }) {
       setEditForm({
         title: item.title,
         body: item.body,
-        imageUrl: item.imageUrl ?? '',
+        imagePathname: item.imageUrl ?? '',
       })
       setEditingId(item.id)
     })
+  }
+
+  async function handleEditImageSelect(file: File | undefined) {
+    if (!file) return
+    setUploadingEdit(true)
+    try {
+      const pathname = await uploadTodoImage(file)
+      setEditForm((p) => ({ ...p, imagePathname: pathname }))
+    } catch {
+      // Silently ignore failed uploads; user can retry.
+    } finally {
+      setUploadingEdit(false)
+    }
+  }
+
+  function removeEditImage() {
+    if (editForm.imagePathname) void deleteTodoImage(editForm.imagePathname)
+    setEditForm((p) => ({ ...p, imagePathname: '' }))
   }
 
   async function submitEdit() {
@@ -130,7 +202,7 @@ export function TodoView({ onBack }: { onBack: () => void }) {
       .update({
         title,
         body: editForm.body.trim(),
-        image_url: editForm.imageUrl.trim() || null,
+        image_url: editForm.imagePathname || null,
       })
       .eq('id', editingId)
     await refetch()
@@ -142,8 +214,10 @@ export function TodoView({ onBack }: { onBack: () => void }) {
   }
 
   async function confirmDelete(id: string) {
+    const item = items.find((i) => i.id === id)
     const supabase = createClient()
     await supabase.from('timecard_todo_items').delete().eq('id', id)
+    if (item?.imageUrl) await deleteTodoImage(item.imageUrl)
     await refetch()
     setConfirmDeleteId(null)
     if (openId === id) setOpenId(null)
@@ -215,37 +289,68 @@ export function TodoView({ onBack }: { onBack: () => void }) {
               {NOTIFICATION_MARKUP_HELP}
             </p>
           </label>
-          <label className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1">
             <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
               <ImagePlus className="h-3.5 w-3.5" aria-hidden="true" />
-              画像URL（任意）
+              画像（任意）
             </span>
             <input
-              type="text"
-              value={form.imageUrl}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, imageUrl: e.target.value }))
-              }
-              placeholder="/images/... または https://..."
-              className="w-full rounded-2xl border border-border bg-background px-4 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/60"
+              ref={addFileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                void handleAddImageSelect(e.target.files?.[0])
+                e.target.value = ''
+              }}
+              className="hidden"
             />
-          </label>
-          {form.imageUrl.trim() && (
-            <div className="overflow-hidden rounded-2xl border border-border/60 bg-background">
-              <Image
-                src={form.imageUrl.trim() || '/placeholder.svg'}
-                alt="添付画像プレビュー"
-                width={640}
-                height={480}
-                className="h-auto w-full object-contain"
-                unoptimized
-              />
-            </div>
-          )}
+            {form.imagePathname ? (
+              <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-background">
+                <Image
+                  src={resolveTodoImageSrc(form.imagePathname)}
+                  alt="添付画像プレビュー"
+                  width={640}
+                  height={480}
+                  className="h-auto w-full object-contain"
+                  unoptimized
+                />
+                <button
+                  type="button"
+                  onClick={removeAddImage}
+                  aria-label="画像を削除"
+                  className="absolute right-2 top-2 rounded-full bg-background/90 p-1.5 text-foreground shadow-sm transition-colors hover:text-destructive active:scale-90"
+                >
+                  <X className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => addFileInputRef.current?.click()}
+                disabled={uploadingAdd}
+                className="flex items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-background px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/60 hover:text-primary disabled:opacity-60"
+              >
+                {uploadingAdd ? (
+                  <>
+                    <Loader2
+                      className="h-4 w-4 animate-spin"
+                      aria-hidden="true"
+                    />
+                    アップロード中...
+                  </>
+                ) : (
+                  <>
+                    <ImagePlus className="h-4 w-4" aria-hidden="true" />
+                    画像を選択
+                  </>
+                )}
+              </button>
+            )}
+          </div>
           <button
             type="button"
             onClick={submitAdd}
-            disabled={!form.title.trim()}
+            disabled={!form.title.trim() || uploadingAdd}
             className="self-end rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95 disabled:opacity-40"
           >
             追加する
@@ -307,47 +412,76 @@ export function TodoView({ onBack }: { onBack: () => void }) {
                         {NOTIFICATION_MARKUP_HELP}
                       </p>
                     </label>
-                    <label className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-1">
                       <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
                         <ImagePlus className="h-3.5 w-3.5" aria-hidden="true" />
-                        画像URL（任意）
+                        画像（任意）
                       </span>
                       <input
-                        type="text"
-                        value={editForm.imageUrl}
-                        onChange={(e) =>
-                          setEditForm((p) => ({
-                            ...p,
-                            imageUrl: e.target.value,
-                          }))
-                        }
-                        placeholder="/images/... または https://..."
-                        className="w-full rounded-2xl border border-border bg-background px-4 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/60"
+                        ref={editFileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          void handleEditImageSelect(e.target.files?.[0])
+                          e.target.value = ''
+                        }}
+                        className="hidden"
                       />
-                    </label>
-                    {(editForm.body || editForm.imageUrl.trim()) && (
+                      {editForm.imagePathname ? (
+                        <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-background">
+                          <Image
+                            src={resolveTodoImageSrc(editForm.imagePathname)}
+                            alt="添付画像プレビュー"
+                            width={640}
+                            height={480}
+                            className="h-auto w-full object-contain"
+                            unoptimized
+                          />
+                          <button
+                            type="button"
+                            onClick={removeEditImage}
+                            aria-label="画像を削除"
+                            className="absolute right-2 top-2 rounded-full bg-background/90 p-1.5 text-foreground shadow-sm transition-colors hover:text-destructive active:scale-90"
+                          >
+                            <X className="h-3.5 w-3.5" aria-hidden="true" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => editFileInputRef.current?.click()}
+                          disabled={uploadingEdit}
+                          className="flex items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-background px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/60 hover:text-primary disabled:opacity-60"
+                        >
+                          {uploadingEdit ? (
+                            <>
+                              <Loader2
+                                className="h-4 w-4 animate-spin"
+                                aria-hidden="true"
+                              />
+                              アップロード中...
+                            </>
+                          ) : (
+                            <>
+                              <ImagePlus
+                                className="h-4 w-4"
+                                aria-hidden="true"
+                              />
+                              画像を選択
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                    {editForm.body && (
                       <div className="rounded-lg border border-border/60 bg-background px-3 py-2">
                         <p className="text-[0.65rem] font-semibold text-muted-foreground">
                           プレビュー
                         </p>
-                        {editForm.body && (
-                          <StyledNotificationText
-                            text={editForm.body}
-                            className="mt-1 block whitespace-pre-line text-sm leading-relaxed text-foreground"
-                          />
-                        )}
-                        {editForm.imageUrl.trim() && (
-                          <div className="mt-2 overflow-hidden rounded-xl border border-border/60">
-                            <Image
-                              src={editForm.imageUrl.trim() || '/placeholder.svg'}
-                              alt="添付画像プレビュー"
-                              width={640}
-                              height={480}
-                              className="h-auto w-full object-contain"
-                              unoptimized
-                            />
-                          </div>
-                        )}
+                        <StyledNotificationText
+                          text={editForm.body}
+                          className="mt-1 block whitespace-pre-line text-sm leading-relaxed text-foreground"
+                        />
                       </div>
                     )}
                     <div className="flex gap-2">
@@ -421,7 +555,7 @@ export function TodoView({ onBack }: { onBack: () => void }) {
                         {item.imageUrl && (
                           <div className="overflow-hidden rounded-2xl border border-border">
                             <Image
-                              src={item.imageUrl || '/placeholder.svg'}
+                              src={resolveTodoImageSrc(item.imageUrl)}
                               alt={item.title}
                               width={960}
                               height={720}
