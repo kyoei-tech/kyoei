@@ -68,6 +68,16 @@ type SecretScreen =
   | 'destination-registry'
 type SubScreen = 'version'
 
+// Mirrors the shape returned by GET /api/test-accounts (see that route for
+// how each field is derived from staff_members + the Admin API).
+type TestAccount = {
+  staffId: string
+  staffName: string
+  authUserId: string
+  email: string | null
+  createdAt: string | null
+}
+
 // Lightweight fetch for the 乗務員ID selector below — only the fields the
 // picker needs, distinct from staff-attendance-view.tsx's fuller StaffRow
 // shape (see the cacheKey note in use-realtime-table.ts).
