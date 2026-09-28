@@ -45,8 +45,8 @@ import { VersionView } from './version-view'
 import { useCurrentVersion } from '@/lib/changelog'
 
 const THEME_OPTIONS: { id: ThemeMode; label: string; Icon: typeof Sun }[] = [
-  { id: 'dark', label: 'ダーク', Icon: Moon },
   { id: 'light', label: 'ライト', Icon: Sun },
+  { id: 'dark', label: 'ダーク', Icon: Moon },
   { id: 'system', label: 'デバイスに合わせる', Icon: Monitor },
 ]
 
