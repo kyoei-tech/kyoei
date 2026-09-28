@@ -64,7 +64,7 @@ type StoredSettings = {
 
 function defaultSettings(): StoredSettings {
   return {
-    theme: 'dark',
+    theme: 'light',
     fontLevels: {
       home: DEFAULT_FONT_LEVEL,
       yard: DEFAULT_FONT_LEVEL,
