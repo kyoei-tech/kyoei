@@ -1,17 +1,19 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Bell,
   Briefcase,
   ChevronDown,
   ChevronRight,
+  Mail,
   Monitor,
   Moon,
   Smartphone,
   Sun,
   Tag,
   TestTube,
+  Trash2,
   UserRound,
 } from 'lucide-react'
 import {
@@ -33,6 +35,7 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { usePasswordGate } from './password-prompt'
+import { ConfirmDeleteInline } from './confirm-delete'
 import { BackHeader } from './back-header'
 import { PushNotificationEditorView } from './push-notification-editor-view'
 import { NotificationAdminMenu } from './notification-admin-menu'
@@ -64,6 +67,16 @@ type SecretScreen =
   | 'alert-editor'
   | 'destination-registry'
 type SubScreen = 'version'
+
+// Mirrors the shape returned by GET /api/test-accounts (see that route for
+// how each field is derived from staff_members + the Admin API).
+type TestAccount = {
+  staffId: string
+  staffName: string
+  authUserId: string
+  email: string | null
+  createdAt: string | null
+}
 
 // Lightweight fetch for the 乗務員ID selector below — only the fields the
 // picker needs, distinct from staff-attendance-view.tsx's fuller StaffRow
@@ -106,6 +119,17 @@ export function SettingsView() {
   const [secretScreen, setSecretScreen] = useState<SecretScreen | null>(null)
   const [subScreen, setSubScreen] = useState<SubScreen | null>(null)
   const [staffPickerOpen, setStaffPickerOpen] = useState(false)
+  const [testAccounts, setTestAccounts] = useState<TestAccount[] | null>(null)
+  const [testAccountsLoading, setTestAccountsLoading] = useState(false)
+  const [testAccountsError, setTestAccountsError] = useState<string | null>(
+    null,
+  )
+  const [deletingAccountId, setDeletingAccountId] = useState<string | null>(
+    null,
+  )
+  const [confirmDeleteAccountId, setConfirmDeleteAccountId] = useState<
+    string | null
+  >(null)
   const currentVersion = useCurrentVersion()
   const bellTapCountRef = useRef(0)
   const bellTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -117,6 +141,47 @@ export function SettingsView() {
     string | null
   >(null)
   const [pushSubscribed, setPushSubscribed] = useState(false)
+
+  const loadTestAccounts = useCallback(async () => {
+    setTestAccountsLoading(true)
+    setTestAccountsError(null)
+    try {
+      const res = await fetch('/api/test-accounts')
+      if (!res.ok) throw new Error('failed')
+      const { accounts } = (await res.json()) as { accounts: TestAccount[] }
+      setTestAccounts(accounts)
+    } catch {
+      setTestAccountsError('アカウント一覧を読み込めませんでした。')
+    } finally {
+      setTestAccountsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (testDriveMode && testAccounts === null) {
+      void loadTestAccounts()
+    }
+  }, [testDriveMode, testAccounts, loadTestAccounts])
+
+  async function handleDeleteTestAccount(authUserId: string) {
+    setDeletingAccountId(authUserId)
+    try {
+      const res = await fetch('/api/test-accounts', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ authUserId }),
+      })
+      if (!res.ok) throw new Error('failed')
+      setTestAccounts(
+        (prev) => prev?.filter((a) => a.authUserId !== authUserId) ?? prev,
+      )
+    } catch {
+      setTestAccountsError('削除に失敗しました。もう一度お試しください。')
+    } finally {
+      setDeletingAccountId(null)
+      setConfirmDeleteAccountId(null)
+    }
+  }
 
   async function syncPushSubscription() {
     const result = await ensurePushSubscription()
@@ -507,6 +572,80 @@ export function SettingsView() {
               <span className="absolute top-0.5 h-5 w-5 translate-x-5 rounded-full bg-card transition-transform" />
             </span>
           </button>
+
+          <div className="flex flex-col gap-2 border-t border-border pt-3">
+            <h4 className="text-sm font-semibold text-foreground">
+              登録済みアカウント
+            </h4>
+            <p className="text-xs text-muted-foreground">
+              マイページ・配車表で登録されたアカウントです。テストで作成したアカウントはここから削除できます。
+            </p>
+            {testAccountsLoading && (
+              <p className="py-2 text-xs text-muted-foreground">
+                読み込み中...
+              </p>
+            )}
+            {testAccountsError && (
+              <p className="py-2 text-xs text-destructive">
+                {testAccountsError}
+              </p>
+            )}
+            {!testAccountsLoading && testAccounts?.length === 0 && (
+              <p className="py-2 text-xs text-muted-foreground">
+                登録済みアカウントはありません。
+              </p>
+            )}
+            {!testAccountsLoading &&
+              testAccounts &&
+              testAccounts.length > 0 && (
+                <ul className="flex flex-col gap-2">
+                  {testAccounts.map((account) => (
+                    <li
+                      key={account.authUserId}
+                      className="flex flex-col gap-2 rounded-xl border border-border bg-background px-3 py-2.5"
+                    >
+                      {confirmDeleteAccountId === account.authUserId ? (
+                        <ConfirmDeleteInline
+                          message={`${account.staffName}のアカウントを削除しますか？`}
+                          onCancel={() => setConfirmDeleteAccountId(null)}
+                          onConfirm={() =>
+                            handleDeleteTestAccount(account.authUserId)
+                          }
+                        />
+                      ) : (
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex min-w-0 flex-col gap-0.5">
+                            <span className="truncate text-sm font-medium text-foreground">
+                              {account.staffName}
+                            </span>
+                            {account.email && (
+                              <span className="flex items-center gap-1 truncate text-xs text-muted-foreground">
+                                <Mail
+                                  className="h-3 w-3 shrink-0"
+                                  aria-hidden="true"
+                                />
+                                {account.email}
+                              </span>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setConfirmDeleteAccountId(account.authUserId)
+                            }
+                            className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium text-destructive transition-colors active:scale-[0.97]"
+                            aria-label={`${account.staffName}のアカウントを削除`}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                            削除
+                          </button>
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+          </div>
         </section>
       )}
 

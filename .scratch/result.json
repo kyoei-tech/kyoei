@@ -1,0 +1,245 @@
+{
+  "dispatchDate": "09月01日",
+  "vehicleNumber": "2176",
+  "driverName": "小西芳輝",
+  "dispatchNumber": "0000033107",
+  "rounds": [
+    {
+      "round": "1",
+      "vehicles": [
+        {
+          "round": "1",
+          "vehicleName": "ﾉｰﾄ",
+          "auctionInfo": "練馬3266",
+          "chassisNumber": "E13-231996",
+          "billTo": "JU神奈川",
+          "pickup": "共栄 本郷ﾔｰﾄﾞ",
+          "dropoff": "JU神奈川 渡邊様R9年1月出品分",
+          "pickupDateDetail": "08/19 以降",
+          "dropoffDateDetail": "迄",
+          "notes": "050-1712-2715瀬戸1-11",
+          "phone": "050-1712-2715"
+        },
+        {
+          "round": "1",
+          "vehicleName": "ﾌｨｯﾄ",
+          "auctionInfo": "品川0978",
+          "chassisNumber": "GS4-1007369",
+          "billTo": "JU神奈川",
+          "pickup": "共栄 本郷ﾔｰﾄﾞ",
+          "dropoff": "JU神奈川 渡邊様R9年1月出品分",
+          "pickupDateDetail": "08/19 以降",
+          "dropoffDateDetail": "迄",
+          "notes": "050-1712-2715瀬戸1-11",
+          "phone": "050-1712-2715"
+        },
+        {
+          "round": "1",
+          "vehicleName": "ﾌｨｯﾄ",
+          "auctionInfo": "",
+          "chassisNumber": "GD3-1927280",
+          "billTo": "JU神奈川",
+          "pickup": "共栄 本郷ﾔｰﾄﾞ",
+          "dropoff": "JU神奈川",
+          "pickupDateDetail": "08/28 指定",
+          "dropoffDateDetail": "迄",
+          "notes": "",
+          "phone": null
+        }
+      ]
+    },
+    {
+      "round": "2",
+      "vehicles": [
+        {
+          "round": "2",
+          "vehicleName": "ﾌﾘｰﾄﾞ",
+          "auctionInfo": "28034",
+          "chassisNumber": "GB5-1130359",
+          "billTo": "ﾏﾙﾀﾁ",
+          "pickup": "共栄 本郷ﾔｰﾄﾞ",
+          "dropoff": "ECL木更津 ｵｰｼｬﾝﾔｰﾄﾞ",
+          "pickupDateDetail": "08/25 以降",
+          "dropoffDateDetail": "迄",
+          "notes": "ﾋﾞｽﾞﾎﾟﾝ分/ﾅﾝﾊﾞｰあればｶｯﾄ※AM着で早急に発送",
+          "phone": null
+        },
+        {
+          "round": "2",
+          "vehicleName": "ｳﾞｪｾﾞﾙ",
+          "auctionInfo": "28039",
+          "chassisNumber": "RU1-1306182",
+          "billTo": "ﾏﾙﾀﾁ",
+          "pickup": "共栄 本郷ﾔｰﾄﾞ",
+          "dropoff": "ECL木更津 ｵｰｼｬﾝﾔｰﾄﾞ",
+          "pickupDateDetail": "08/25 以降",
+          "dropoffDateDetail": "迄",
+          "notes": "ﾋﾞｽﾞﾎﾟﾝ分/ﾅﾝﾊﾞｰあればｶｯﾄ※AM着で早急に発送",
+          "phone": null
+        },
+        {
+          "round": "2",
+          "vehicleName": "ﾌﾘｰﾄﾞｽﾊﾟｲｸ",
+          "auctionInfo": "28083",
+          "chassisNumber": "GP3-1022135",
+          "billTo": "ﾏﾙﾀﾁ",
+          "pickup": "共栄 本郷ﾔｰﾄﾞ",
+          "dropoff": "ECL木更津 ｵｰｼｬﾝﾔｰﾄﾞ",
+          "pickupDateDetail": "08/25 以降",
+          "dropoffDateDetail": "迄",
+          "notes": "ﾋﾞｽﾞﾎﾟﾝ分/ﾅﾝﾊﾞｰあればｶｯﾄ※AM着で早急に発送",
+          "phone": null
+        },
+        {
+          "round": "2",
+          "vehicleName": "ﾌﾘｰﾄﾞ",
+          "auctionInfo": "28081",
+          "chassisNumber": "GP3-1233835",
+          "billTo": "ﾏﾙﾀﾁ",
+          "pickup": "共栄 本郷ﾔｰﾄﾞ",
+          "dropoff": "ECL木更津 ｵｰｼｬﾝﾔｰﾄﾞ",
+          "pickupDateDetail": "08/25 以降",
+          "dropoffDateDetail": "迄",
+          "notes": "ﾋﾞｽﾞﾎﾟﾝ分/ﾅﾝﾊﾞｰあればｶｯﾄ※AM着で早急に発送",
+          "phone": null
+        },
+        {
+          "round": "2",
+          "vehicleName": "AD",
+          "auctionInfo": "6263",
+          "chassisNumber": "VZNY12-103585",
+          "billTo": "東西海運",
+          "pickup": "JU神奈川 【搬出】(5330)",
+          "dropoff": "ECL木更津 ｵｰｼｬﾝﾔｰﾄﾞ",
+          "pickupDateDetail": "08/27 以降",
+          "dropoffDateDetail": "09/04 迄",
+          "notes": "ﾋﾞｨﾌｫｱｰﾄﾞ|ﾅﾝﾊﾞｰあればｶｯﾄ",
+          "phone": null
+        },
+        {
+          "round": "2",
+          "vehicleName": "ｱﾙﾄ",
+          "auctionInfo": "6200",
+          "chassisNumber": "HA36S-522329",
+          "billTo": "東西海運",
+          "pickup": "JU神奈川 【搬出】(39505)",
+          "dropoff": "木更津JFA JAPANFORWARDINGAGENCY(千葉)",
+          "pickupDateDetail": "08/28 以降",
+          "dropoffDateDetail": "08/28 迄",
+          "notes": "ｶｰﾒﾝ|期限内搬出",
+          "phone": null
+        },
+        {
+          "round": "2",
+          "vehicleName": "ﾊｲﾗｯｸｽ",
+          "auctionInfo": "6226",
+          "chassisNumber": "GUN125-3936079",
+          "billTo": "ﾔﾏｻ",
+          "pickup": "JU神奈川(92575)",
+          "dropoff": "日本ﾛｼﾞｽﾃｨｸｽｻｰﾋﾞｽ 木更津",
+          "pickupDateDetail": "08/29 以降",
+          "dropoffDateDetail": "迄",
+          "notes": "ｶｰﾘﾝｸﾞ様※ﾅﾝﾊﾞｰｶｯﾄ",
+          "phone": null
+        }
+      ]
+    },
+    {
+      "round": "3",
+      "vehicles": [
+        {
+          "round": "3",
+          "vehicleName": "ﾛｯｷｰ",
+          "auctionInfo": "12065",
+          "chassisNumber": "A202S-0033014",
+          "billTo": "ﾈｸｽﾃｰｼﾞ",
+          "pickup": "TAA横浜 【搬出】(59320)",
+          "dropoff": "積置き",
+          "pickupDateDetail": "08/29 以降",
+          "dropoffDateDetail": "08/31 迄",
+          "notes": "富士",
+          "phone": null
+        },
+        {
+          "round": "3",
+          "vehicleName": "ﾊﾘｱｰ",
+          "auctionInfo": "12449",
+          "chassisNumber": "MXUA80-0041476",
+          "billTo": "ﾈｸｽﾃｰｼﾞ",
+          "pickup": "TAA横浜 【搬出】(59320)",
+          "dropoff": "積置き",
+          "pickupDateDetail": "08/29 以降",
+          "dropoffDateDetail": "08/31 迄",
+          "notes": "富士",
+          "phone": null
+        },
+        {
+          "round": "3",
+          "vehicleName": "ｱﾙﾌｧｰﾄﾞ",
+          "auctionInfo": "12162",
+          "chassisNumber": "AAHH40-0037308",
+          "billTo": "ﾈｸｽﾃｰｼﾞ",
+          "pickup": "TAA横浜 【搬出】(59320)",
+          "dropoff": "積置き",
+          "pickupDateDetail": "08/29 以降",
+          "dropoffDateDetail": "08/31 迄",
+          "notes": "東静岡",
+          "phone": null
+        },
+        {
+          "round": "3",
+          "vehicleName": "ｱﾙﾌｧｰﾄﾞ",
+          "auctionInfo": "12037",
+          "chassisNumber": "AGH40-4041601",
+          "billTo": "ﾈｸｽﾃｰｼﾞ",
+          "pickup": "TAA横浜 【搬出】(59320)",
+          "dropoff": "積置き",
+          "pickupDateDetail": "08/29 以降",
+          "dropoffDateDetail": "08/31 迄",
+          "notes": "東静岡",
+          "phone": null
+        },
+        {
+          "round": "3",
+          "vehicleName": "ﾗﾊﾟﾝ",
+          "auctionInfo": "3009",
+          "chassisNumber": "HE33S-105630",
+          "billTo": "ﾈｸｽﾃｰｼﾞ",
+          "pickup": "TAA横浜 【搬出】(59320)",
+          "dropoff": "積置き",
+          "pickupDateDetail": "08/29 以降",
+          "dropoffDateDetail": "08/31 迄",
+          "notes": "東静岡",
+          "phone": null
+        },
+        {
+          "round": "3",
+          "vehicleName": "ﾙｰﾐｰ",
+          "auctionInfo": "12105",
+          "chassisNumber": "M900A-0668644",
+          "billTo": "ﾈｸｽﾃｰｼﾞ",
+          "pickup": "TAA横浜 【搬出】(59320)",
+          "dropoff": "積置き",
+          "pickupDateDetail": "08/29 以降",
+          "dropoffDateDetail": "08/31 迄",
+          "notes": "東静岡",
+          "phone": null
+        },
+        {
+          "round": "3",
+          "vehicleName": "ﾛｯｷｰ",
+          "auctionInfo": "12238",
+          "chassisNumber": "A200S-0026075",
+          "billTo": "ﾈｸｽﾃｰｼﾞ",
+          "pickup": "TAA横浜 【搬出】(59320)",
+          "dropoff": "積置き",
+          "pickupDateDetail": "08/29 以降",
+          "dropoffDateDetail": "08/31 迄",
+          "notes": "東静岡",
+          "phone": null
+        }
+      ]
+    }
+  ],
+  "vehicleCount": 17
+}

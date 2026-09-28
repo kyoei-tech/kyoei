@@ -9,7 +9,6 @@ import {
   List,
   Loader2,
   Pencil,
-  Phone,
   Upload,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -86,54 +85,61 @@ function formatUploadedAt(iso: string): string {
   })
 }
 
+// Field order and font-size hierarchy both follow the printed sheet's own
+// priority: 品名 (largest) > 車体番号 > 摘要１ > 積地/降地 (equal) >
+// 積日(詳細)/降日(詳細)/オークション (equal) > 請求先 (smallest).
 function DetailCard({ vehicle }: { vehicle: ParsedDispatchSheet['rounds'][number]['vehicles'][number] }) {
+  const dateDetail = vehicle.pickupDateDetail || vehicle.dropoffDateDetail
+
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
-      <div>
-        {vehicle.auctionInfo && (
-          <p className="truncate text-xs font-medium text-muted-foreground">
-            {vehicle.auctionInfo}
-          </p>
-        )}
-        <h3 className="text-balance text-xl font-bold text-foreground">
+      {vehicle.billTo && (
+        <p className="truncate text-[11px] font-medium text-muted-foreground">
+          {vehicle.billTo}
+        </p>
+      )}
+
+      {vehicle.auctionInfo && (
+        <p className="truncate text-xs font-medium text-muted-foreground">
+          {vehicle.auctionInfo}
+        </p>
+      )}
+
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <h3 className="text-balance text-2xl font-bold text-foreground">
           {vehicle.vehicleName || '車種名不明'}
         </h3>
-      </div>
-
-      <div className="overflow-x-auto rounded-lg border border-border bg-muted px-3 py-2">
-        <p className="whitespace-nowrap font-mono text-sm tracking-tight text-foreground">
+        <p className="truncate font-mono text-lg font-semibold text-foreground/80">
           {vehicle.chassisNumber || '車台番号不明'}
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <span className="rounded-full bg-blue-100 px-3 py-1 font-semibold text-blue-800 dark:bg-blue-950 dark:text-blue-300">
           {vehicle.pickup || '積地不明'}
         </span>
         <span className="text-muted-foreground" aria-hidden="true">
           ➔
         </span>
-        <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800 dark:bg-green-950 dark:text-green-300">
+        <span className="rounded-full bg-green-100 px-3 py-1 font-semibold text-green-800 dark:bg-green-950 dark:text-green-300">
           {vehicle.dropoff || '降地不明'}
         </span>
       </div>
 
+      {dateDetail && (
+        <p className="text-xs text-muted-foreground">
+          {vehicle.pickupDateDetail || '—'}
+          <span aria-hidden="true"> ➔ </span>
+          {vehicle.dropoffDateDetail || '—'}
+        </p>
+      )}
+
       {vehicle.notes && (
         <div className="rounded-lg border border-yellow-300 bg-yellow-50 px-3 py-2 dark:border-yellow-800 dark:bg-yellow-950">
-          <p className="text-pretty text-sm font-medium text-yellow-900 dark:text-yellow-200">
+          <p className="text-pretty text-base font-medium text-yellow-900 dark:text-yellow-200">
             {vehicle.notes}
           </p>
         </div>
-      )}
-
-      {vehicle.phone && (
-        <a
-          href={`tel:${vehicle.phone}`}
-          className="flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-colors active:scale-[0.99]"
-        >
-          <Phone className="h-4 w-4" aria-hidden="true" />
-          {vehicle.phone} に電話する
-        </a>
       )}
     </div>
   )
@@ -159,11 +165,17 @@ function CompactRow({ vehicle }: { vehicle: ParsedDispatchSheet['rounds'][number
             {vehicle.chassisNumber || '車台番号不明'}
           </p>
         </div>
-        <p className="mt-1 truncate text-xs text-muted-foreground">
-          {vehicle.pickup || '？'}
-          <span aria-hidden="true"> ➔ </span>
-          {vehicle.dropoff || '？'}
-        </p>
+        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+          <span className="truncate rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+            {vehicle.pickup || '？'}
+          </span>
+          <span className="text-[11px] text-muted-foreground" aria-hidden="true">
+            ➔
+          </span>
+          <span className="truncate rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-semibold text-green-800 dark:bg-green-950 dark:text-green-300">
+            {vehicle.dropoff || '？'}
+          </span>
+        </div>
       </div>
     </div>
   )
