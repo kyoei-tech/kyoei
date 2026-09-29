@@ -12,6 +12,7 @@ import { YardLayoutView } from './yard-layout-view'
 import { StaffAttendanceView } from './staff-attendance-view'
 import { NewsNotifier } from './news-notifier'
 import { PendingNotificationModal } from './pending-notification-modal'
+import { StatusBand } from './status-band'
 import { usePasswordGate } from './password-prompt'
 
 // PIN for the メニュー tab's hidden 5-tap gesture that unlocks 試験運転モード
@@ -101,6 +102,7 @@ export function AttendanceApp() {
           <MenuView key={menuResetKey} initialItem={menuInitialItem} />
         )}
       </main>
+      <StatusBand />
       <BottomTabs
         active={tab}
         onChange={handleTabChange}

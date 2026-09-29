@@ -30,6 +30,7 @@ import {
 } from '@/lib/trip-log'
 import { ConfirmActionModal } from './confirm-action-modal'
 import { StyledNotificationText } from './styled-notification-text'
+import { PAGE_BLEED_CLASS, pageTintClass } from '@/lib/page-tint'
 import {
   getConfirmActionCancelLabel,
   getConfirmActionConfirmLabel,
@@ -85,7 +86,6 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 export function DrivingStatusView({
   now,
-  nowParts,
   departureAt,
   trip,
   onTapCategory,
@@ -94,7 +94,6 @@ export function DrivingStatusView({
   onOpenEmergencyContacts,
 }: {
   now: number
-  nowParts: ClockParts
   departureAt: number
   trip: TripState
   onTapCategory: (category: BreakCategory) => void
@@ -135,6 +134,11 @@ export function DrivingStatusView({
   const departureDateLabel = `${departureParts.date} ${departureParts.weekday}`
 
   const isDriving = trip.activeCategory === 'driving'
+  // Elapsed time on the *current* break segment only (resets to 0 the
+  // moment 走行再開 or a different 荷積/荷卸/待機/休憩 button is pressed),
+  // distinct from the categoryList totals below which accumulate across
+  // segments for the whole trip.
+  const activeSegmentElapsedMs = Math.max(0, now - trip.segmentStartedAt)
 
   const categoryList: { key: ActiveCategory; ms: number }[] = (
     ['driving', 'loading', 'unloading', 'waiting', 'resting'] as ActiveCategory[]
@@ -164,17 +168,7 @@ export function DrivingStatusView({
 
       {/* justify-between spreads the enlarged cards evenly down to the
           bottom action row instead of leaving one large gap in the middle. */}
-      <div className="flex flex-1 flex-col justify-between gap-2.5">
-      <div className="rounded-2xl border border-border bg-card px-5 py-2.5 text-center">
-        <p className="text-sm font-medium text-muted-foreground">
-          {nowParts.date}
-          <span className="ml-1.5 text-foreground">{nowParts.weekday}</span>
-        </p>
-        <p className="font-mono text-3xl font-semibold tabular-nums text-foreground">
-          {nowParts.time}
-        </p>
-      </div>
-
+      <div className={`flex flex-1 flex-col justify-between gap-2.5 ${PAGE_BLEED_CLASS} ${pageTintClass('working')}`}>
       <div className="grid grid-cols-2 gap-2.5">
         <div className="rounded-2xl border border-border bg-card px-3 py-3 text-center">
           <p className="text-sm font-bold text-secondary">出庫時刻</p>
@@ -234,6 +228,22 @@ export function DrivingStatusView({
         )}
       </div>
 
+      {!isDriving && (
+        <div className="rounded-2xl border border-border bg-card px-5 py-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-bold text-orange-500">
+              {`${
+                BREAK_BUTTONS.find((b) => b.id === trip.activeCategory)
+                  ?.label ?? ''
+              } 経過時間`}
+            </span>
+            <span className="font-mono text-2xl font-bold tabular-nums text-orange-500">
+              {formatDuration(activeSegmentElapsedMs)}
+            </span>
+          </div>
+        </div>
+      )}
+
       <div className="rounded-2xl border border-border bg-card px-5 py-3">
         <div className="flex items-center justify-between">
           <span
@@ -284,14 +294,14 @@ export function DrivingStatusView({
                 type="button"
                 disabled={active}
                 onClick={() => setPendingAction({ kind: 'category', category: id })}
-                className={`flex flex-col items-center gap-1.5 rounded-2xl border py-3.5 text-sm font-semibold transition-all active:scale-[0.97] disabled:opacity-50 ${
+                className={`flex flex-col items-center gap-1.5 rounded-2xl border py-3.5 text-sm font-semibold transition-all active:scale-[0.97] disabled:opacity-100 ${
                   active
                     ? 'border-secondary bg-secondary text-secondary-foreground'
-                    : 'border-border bg-card text-foreground hover:border-secondary/60'
+                    : 'border-border/60 bg-card text-muted-foreground opacity-60 hover:border-secondary/60 hover:opacity-90'
                 }`}
               >
                 <Icon className="h-6 w-6" aria-hidden="true" />
-                {label}
+                {active ? `${label}中` : label}
               </button>
             )
           })}
@@ -300,7 +310,7 @@ export function DrivingStatusView({
           type="button"
           disabled={isDriving}
           onClick={() => setPendingAction({ kind: 'resume' })}
-          className="flex items-center justify-center gap-1.5 rounded-2xl border border-primary bg-primary py-3.5 text-lg font-bold text-primary-foreground transition-all active:scale-[0.97] disabled:opacity-50"
+          className="flex items-center justify-center gap-1.5 rounded-2xl border border-orange-500 bg-orange-500 py-3.5 text-lg font-bold text-white transition-all hover:bg-orange-600 active:scale-[0.97] disabled:opacity-50"
         >
           走行再開
         </button>

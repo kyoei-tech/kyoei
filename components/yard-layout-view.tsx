@@ -410,14 +410,20 @@ export function YardLayoutView() {
           <h2 className="text-xl font-bold text-foreground">ヤード配置</h2>
           {latestUpdate &&
             (isSameLocalDay(latestUpdate, new Date()) ? (
-              <p className="mt-1 text-sm font-bold text-secondary">更新済み</p>
+              <p className="mt-1 text-sm font-bold text-primary">更新済み</p>
             ) : (
-              <p className="mt-1 text-xs font-normal text-orange-500">
+              <p className="mt-1 text-sm font-bold text-destructive">
                 未更新
               </p>
             ))}
           {latestUpdate && (
-            <p className="mt-1 text-sm font-medium text-orange-500">
+            <p
+              className={`mt-1 text-sm font-medium ${
+                isSameLocalDay(latestUpdate, new Date())
+                  ? 'text-primary'
+                  : 'text-destructive'
+              }`}
+            >
               最終更新：{formatUpdated(latestUpdate)}
             </p>
           )}
@@ -427,7 +433,7 @@ export function YardLayoutView() {
               aria-hidden="true"
             />
             <span>
-              ヒント：中継用紙の店舗名の後に市区町村が書いてある場合、一般の可能性大
+              ヒント：中継用紙の店���名の後に市区町村が書いてある場合、一般の可能性大
             </span>
           </p>
         </div>

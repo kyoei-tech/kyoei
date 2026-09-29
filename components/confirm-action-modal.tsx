@@ -1,6 +1,6 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import { useRef, type ReactNode } from 'react'
 import { AlertTriangle } from 'lucide-react'
 import { StyledNotificationText } from './styled-notification-text'
 
@@ -28,6 +28,24 @@ export function ConfirmActionModal({
   onConfirm: () => void
   onCancel?: () => void
 }) {
+  // Guards against a fast double-tap firing the status change twice (e.g.
+  // two 出庫/帰庫/出勤/退勤 transitions from a single confirmation). A ref
+  // (not state) is used so the very first tap is blocked synchronously,
+  // before React has a chance to re-render and disable the button.
+  const firedRef = useRef(false)
+
+  function handleConfirm() {
+    if (firedRef.current) return
+    firedRef.current = true
+    onConfirm()
+  }
+
+  function handleCancel() {
+    if (firedRef.current) return
+    firedRef.current = true
+    onCancel?.()
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-6">
       <div className="w-full max-w-xs rounded-3xl border border-border bg-card p-6">
@@ -43,7 +61,7 @@ export function ConfirmActionModal({
           {cancelLabel !== null && (
             <button
               type="button"
-              onClick={onCancel}
+              onClick={handleCancel}
               className="flex-1 rounded-full border border-border px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent active:scale-95"
             >
               {cancelLabel}
@@ -51,7 +69,7 @@ export function ConfirmActionModal({
           )}
           <button
             type="button"
-            onClick={onConfirm}
+            onClick={handleConfirm}
             className="flex-1 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95"
           >
             {confirmLabel}
