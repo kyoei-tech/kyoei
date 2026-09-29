@@ -4,7 +4,7 @@ import { ShieldCheck } from 'lucide-react'
 import {
   canTakeHolidayShift,
   getRemainingOver14hCount,
-  getRemainingSplitRestCount,
+  getSplitRestUsageThisMonth,
 } from '@/lib/legal-limits'
 import type { TripHistoryEntry } from '@/lib/trip-history'
 
@@ -22,7 +22,12 @@ export function LegalCheckCard({
   now: number
 }) {
   const remainingOver14hCount = getRemainingOver14hCount(trips, now)
-  const remainingSplitRestCount = getRemainingSplitRestCount(trips, now)
+  const { used: splitRestUsed, total: splitRestTotal } =
+    getSplitRestUsageThisMonth(trips, now)
+  // 基準は「分割休息の回数 < 当該月の総勤務回数の半分」。月の途中は総勤務回数が
+  // まだ増えていく途中なので、この判定自体も目安にすぎない。
+  const splitRestOverHalf =
+    splitRestTotal > 0 && splitRestUsed * 2 >= splitRestTotal
   const holidayShiftAvailable = canTakeHolidayShift(trips, now)
 
   return (
@@ -39,10 +44,14 @@ export function LegalCheckCard({
       <div className="flex flex-col gap-1.5 text-sm text-foreground">
         <div className="flex items-center justify-between gap-2">
           <span className="text-muted-foreground">
-            今月あと何回分割休息を使えるか
+            今月の分割休息使用回数（目安：全運行の半分未満）
           </span>
-          <span className="font-mono text-base font-bold tabular-nums">
-            {remainingSplitRestCount}回
+          <span
+            className={`font-mono text-base font-bold tabular-nums ${
+              splitRestOverHalf ? 'text-destructive' : 'text-foreground'
+            }`}
+          >
+            {splitRestUsed}回 / {splitRestTotal}回中
           </span>
         </div>
         <div className="flex items-center justify-between gap-2">

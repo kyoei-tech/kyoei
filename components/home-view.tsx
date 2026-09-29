@@ -24,7 +24,12 @@ import {
   type BreakCategory,
   type TripState,
 } from '@/lib/trip-log'
-import { saveCompletedTrip } from '@/lib/trip-history'
+import {
+  saveCompletedTrip,
+  fetchTripHistory,
+  type TripHistoryEntry,
+} from '@/lib/trip-history'
+import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { syncStaffMemberStatus } from '@/lib/staff-member-sync'
 import { useSettings } from '@/lib/settings/settings-context'
 import {
@@ -118,6 +123,31 @@ export function HomeView({
   const { data: confirmMessages } = useConfirmActionMessages()
   const { pushNotificationsEnabled, staffMemberId } = useSettings()
   const { data: notificationRules } = usePushNotificationRules()
+  const { data: trips } = useRealtimeTable<TripHistoryEntry>(
+    'trip_history',
+    fetchTripHistory,
+    { cacheKey: 'device' },
+  )
+  // isSplitRestReturn is set optimistically at 帰庫 (before the completed
+  // trip has even finished saving to 運行履歴), then reconciled here against
+  // that saved row once it appears — and reverted if the row is later
+  // deleted from 運行履歴, so deleting the trip that caused a 分割休息
+  // determination correctly un-flags it instead of leaving a stale badge.
+  const matchedSplitRestTripId = useRef<string | null>(null)
+  useEffect(() => {
+    if (mode !== 'return' || startedAt == null) {
+      matchedSplitRestTripId.current = null
+      return
+    }
+    const matching = trips.find((t) => t.returnedAt === startedAt)
+    if (matching) {
+      matchedSplitRestTripId.current = matching.id
+      setIsSplitRestReturn(matching.splitRestRemainingMs != null)
+    } else if (matchedSplitRestTripId.current != null) {
+      matchedSplitRestTripId.current = null
+      setIsSplitRestReturn(false)
+    }
+  }, [trips, mode, startedAt])
 
   const toggleFormat = useCallback(() => setHour12((v) => !v), [])
 
@@ -421,34 +451,50 @@ export function HomeView({
       )}
 
       <div className="grid grid-cols-2 gap-3">
-        <button
-          type="button"
-          onClick={() =>
-            setPendingHomeAction(
-              !isSplitRestEligible
-                ? 'departure'
-                : isRestNearNineHours
-                  ? 'split-rest-near-full'
-                  : isSplitRestEscalating
-                    ? 'split-rest-escalation'
-                    : 'split-rest',
-            )
-          }
-          disabled={mode === 'departure'}
-          aria-pressed={mode === 'departure'}
-          className={`flex flex-col items-center justify-center gap-2 rounded-3xl border py-4 text-base font-bold leading-tight transition-all active:scale-[0.97] disabled:active:scale-100 ${
+        {(() => {
+          // While already departed (disabled 出庫中 state), reflect the
+          // *actual* ongoing trip's kind rather than isSplitRestEligible
+          // (which is only meaningful in 'return' mode) so the dimmed
+          // color stays accurate.
+          const departureIsSplitRest =
             mode === 'departure'
-              ? 'border-secondary/25 bg-secondary/10 text-secondary/70'
-              : 'border-secondary bg-secondary text-secondary-foreground shadow-lg shadow-secondary/20'
-          }`}
-        >
-          <LogOut className="h-7 w-7" aria-hidden="true" />
-          {mode === 'departure'
-            ? '出庫中'
-            : isSplitRestEligible
-              ? '分割休息による出庫'
-              : '出庫'}
-        </button>
+              ? trip?.splitRestRemainingMs != null
+              : isSplitRestEligible
+          return (
+            <button
+              type="button"
+              onClick={() =>
+                setPendingHomeAction(
+                  !isSplitRestEligible
+                    ? 'departure'
+                    : isRestNearNineHours
+                      ? 'split-rest-near-full'
+                      : isSplitRestEscalating
+                        ? 'split-rest-escalation'
+                        : 'split-rest',
+                )
+              }
+              disabled={mode === 'departure'}
+              aria-pressed={mode === 'departure'}
+              className={`flex flex-col items-center justify-center gap-2 rounded-3xl border py-4 text-base font-bold leading-tight transition-all active:scale-[0.97] disabled:active:scale-100 ${
+                mode === 'departure'
+                  ? departureIsSplitRest
+                    ? 'border-destructive/25 bg-destructive/10 text-destructive/70'
+                    : 'border-primary/25 bg-primary/10 text-primary/70'
+                  : departureIsSplitRest
+                    ? 'border-destructive bg-destructive text-destructive-foreground shadow-lg shadow-destructive/20'
+                    : 'border-primary bg-primary text-primary-foreground shadow-lg shadow-primary/20'
+              }`}
+            >
+              <LogOut className="h-7 w-7" aria-hidden="true" />
+              {mode === 'departure'
+                ? '出庫中'
+                : isSplitRestEligible
+                  ? '分割休息による出庫'
+                  : '出庫'}
+            </button>
+          )
+        })()}
         <button
           type="button"
           onClick={() => setPendingHomeAction('return')}
@@ -456,9 +502,9 @@ export function HomeView({
           aria-pressed={mode === 'return'}
           className={`flex flex-col items-center justify-center gap-2 rounded-3xl border py-4 text-base font-bold leading-tight transition-all active:scale-[0.97] disabled:active:scale-100 ${
             mode === 'return'
-              ? 'border-primary/25 bg-primary/10 text-primary/70'
+              ? 'border-secondary/25 bg-secondary/10 text-secondary/70'
               : mode === 'departure'
-                ? 'border-primary bg-primary text-primary-foreground shadow-lg shadow-primary/20'
+                ? 'border-secondary bg-secondary text-secondary-foreground shadow-lg shadow-secondary/20'
                 : 'border-border bg-muted text-muted-foreground opacity-60'
           }`}
         >

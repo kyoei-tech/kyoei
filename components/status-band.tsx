@@ -26,8 +26,8 @@ export function StatusBand() {
     return (
       <div
         aria-live="polite"
-        className={`flex shrink-0 items-center justify-center bg-brand-lime py-1 text-xs font-bold tracking-wide ${
-          clockedIn ? 'text-white' : 'text-orange-600'
+        className={`flex shrink-0 items-center justify-center py-1 text-xs font-bold tracking-wide text-white ${
+          clockedIn ? 'bg-brand-lime' : 'bg-orange-500'
         }`}
       >
         {clockedIn ? '出勤中' : '退勤済み'}
@@ -41,8 +41,8 @@ export function StatusBand() {
   return (
     <div
       aria-live="polite"
-      className={`flex shrink-0 items-center justify-center bg-brand-lime py-1 text-xs font-bold tracking-wide ${
-        mode === 'departure' ? 'text-white' : 'text-orange-600'
+      className={`flex shrink-0 items-center justify-center py-1 text-xs font-bold tracking-wide text-white ${
+        mode === 'departure' ? 'bg-brand-lime' : 'bg-orange-500'
       }`}
     >
       {mode === 'departure' ? '運行中' : '休息中'}

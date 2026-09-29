@@ -47,6 +47,10 @@ export function RestStatusView({
   )
   const returnDateLabel = `${returnParts.date} ${returnParts.weekday}`
   const departableDateLabel = `${departableParts.date} ${departableParts.weekday}`
+  // The 分割休息満了時刻 label only applies while still completing the split
+  // (3h) option. Switching to 9h/33h means the driver is taking a full rest
+  // instead, forfeiting the split — so it's just a normal 出庫可能時刻.
+  const isCompletingSplitRest = isSplitRestReturn && countdownOffset === 3
 
   return (
     <div
@@ -67,7 +71,7 @@ export function RestStatusView({
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-2xl border border-border bg-card px-3 py-3.5 text-center">
           <p className="text-sm font-bold text-primary">帰庫時刻</p>
-          <p className="font-mono text-2xl font-bold tabular-nums text-primary">
+          <p className="font-mono text-2xl font-bold tabular-nums text-white">
             {returnParts.time}
           </p>
           <p className="mt-1 text-xs font-medium text-muted-foreground">
@@ -76,21 +80,21 @@ export function RestStatusView({
         </div>
         <div
           className={`rounded-2xl border px-3 py-3.5 text-center ${
-            isSplitRestReturn
+            isCompletingSplitRest
               ? 'border-destructive bg-destructive/10'
               : 'border-border bg-card'
           }`}
         >
           <p
             className={`text-sm font-bold ${
-              isSplitRestReturn ? 'text-destructive' : 'text-orange-500'
+              isCompletingSplitRest ? 'text-destructive' : 'text-orange-500'
             }`}
           >
-            {isSplitRestReturn ? '分割休息満了時刻' : '出庫可能時刻'}
+            {isCompletingSplitRest ? '分割休息満了時刻' : '出庫可能時刻'}
           </p>
           <p
             className={`font-mono text-2xl font-bold tabular-nums ${
-              isSplitRestReturn ? 'text-destructive' : 'text-orange-500'
+              isCompletingSplitRest ? 'text-destructive' : 'text-white'
             }`}
           >
             {departableParts.time}
@@ -123,7 +127,7 @@ export function RestStatusView({
       </div>
 
       <div className="flex flex-1 flex-col items-center justify-center rounded-3xl border border-border bg-card px-6 py-6 text-center">
-        {isSplitRestReturn && (
+        {isCompletingSplitRest && (
           <p className="mb-1 text-sm font-bold text-destructive">
             分割休息中
           </p>

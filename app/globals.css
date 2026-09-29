@@ -59,10 +59,10 @@
    amber-styled buttons/badges keep looking intentional. */
 :root {
   color-scheme: dark;
-  /* Fixed brand lime (logo green) — intentionally NOT redefined in .light,
-     so the bottom tab bar reads as the same lime in both themes instead of
-     tracking --primary's per-theme lightness. */
-  --brand-lime: oklch(0.74 0.19 145);
+  /* Brand lime (logo green) used by the tab bar and 出庫/分割休息 button.
+     Slightly darker here than in .light — the same lightness read as too
+     bright/glary against this theme's near-black surfaces. */
+  --brand-lime: oklch(0.64 0.16 145);
   --background: oklch(0.14 0.01 260);
   --foreground: oklch(0.97 0.004 260);
   --card: oklch(0.19 0.013 260);
@@ -102,6 +102,9 @@
    for contrast on a near-white background matching the white-logo variant. */
 .light {
   color-scheme: light;
+  /* Full-brightness lime reads fine against this theme's near-white
+     surfaces, unlike the darkened :root value above. */
+  --brand-lime: oklch(0.74 0.19 145);
   --background: oklch(0.99 0.002 260);
   --foreground: oklch(0.22 0.02 260);
   --card: oklch(0.998 0.002 260);

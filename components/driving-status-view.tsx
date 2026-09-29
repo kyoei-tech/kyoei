@@ -172,7 +172,7 @@ export function DrivingStatusView({
       <div className="grid grid-cols-2 gap-2.5">
         <div className="rounded-2xl border border-border bg-card px-3 py-3 text-center">
           <p className="text-sm font-bold text-secondary">出庫時刻</p>
-          <p className="font-mono text-2xl font-bold tabular-nums text-secondary">
+          <p className="font-mono text-2xl font-bold tabular-nums text-white">
             {departureParts.time}
           </p>
           <p className="mt-1 text-xs font-medium text-muted-foreground">
@@ -255,7 +255,7 @@ export function DrivingStatusView({
           </span>
           <span
             className={`font-mono text-2xl font-bold tabular-nums ${
-              breakOrange ? 'text-orange-500' : 'text-foreground'
+              breakOrange ? 'text-orange-500' : 'text-white'
             }`}
           >
             {formatDuration(breakTimerMs)}
@@ -288,6 +288,10 @@ export function DrivingStatusView({
         <div className="grid grid-cols-4 gap-2.5">
           {BREAK_BUTTONS.map(({ id, label, icon: Icon }) => {
             const active = trip.activeCategory === id
+            // Only dim the *other* buttons once some break category is
+            // actually selected. While driving, none of these buttons is
+            // selected, so none should look disabled/dimmed.
+            const inactive = !active && !isDriving
             return (
               <button
                 key={id}
@@ -297,7 +301,9 @@ export function DrivingStatusView({
                 className={`flex flex-col items-center gap-1.5 rounded-2xl border py-3.5 text-sm font-semibold transition-all active:scale-[0.97] disabled:opacity-100 ${
                   active
                     ? 'border-secondary bg-secondary text-secondary-foreground'
-                    : 'border-border/60 bg-card text-muted-foreground opacity-60 hover:border-secondary/60 hover:opacity-90'
+                    : inactive
+                      ? 'border-border/60 bg-card text-muted-foreground opacity-60 hover:border-secondary/60 hover:opacity-90'
+                      : 'border-border/60 bg-card text-foreground hover:border-secondary/60 hover:opacity-90'
                 }`}
               >
                 <Icon className="h-6 w-6" aria-hidden="true" />
@@ -310,9 +316,9 @@ export function DrivingStatusView({
           type="button"
           disabled={isDriving}
           onClick={() => setPendingAction({ kind: 'resume' })}
-          className="flex items-center justify-center gap-1.5 rounded-2xl border border-orange-500 bg-orange-500 py-3.5 text-lg font-bold text-white transition-all hover:bg-orange-600 active:scale-[0.97] disabled:opacity-50"
+          className="flex items-center justify-center gap-1.5 rounded-2xl border border-orange-500 bg-orange-500 py-3.5 text-lg font-bold text-white transition-all hover:bg-orange-600 active:scale-[0.97] disabled:opacity-100"
         >
-          走行再開
+          {isDriving ? '走行中' : '走行再開'}
         </button>
       </div>
       </div>
