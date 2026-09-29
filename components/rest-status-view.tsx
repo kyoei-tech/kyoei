@@ -5,6 +5,7 @@ import { useRealtimeTable } from '@/lib/supabase/use-realtime-table'
 import { fetchTripHistory, type TripHistoryEntry } from '@/lib/trip-history'
 import { BackHeader } from './back-header'
 import { LegalCheckCard } from './legal-check-card'
+import { PAGE_BLEED_CLASS, pageTintClass } from '@/lib/page-tint'
 
 const COUNTDOWN_OPTIONS = [3, 9, 33]
 
@@ -16,6 +17,7 @@ export function RestStatusView({
   countdownOffset,
   onSelectCountdown,
   onBack,
+  isSplitRestReturn = false,
 }: {
   now: number
   nowParts: ClockParts
@@ -24,6 +26,10 @@ export function RestStatusView({
   countdownOffset: number
   onSelectCountdown: (hours: number) => void
   onBack: () => void
+  // True when the trip that just ended was itself a 分割休息 departure with
+  // unfulfilled rest remaining, so this rest period must complete that
+  // sequence rather than starting a fresh 9h/33h rest — see home-view.tsx.
+  isSplitRestReturn?: boolean
 }) {
   const { data: trips } = useRealtimeTable<TripHistoryEntry>(
     'trip_history',
@@ -43,7 +49,9 @@ export function RestStatusView({
   const departableDateLabel = `${departableParts.date} ${departableParts.weekday}`
 
   return (
-    <div className="flex flex-1 flex-col gap-3">
+    <div
+      className={`flex flex-1 flex-col gap-3 ${PAGE_BLEED_CLASS} ${pageTintClass('resting')}`}
+    >
       <BackHeader onBack={onBack} label="出帰庫" />
 
       <div className="rounded-2xl border border-border bg-card px-5 py-3 text-center">
@@ -66,9 +74,25 @@ export function RestStatusView({
             {returnDateLabel}
           </p>
         </div>
-        <div className="rounded-2xl border border-border bg-card px-3 py-3.5 text-center">
-          <p className="text-sm font-bold text-primary">出庫可能時刻</p>
-          <p className="font-mono text-2xl font-bold tabular-nums text-primary">
+        <div
+          className={`rounded-2xl border px-3 py-3.5 text-center ${
+            isSplitRestReturn
+              ? 'border-destructive bg-destructive/10'
+              : 'border-border bg-card'
+          }`}
+        >
+          <p
+            className={`text-sm font-bold ${
+              isSplitRestReturn ? 'text-destructive' : 'text-orange-500'
+            }`}
+          >
+            {isSplitRestReturn ? '分割休息満了時刻' : '出庫可能時刻'}
+          </p>
+          <p
+            className={`font-mono text-2xl font-bold tabular-nums ${
+              isSplitRestReturn ? 'text-destructive' : 'text-orange-500'
+            }`}
+          >
             {departableParts.time}
           </p>
           <p className="mt-1 text-xs font-medium text-muted-foreground">
@@ -99,6 +123,11 @@ export function RestStatusView({
       </div>
 
       <div className="flex flex-1 flex-col items-center justify-center rounded-3xl border border-border bg-card px-6 py-6 text-center">
+        {isSplitRestReturn && (
+          <p className="mb-1 text-sm font-bold text-destructive">
+            分割休息中
+          </p>
+        )}
         <p className="text-base font-bold tracking-wide text-muted-foreground">
           休息時間
         </p>

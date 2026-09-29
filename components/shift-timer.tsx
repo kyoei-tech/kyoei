@@ -15,7 +15,7 @@ const COUNTDOWN_OPTIONS = [3, 9, 33]
 const LABEL_ACCENT: Record<Mode, string> = {
   idle: 'text-muted-foreground',
   departure: 'text-secondary',
-  return: 'text-primary',
+  return: 'text-orange-500',
 }
 
 export function ShiftTimer({
@@ -37,7 +37,7 @@ export function ShiftTimer({
       : mode === 'return'
         ? finished
           ? 'text-destructive'
-          : 'text-primary'
+          : 'text-orange-500'
         : 'text-muted-foreground'
 
   return (

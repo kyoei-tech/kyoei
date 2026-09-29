@@ -53,6 +53,7 @@ import {
 import { StyledNotificationText } from './styled-notification-text'
 import { DrivingStatusView } from './driving-status-view'
 import { RestStatusView } from './rest-status-view'
+import { PAGE_BLEED_CLASS, pageTintClass } from '@/lib/page-tint'
 
 type Mode = 'idle' | 'departure' | 'return'
 type Screen = 'home' | 'driving' | 'rest'
@@ -77,6 +78,7 @@ type PersistedState = {
   trip: TripState | null
   screen: Screen
   notify?: NotifyState
+  isSplitRestReturn?: boolean
 }
 
 function loadState(): PersistedState | null {
@@ -110,6 +112,7 @@ export function HomeView({
   const [screen, setScreen] = useState<Screen>('home')
   const [trip, setTrip] = useState<TripState | null>(null)
   const [notify, setNotify] = useState<NotifyState>(initialNotifyState)
+  const [isSplitRestReturn, setIsSplitRestReturn] = useState(false)
   const [pendingHomeAction, setPendingHomeAction] =
     useState<PendingHomeAction>(null)
   const { data: confirmMessages } = useConfirmActionMessages()
@@ -129,6 +132,7 @@ export function HomeView({
       setTrip(saved.trip ?? null)
       setScreen(saved.screen ?? 'home')
       setNotify(saved.notify ?? initialNotifyState())
+      setIsSplitRestReturn(saved.isSplitRestReturn ?? false)
     }
     setHydrated(true)
   }, [])
@@ -144,6 +148,7 @@ export function HomeView({
       trip,
       screen,
       notify,
+      isSplitRestReturn,
     }
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
   }, [
@@ -155,6 +160,7 @@ export function HomeView({
     trip,
     screen,
     notify,
+    isSplitRestReturn,
   ])
 
   // Tapping the home tab (even while already on it) always jumps back to
@@ -273,7 +279,15 @@ export function HomeView({
     // evaluate against this device.
     void clearDrivingSession()
     void syncStaffMemberStatus(staffMemberId, 'off')
-    setCountdownOffset(isSaturday(new Date()) ? 33 : 9)
+    // A trip that departed via 分割休息 left unfulfilled rest behind — this
+    // rest period must complete that sequence, so default to the shortest
+    // (3h) option and flag RestStatusView to show 分割休息満了時刻 instead
+    // of the usual 9h/33h 出庫可能時刻 countdown.
+    const wasSplitRestTrip = trip?.splitRestRemainingMs != null
+    setIsSplitRestReturn(wasSplitRestTrip)
+    setCountdownOffset(
+      wasSplitRestTrip ? 3 : isSaturday(new Date()) ? 33 : 9,
+    )
     setMode('return')
     setStartedAt(returnedAt)
     setTrip(null)
@@ -357,6 +371,7 @@ export function HomeView({
         countdownOffset={countdownOffset}
         onSelectCountdown={setCountdownOffset}
         onBack={() => setScreen('home')}
+        isSplitRestReturn={isSplitRestReturn}
       />
     )
   }
@@ -365,7 +380,11 @@ export function HomeView({
     // The timer carries flex-1 so it grows to absorb any extra viewport
     // height, keeping every part large and edge-to-edge instead of small
     // parts separated by dead space.
-    <div className="flex flex-1 flex-col gap-2">
+    <div
+      className={`flex flex-1 flex-col gap-2 ${PAGE_BLEED_CLASS} ${pageTintClass(
+        mode === 'departure' ? 'working' : mode === 'return' ? 'resting' : 'none',
+      )}`}
+    >
       <div className="flex flex-col gap-1.5">
         <LiveClock
           parts={formatClock(now, clockOpts)}
@@ -416,8 +435,9 @@ export function HomeView({
                     : 'split-rest',
             )
           }
+          disabled={mode === 'departure'}
           aria-pressed={mode === 'departure'}
-          className={`flex flex-col items-center justify-center gap-2 rounded-3xl border py-4 text-base font-bold leading-tight transition-all active:scale-[0.97] ${
+          className={`flex flex-col items-center justify-center gap-2 rounded-3xl border py-4 text-base font-bold leading-tight transition-all active:scale-[0.97] disabled:active:scale-100 ${
             mode === 'departure'
               ? 'border-secondary/25 bg-secondary/10 text-secondary/70'
               : 'border-secondary bg-secondary text-secondary-foreground shadow-lg shadow-secondary/20'
@@ -433,7 +453,7 @@ export function HomeView({
         <button
           type="button"
           onClick={() => setPendingHomeAction('return')}
-          disabled={mode === 'idle'}
+          disabled={mode === 'idle' || mode === 'return'}
           aria-pressed={mode === 'return'}
           className={`flex flex-col items-center justify-center gap-2 rounded-3xl border py-4 text-base font-bold leading-tight transition-all active:scale-[0.97] disabled:active:scale-100 ${
             mode === 'return'

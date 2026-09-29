@@ -149,8 +149,11 @@ export function WeeklyGoal({ goalId = 'current' }: { goalId?: string }) {
       className="rounded-2xl border border-border bg-card px-4 py-2.5"
     >
       <div className="flex items-center gap-1.5">
-        <Target className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-        <span className="text-sm font-bold tracking-wide text-primary">
+        <Target
+          className="h-4 w-4 shrink-0 text-orange-500"
+          aria-hidden="true"
+        />
+        <span className="text-sm font-bold tracking-wide text-orange-500">
           {title}
         </span>
       </div>
