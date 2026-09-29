@@ -350,7 +350,6 @@ export function HomeView({
     return (
       <DrivingStatusView
         now={now.getTime()}
-        nowParts={formatClock(now, { hour12: false, seconds: false })}
         departureAt={startedAt}
         trip={trip}
         onTapCategory={handleTapCategory}
@@ -414,7 +413,7 @@ export function HomeView({
         <button
           type="button"
           onClick={handleOpenStatus}
-          className="flex items-center justify-center gap-1.5 rounded-full border border-border bg-muted px-5 py-2.5 text-base font-semibold text-muted-foreground transition-colors hover:text-foreground active:scale-95"
+          className="flex items-center justify-center gap-1.5 rounded-full border border-primary bg-primary px-5 py-2.5 text-base font-semibold text-primary-foreground transition-colors hover:bg-primary/90 active:scale-95"
         >
           運行情報
           <ChevronRight className="h-5 w-5" aria-hidden="true" />

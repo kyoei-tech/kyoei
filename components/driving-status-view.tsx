@@ -86,7 +86,6 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 export function DrivingStatusView({
   now,
-  nowParts,
   departureAt,
   trip,
   onTapCategory,
@@ -95,7 +94,6 @@ export function DrivingStatusView({
   onOpenEmergencyContacts,
 }: {
   now: number
-  nowParts: ClockParts
   departureAt: number
   trip: TripState
   onTapCategory: (category: BreakCategory) => void

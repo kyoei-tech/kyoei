@@ -235,7 +235,7 @@ export function TimecardHomeView({
       <button
         type="button"
         onClick={() => setScreen('status')}
-        className="flex items-center justify-center gap-1.5 rounded-full border border-secondary bg-secondary px-5 py-2.5 text-base font-semibold text-secondary-foreground transition-colors hover:bg-secondary/90 active:scale-95"
+        className="flex items-center justify-center gap-1.5 rounded-full border border-primary bg-primary px-5 py-2.5 text-base font-semibold text-primary-foreground transition-colors hover:bg-primary/90 active:scale-95"
       >
         勤務状況/メモ
         <ChevronRight className="h-5 w-5" aria-hidden="true" />

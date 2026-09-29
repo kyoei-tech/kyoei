@@ -410,7 +410,7 @@ export function YardLayoutView() {
           <h2 className="text-xl font-bold text-foreground">ヤード配置</h2>
           {latestUpdate &&
             (isSameLocalDay(latestUpdate, new Date()) ? (
-              <p className="mt-1 text-sm font-bold text-secondary">更新済み</p>
+              <p className="mt-1 text-sm font-bold text-primary">更新済み</p>
             ) : (
               <p className="mt-1 text-sm font-bold text-destructive">
                 未更新
@@ -420,7 +420,7 @@ export function YardLayoutView() {
             <p
               className={`mt-1 text-sm font-medium ${
                 isSameLocalDay(latestUpdate, new Date())
-                  ? 'text-secondary'
+                  ? 'text-primary'
                   : 'text-destructive'
               }`}
             >
