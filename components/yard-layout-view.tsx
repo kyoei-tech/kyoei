@@ -412,10 +412,12 @@ export function YardLayoutView() {
             (isSameLocalDay(latestUpdate, new Date()) ? (
               <p className="mt-1 text-sm font-bold text-secondary">更新済み</p>
             ) : (
-              <p className="mt-1 text-xs font-normal text-primary">未更新</p>
+              <p className="mt-1 text-xs font-normal text-orange-500">
+                未更新
+              </p>
             ))}
           {latestUpdate && (
-            <p className="mt-1 text-sm font-medium text-primary">
+            <p className="mt-1 text-sm font-medium text-orange-500">
               最終更新：{formatUpdated(latestUpdate)}
             </p>
           )}
