@@ -83,13 +83,13 @@ export function BottomTabs({
               onChange(id)
             }}
             aria-current={isActive ? 'page' : undefined}
-            className={`flex flex-1 flex-col items-center gap-1 rounded-xl py-1.5 text-[0.65rem] font-medium text-foreground transition-opacity ${
+            className={`flex flex-1 flex-col items-center gap-1 rounded-xl py-1.5 text-[0.65rem] font-bold text-foreground transition-opacity ${
               isActive ? 'opacity-100' : 'opacity-60 hover:opacity-90'
             }`}
           >
             <Icon
               className="h-5 w-5"
-              strokeWidth={isActive ? 2.4 : 1.8}
+              strokeWidth={isActive ? 2.75 : 2.25}
               aria-hidden="true"
             />
             {label}
