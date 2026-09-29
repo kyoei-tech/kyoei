@@ -42,17 +42,33 @@ export function LegalCheckCard({
         </span>
       </div>
       <div className="flex flex-col gap-1.5 text-sm text-foreground">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-muted-foreground">
-            今月の分割休息使用回数（目安：全運行の半分未満）
-          </span>
-          <span
-            className={`font-mono text-base font-bold tabular-nums ${
-              splitRestOverHalf ? 'text-destructive' : 'text-foreground'
+        <div className="flex flex-col gap-0.5">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-muted-foreground">今月の分割休息使用回数</span>
+            <span
+              className={`font-mono text-base font-bold tabular-nums ${
+                splitRestOverHalf ? 'text-destructive' : 'text-foreground'
+              }`}
+            >
+              {splitRestUsed}
+              <span className="mx-0.5 text-xs font-normal text-muted-foreground">
+                (分割休息)
+              </span>
+              /{splitRestTotal}
+              <span className="mx-0.5 text-xs font-normal text-muted-foreground">
+                (運行数)
+              </span>
+            </span>
+          </div>
+          <p
+            className={`text-right text-xs ${
+              splitRestOverHalf
+                ? 'font-bold text-destructive'
+                : 'text-muted-foreground'
             }`}
           >
-            {splitRestUsed}回 / {splitRestTotal}回中
-          </span>
+            （上限：全運行の1/2）
+          </p>
         </div>
         <div className="flex items-center justify-between gap-2">
           <span className="text-muted-foreground">

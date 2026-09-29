@@ -43,7 +43,11 @@ export function StatusDisplay({
       </p>
       <p
         className={`text-center font-mono text-4xl font-semibold tabular-nums tracking-tight ${
-          mode === 'idle' ? 'text-foreground' : ACCENT[mode]
+          mode === 'idle'
+            ? 'text-foreground'
+            : mode === 'departure'
+              ? 'text-white'
+              : ACCENT[mode]
         }`}
       >
         {parts.meridiem && (

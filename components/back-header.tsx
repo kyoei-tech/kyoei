@@ -33,7 +33,7 @@ export function BackHeader({
   variant?: 'primary' | 'subtle' | 'icon'
 }) {
   return (
-    <div className="sticky top-0 z-10 -mx-4 mb-3 flex items-center gap-2 bg-background px-4 pb-2 pt-1">
+    <div className="sticky top-0 z-10 mb-3 flex items-center gap-2 pb-2 pt-1">
       {variant === 'icon' ? (
         <button
           type="button"

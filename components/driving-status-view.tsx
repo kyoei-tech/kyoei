@@ -231,13 +231,13 @@ export function DrivingStatusView({
       {!isDriving && (
         <div className="rounded-2xl border border-border bg-card px-5 py-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-bold text-orange-500">
+            <span className="text-sm font-bold text-secondary">
               {`${
                 BREAK_BUTTONS.find((b) => b.id === trip.activeCategory)
                   ?.label ?? ''
               } 経過時間`}
             </span>
-            <span className="font-mono text-2xl font-bold tabular-nums text-orange-500">
+            <span className="font-mono text-2xl font-bold tabular-nums text-white">
               {formatDuration(activeSegmentElapsedMs)}
             </span>
           </div>
@@ -316,7 +316,11 @@ export function DrivingStatusView({
           type="button"
           disabled={isDriving}
           onClick={() => setPendingAction({ kind: 'resume' })}
-          className="flex items-center justify-center gap-1.5 rounded-2xl border border-orange-500 bg-orange-500 py-3.5 text-lg font-bold text-white transition-all hover:bg-orange-600 active:scale-[0.97] disabled:opacity-100"
+          className={`flex items-center justify-center gap-1.5 rounded-2xl border py-3.5 text-lg font-bold transition-all active:scale-[0.97] disabled:active:scale-100 ${
+            isDriving
+              ? 'border-border/60 bg-card text-muted-foreground opacity-60'
+              : 'border-orange-500 bg-orange-500 text-white hover:bg-orange-600'
+          }`}
         >
           {isDriving ? '走行中' : '走行再開'}
         </button>
