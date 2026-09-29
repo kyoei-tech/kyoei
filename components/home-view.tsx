@@ -13,6 +13,7 @@ import {
   resetSplitRestState,
   wouldEscalateSplitRest,
 } from '@/lib/split-rest'
+import { getSplitRestUsageThisMonth } from '@/lib/legal-limits'
 import {
   finalizeTotals,
   formatHoursMinutes,
@@ -65,6 +66,7 @@ type Screen = 'home' | 'driving' | 'rest'
 type PendingHomeAction =
   | 'departure'
   | 'return'
+  | 'split-rest-over-limit'
   | 'split-rest-near-full'
   | 'split-rest-escalation'
   | 'split-rest'
@@ -263,6 +265,13 @@ export function HomeView({
     isSplitRestEligible &&
     !isRestNearNineHours &&
     wouldEscalateSplitRest(restElapsedMs)
+  // 分割休息の使用回数が既に「全運行数の1/2」の上限に達している場合、分割休息
+  // による出庫を選んだ時点で警告する（法定チェックカードの表示と同じ基準）。
+  const { used: splitRestUsedThisMonth, total: splitRestTotalThisMonth } =
+    getSplitRestUsageThisMonth(trips, now.getTime())
+  const splitRestOverHalfLimit =
+    splitRestTotalThisMonth > 0 &&
+    splitRestUsedThisMonth * 2 >= splitRestTotalThisMonth
 
   function startDeparture(now: number, splitRestRemainingMs: number | null) {
     const newTrip = startTrip(now, splitRestRemainingMs)
@@ -467,11 +476,13 @@ export function HomeView({
                 setPendingHomeAction(
                   !isSplitRestEligible
                     ? 'departure'
-                    : isRestNearNineHours
-                      ? 'split-rest-near-full'
-                      : isSplitRestEscalating
-                        ? 'split-rest-escalation'
-                        : 'split-rest',
+                    : splitRestOverHalfLimit
+                      ? 'split-rest-over-limit'
+                      : isRestNearNineHours
+                        ? 'split-rest-near-full'
+                        : isSplitRestEscalating
+                          ? 'split-rest-escalation'
+                          : 'split-rest',
                 )
               }
               disabled={mode === 'departure'}
@@ -553,6 +564,41 @@ export function HomeView({
           )}
           onConfirm={confirmReturn}
           onCancel={() => setPendingHomeAction(null)}
+        />
+      )}
+      {pendingHomeAction === 'split-rest-over-limit' && (
+        <ConfirmActionModal
+          message={getConfirmActionMessage(
+            confirmMessages,
+            'home-split-rest-over-limit',
+            '本当に分割休息で出庫しますか？',
+          )}
+          confirmLabel={getConfirmActionConfirmLabel(
+            confirmMessages,
+            'home-split-rest-over-limit',
+            '分割休息で出庫する',
+          )}
+          cancelLabel={getConfirmActionCancelLabel(
+            confirmMessages,
+            'home-split-rest-over-limit',
+            'キャンセル',
+          )}
+          onConfirm={() =>
+            setPendingHomeAction(
+              isRestNearNineHours
+                ? 'split-rest-near-full'
+                : isSplitRestEscalating
+                  ? 'split-rest-escalation'
+                  : 'split-rest',
+            )
+          }
+          onCancel={() => setPendingHomeAction(null)}
+          body={
+            <StyledNotificationText
+              text={`今月の分割休息使用回数（${splitRestUsedThisMonth}回）が全運行数（${splitRestTotalThisMonth}回）の1/2に達しています。このまま分割休息で出庫すると、上限を超えます。`}
+              className="block whitespace-pre-line rounded-xl bg-destructive/10 px-3 py-2.5 text-sm font-bold leading-relaxed text-destructive"
+            />
+          }
         />
       )}
       {pendingHomeAction === 'split-rest-near-full' && (
