@@ -85,7 +85,7 @@ export function BottomTabs({
             aria-current={isActive ? 'page' : undefined}
             className={`flex flex-1 flex-col items-center gap-1 rounded-xl py-1.5 text-[0.65rem] font-medium transition-colors ${
               isActive
-                ? 'text-primary'
+                ? 'text-brand-lime'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >

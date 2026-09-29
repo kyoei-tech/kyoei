@@ -50,82 +50,90 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  --color-brand-lime: var(--brand-lime);
 }
 
+/* Corporate brand color: the KYOEI logo's vivid green (used on both the
+   black and white logo variants). Primary now carries that green in both
+   themes; the former amber primary moves to secondary so existing
+   amber-styled buttons/badges keep looking intentional. */
 :root {
   color-scheme: dark;
-  --background: oklch(0.17 0.012 260);
-  --foreground: oklch(0.96 0.005 260);
-  --card: oklch(0.215 0.015 260);
-  --card-foreground: oklch(0.96 0.005 260);
-  --popover: oklch(0.215 0.015 260);
-  --popover-foreground: oklch(0.96 0.005 260);
-  --primary: oklch(0.8 0.16 72);
-  --primary-foreground: oklch(0.2 0.03 70);
-  --secondary: oklch(0.74 0.15 158);
-  --secondary-foreground: oklch(0.2 0.03 158);
-  --muted: oklch(0.28 0.015 260);
-  --muted-foreground: oklch(0.7 0.02 260);
-  --accent: oklch(0.28 0.015 260);
-  --accent-foreground: oklch(0.96 0.005 260);
+  /* Fixed brand lime (logo green) — intentionally NOT redefined in .light,
+     so the bottom tab bar reads as the same lime in both themes instead of
+     tracking --primary's per-theme lightness. */
+  --brand-lime: oklch(0.74 0.19 145);
+  --background: oklch(0.14 0.01 260);
+  --foreground: oklch(0.97 0.004 260);
+  --card: oklch(0.19 0.013 260);
+  --card-foreground: oklch(0.97 0.004 260);
+  --popover: oklch(0.19 0.013 260);
+  --popover-foreground: oklch(0.97 0.004 260);
+  --primary: oklch(0.78 0.19 145);
+  --primary-foreground: oklch(0.16 0.04 145);
+  --secondary: oklch(0.8 0.16 72);
+  --secondary-foreground: oklch(0.2 0.03 70);
+  --muted: oklch(0.24 0.015 260);
+  --muted-foreground: oklch(0.68 0.02 260);
+  --accent: oklch(0.24 0.015 260);
+  --accent-foreground: oklch(0.97 0.004 260);
   --destructive: oklch(0.62 0.21 25);
   --destructive-foreground: oklch(0.99 0.005 25);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 14%);
-  --ring: oklch(0.8 0.16 72);
-  --chart-1: oklch(0.8 0.16 72);
-  --chart-2: oklch(0.74 0.15 158);
+  --ring: oklch(0.78 0.19 145);
+  --chart-1: oklch(0.78 0.19 145);
+  --chart-2: oklch(0.8 0.16 72);
   --chart-3: oklch(0.68 0.14 250);
   --chart-4: oklch(0.7 0.16 20);
   --chart-5: oklch(0.75 0.13 310);
   --radius: 0.9rem;
-  --sidebar: oklch(0.19 0.013 260);
-  --sidebar-foreground: oklch(0.96 0.005 260);
-  --sidebar-primary: oklch(0.8 0.16 72);
-  --sidebar-primary-foreground: oklch(0.2 0.03 70);
-  --sidebar-accent: oklch(0.28 0.015 260);
-  --sidebar-accent-foreground: oklch(0.96 0.005 260);
+  --sidebar: oklch(0.16 0.011 260);
+  --sidebar-foreground: oklch(0.97 0.004 260);
+  --sidebar-primary: oklch(0.78 0.19 145);
+  --sidebar-primary-foreground: oklch(0.16 0.04 145);
+  --sidebar-accent: oklch(0.24 0.015 260);
+  --sidebar-accent-foreground: oklch(0.97 0.004 260);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.8 0.16 72);
+  --sidebar-ring: oklch(0.78 0.19 145);
 }
 
-/* Light background option (Settings > 背景色). Keeps the same brand hues
-   as the default dark palette above, re-balanced for contrast on a light
-   background. */
+/* Light background option (Settings > 背景色). Same brand green, re-tuned
+   for contrast on a near-white background matching the white-logo variant. */
 .light {
   color-scheme: light;
-  --background: oklch(0.97 0.006 260);
-  --foreground: oklch(0.24 0.02 260);
-  --card: oklch(0.995 0.003 260);
-  --card-foreground: oklch(0.24 0.02 260);
-  --popover: oklch(0.995 0.003 260);
-  --popover-foreground: oklch(0.24 0.02 260);
-  --primary: oklch(0.62 0.17 72);
-  --primary-foreground: oklch(0.99 0.01 70);
-  --secondary: oklch(0.52 0.13 158);
-  --secondary-foreground: oklch(0.99 0.01 158);
-  --muted: oklch(0.93 0.01 260);
+  --background: oklch(0.99 0.002 260);
+  --foreground: oklch(0.22 0.02 260);
+  --card: oklch(0.998 0.002 260);
+  --card-foreground: oklch(0.22 0.02 260);
+  --popover: oklch(0.998 0.002 260);
+  --popover-foreground: oklch(0.22 0.02 260);
+  --primary: oklch(0.56 0.19 145);
+  --primary-foreground: oklch(0.99 0.01 145);
+  --secondary: oklch(0.62 0.17 72);
+  --secondary-foreground: oklch(0.99 0.01 70);
+  --muted: oklch(0.95 0.008 260);
   --muted-foreground: oklch(0.46 0.02 260);
-  --accent: oklch(0.93 0.01 260);
-  --accent-foreground: oklch(0.24 0.02 260);
+  --accent: oklch(0.95 0.008 260);
+  --accent-foreground: oklch(0.22 0.02 260);
   --destructive: oklch(0.55 0.2 25);
   --destructive-foreground: oklch(0.99 0.005 25);
   --border: oklch(0 0 0 / 10%);
   --input: oklch(0 0 0 / 12%);
-  --ring: oklch(0.62 0.17 72);
-  --chart-1: oklch(0.62 0.17 72);
-  --chart-2: oklch(0.52 0.13 158);
+  --ring: oklch(0.56 0.19 145);
+  --chart-1: oklch(0.56 0.19 145);
+  --chart-2: oklch(0.62 0.17 72);
   --chart-3: oklch(0.5 0.12 250);
   --chart-4: oklch(0.55 0.15 20);
   --chart-5: oklch(0.55 0.12 310);
-  --sidebar: oklch(0.99 0.004 260);
-  --sidebar-foreground: oklch(0.24 0.02 260);
-  --sidebar-primary: oklch(0.62 0.17 72);
-  --sidebar-primary-foreground: oklch(0.99 0.01 70);
-  --sidebar-accent: oklch(0.93 0.01 260);
-  --sidebar-accent-foreground: oklch(0.24 0.02 260);
+  --sidebar: oklch(0.995 0.002 260);
+  --sidebar-foreground: oklch(0.22 0.02 260);
+  --sidebar-primary: oklch(0.56 0.19 145);
+  --sidebar-primary-foreground: oklch(0.99 0.01 145);
+  --sidebar-accent: oklch(0.95 0.008 260);
+  --sidebar-accent-foreground: oklch(0.22 0.02 260);
   --sidebar-border: oklch(0 0 0 / 10%);
-  --sidebar-ring: oklch(0.62 0.17 72);
+  --sidebar-ring: oklch(0.56 0.19 145);
 }
 
 @layer base {
