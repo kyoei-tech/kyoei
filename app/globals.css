@@ -50,6 +50,7 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  --color-brand-lime: var(--brand-lime);
 }
 
 /* Corporate brand color: the KYOEI logo's vivid green (used on both the
@@ -58,6 +59,10 @@
    amber-styled buttons/badges keep looking intentional. */
 :root {
   color-scheme: dark;
+  /* Fixed brand lime (logo green) — intentionally NOT redefined in .light,
+     so the bottom tab bar reads as the same lime in both themes instead of
+     tracking --primary's per-theme lightness. */
+  --brand-lime: oklch(0.74 0.19 145);
   --background: oklch(0.14 0.01 260);
   --foreground: oklch(0.97 0.004 260);
   --card: oklch(0.19 0.013 260);
