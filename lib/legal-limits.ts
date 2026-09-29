@@ -44,21 +44,24 @@ export function getRemainingOver14hCount(
 }
 
 /**
- * Remaining number of 分割休息 uses allowed this month, keeping total usage
- * under half of the month's completed trips (ceil(total/2) - 1).
+ * This month's 分割休息 usage so far, against the month's completed trips.
+ *
+ * The legal rule (分割休息の回数 < 当該月の総勤務回数の半分) can only be
+ * settled once the month is over — early in the month the "total trips"
+ * side keeps growing, so a "残り回数" derived from it would swing wildly
+ * (e.g. reading 0 after a single trip on day 1, even with zero splits
+ * used). Rather than show that unstable countdown, this returns the plain
+ * used/total counts as a steady 目安: the driver can compare them directly
+ * against the "半分未満" rule as the month's trip count fills in.
  */
-export function getRemainingSplitRestCount(
+export function getSplitRestUsageThisMonth(
   trips: TripHistoryEntry[],
   now: number,
-): number {
+): { used: number; total: number } {
   const monthStart = startOfMonth(now)
   const monthTrips = trips.filter((t) => t.departedAt >= monthStart)
-  if (monthTrips.length === 0) return 0
-  const limit = Math.ceil(monthTrips.length / 2) - 1
-  const usedThisMonth = monthTrips.filter(
-    (t) => t.splitRestRemainingMs != null,
-  ).length
-  return Math.max(0, limit - usedThisMonth)
+  const used = monthTrips.filter((t) => t.splitRestRemainingMs != null).length
+  return { used, total: monthTrips.length }
 }
 
 /**

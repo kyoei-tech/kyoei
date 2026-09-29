@@ -78,6 +78,7 @@ export function AttendanceApp() {
     <div className="relative mx-auto flex h-[100dvh] w-full max-w-md flex-col overflow-hidden bg-background">
       <NewsNotifier />
       <PendingNotificationModal />
+      <StatusBand />
       <main
         id="app-scroll-container"
         className="flex flex-1 flex-col overflow-y-auto px-4 pb-6 pt-6"
@@ -102,7 +103,6 @@ export function AttendanceApp() {
           <MenuView key={menuResetKey} initialItem={menuInitialItem} />
         )}
       </main>
-      <StatusBand />
       <BottomTabs
         active={tab}
         onChange={handleTabChange}
