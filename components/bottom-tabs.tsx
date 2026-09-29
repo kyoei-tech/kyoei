@@ -69,7 +69,7 @@ export function BottomTabs({
     // mobile browser chrome collapses/expands during scroll.
     <nav
       aria-label="メインナビゲーション"
-      className="flex w-full shrink-0 items-stretch justify-around border-t border-border bg-card/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur"
+      className="flex w-full shrink-0 items-stretch justify-around border-t border-black/10 bg-brand-lime px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2"
     >
       {TABS.map(({ id, label, Icon }) => {
         const isActive = id === active
@@ -83,10 +83,8 @@ export function BottomTabs({
               onChange(id)
             }}
             aria-current={isActive ? 'page' : undefined}
-            className={`flex flex-1 flex-col items-center gap-1 rounded-xl py-1.5 text-[0.65rem] font-medium transition-colors ${
-              isActive
-                ? 'text-brand-lime'
-                : 'text-muted-foreground hover:text-foreground'
+            className={`flex flex-1 flex-col items-center gap-1 rounded-xl py-1.5 text-[0.65rem] font-medium text-foreground transition-opacity ${
+              isActive ? 'opacity-100' : 'opacity-60 hover:opacity-90'
             }`}
           >
             <Icon
