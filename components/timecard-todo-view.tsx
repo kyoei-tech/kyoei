@@ -244,7 +244,7 @@ export function TodoView({ onBack }: { onBack: () => void }) {
               }
               startAdd()
             }}
-            className="flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95"
+            className="flex shrink-0 items-center gap-1.5 rounded-full bg-secondary px-3.5 py-1.5 text-sm font-semibold text-secondary-foreground transition-opacity hover:opacity-90 active:scale-95"
           >
             {adding ? (
               <X className="h-4 w-4" aria-hidden="true" />
@@ -349,11 +349,11 @@ export function TodoView({ onBack }: { onBack: () => void }) {
           </div>
           <button
             type="button"
-            onClick={submitAdd}
-            disabled={!form.title.trim() || uploadingAdd}
-            className="self-end rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95 disabled:opacity-40"
-          >
-            追加する
+              onClick={submitAdd}
+              disabled={!form.title.trim() || uploadingAdd}
+              className="self-end rounded-full bg-secondary px-5 py-2 text-sm font-semibold text-secondary-foreground transition-opacity hover:opacity-90 active:scale-95 disabled:opacity-40"
+            >
+              追加する
           </button>
         </section>
       )}
@@ -496,7 +496,7 @@ export function TodoView({ onBack }: { onBack: () => void }) {
                         type="button"
                         onClick={submitEdit}
                         disabled={!editForm.title.trim()}
-                        className="flex-1 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95 disabled:opacity-40"
+                        className="flex-1 rounded-full bg-secondary px-4 py-2 text-sm font-semibold text-secondary-foreground transition-opacity hover:opacity-90 active:scale-95 disabled:opacity-40"
                       >
                         保存
                       </button>

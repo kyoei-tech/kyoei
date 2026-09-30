@@ -11,9 +11,9 @@ export const PAGE_BLEED_CLASS = '-mx-4 -mt-6 -mb-6 px-4 pt-6 pb-6'
 export function pageTintClass(status: PageStatus): string {
   switch (status) {
     case 'working':
-      return 'bg-secondary/[0.07]'
+      return 'bg-primary/[0.07]'
     case 'resting':
-      return 'bg-orange-500/[0.07]'
+      return 'bg-secondary/[0.07]'
     default:
       return ''
   }

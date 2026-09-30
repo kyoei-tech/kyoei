@@ -274,7 +274,7 @@ export function VersionView() {
         <div>
           <h2 className="text-xl font-bold text-foreground">Version</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            これまでの更新内容を日付順に確認できます。各項目の編集ボタンから削除・非表示・編集を行えます（暗証番号が必要です）。
+            これまでの更新内容��日付順に確認できます。各項目の編集ボタンから削除・非表示・編集を行えます（暗証番号が必要です）。
           </p>
         </div>
         <button
@@ -417,8 +417,8 @@ export function VersionView() {
                               </button>
                               <button
                                 type="button"
-                                onClick={() => saveEdit(entry)}
-                                className="flex-1 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95"
+                  onClick={() => saveEdit(entry)}
+                  className="flex-1 rounded-full bg-secondary px-4 py-2 text-sm font-semibold text-secondary-foreground transition-opacity hover:opacity-90 active:scale-95"
                               >
                                 保存
                               </button>
@@ -531,7 +531,7 @@ export function VersionView() {
                           <button
                             type="button"
                             onClick={() => saveNewEntry(v)}
-                            className="flex-1 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95"
+                            className="flex-1 rounded-full bg-secondary px-4 py-2 text-sm font-semibold text-secondary-foreground transition-opacity hover:opacity-90 active:scale-95"
                           >
                             追加する
                           </button>
@@ -754,7 +754,7 @@ export function VersionView() {
                     }))
                   }
                   rows={3}
-                  placeholder="どこが、どう変わったかを書いてください"
+                  placeholder="どこが、どう変わったかを書いて�����さい"
                   className="resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-primary/60"
                 />
               </label>
@@ -770,7 +770,7 @@ export function VersionView() {
               <button
                 type="button"
                 onClick={saveNewVersion}
-                className="flex-1 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95"
+                className="flex-1 rounded-full bg-secondary px-4 py-2.5 text-sm font-semibold text-secondary-foreground transition-opacity hover:opacity-90 active:scale-95"
               >
                 追加する
               </button>

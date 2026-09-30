@@ -246,9 +246,9 @@ export function NewsView() {
 
         <button
           type="button"
-          onClick={savePost}
-          disabled={!form.title.trim()}
-          className="self-end rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95 disabled:opacity-40"
+            onClick={savePost}
+            disabled={!form.title.trim()}
+            className="self-end rounded-full bg-secondary px-5 py-2 text-sm font-semibold text-secondary-foreground transition-opacity hover:opacity-90 active:scale-95 disabled:opacity-40"
         >
           {editingId ? '更新する' : '投稿する'}
         </button>
@@ -347,7 +347,7 @@ export function NewsView() {
           <button
             type="button"
             onClick={() => guard(openCreate)}
-            className="flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95"
+            className="flex shrink-0 items-center gap-1.5 rounded-full bg-secondary px-3.5 py-1.5 text-sm font-semibold text-secondary-foreground transition-opacity hover:opacity-90 active:scale-95"
           >
             <Plus className="h-4 w-4" aria-hidden="true" />
             投稿

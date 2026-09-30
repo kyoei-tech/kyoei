@@ -262,10 +262,20 @@ export function MenuView({
             <button
               type="button"
               onClick={() => setSelected(id)}
-              className="flex w-full items-center justify-between gap-3 rounded-2xl border border-border bg-card px-5 py-4 text-left transition-colors hover:border-primary/60 hover:bg-accent active:scale-[0.99]"
+              className={`flex w-full items-center justify-between gap-3 rounded-2xl border px-5 py-4 text-left transition-colors active:scale-[0.99] ${
+                id === 'emergency'
+                  ? 'border-destructive/30 bg-destructive/[0.06] hover:border-destructive/50 hover:bg-destructive/10'
+                  : 'border-border bg-card hover:border-primary/60 hover:bg-accent'
+              }`}
             >
               <span className="flex items-center gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                <span
+                  className={`flex h-10 w-10 items-center justify-center rounded-xl ${
+                    id === 'emergency'
+                      ? 'bg-destructive/15 text-destructive'
+                      : 'bg-primary/15 text-primary'
+                  }`}
+                >
                   <Icon className="h-5 w-5" aria-hidden="true" />
                 </span>
                 <span className="flex flex-col">
