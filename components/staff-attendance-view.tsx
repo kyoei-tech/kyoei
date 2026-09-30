@@ -411,8 +411,8 @@ export function StaffAttendanceView() {
         onClick={() => handleTap(member)}
         className={`flex min-h-[132px] flex-col items-center justify-center gap-1 rounded-2xl border-2 px-3 py-4 text-center transition-colors active:scale-[0.97] ${
           working
-            ? 'border-secondary bg-secondary/15'
-            : 'border-primary/50 bg-primary/10'
+            ? 'border-primary bg-primary/15'
+            : 'border-secondary/30 bg-secondary/8'
         }`}
       >
         {editMode && (
@@ -423,7 +423,7 @@ export function StaffAttendanceView() {
         )}
         <span
           className={`text-base font-bold ${
-            working ? 'text-secondary' : 'text-primary'
+            working ? 'text-primary' : 'text-secondary'
           }`}
         >
           {working ? '出勤中' : '退勤済み'}
@@ -452,14 +452,14 @@ export function StaffAttendanceView() {
     const checkedIn = manager.checked_in
     const accent = checkedIn
       ? manager.employment_type === 'regular'
-        ? 'border-secondary bg-secondary/15'
+        ? 'border-primary bg-primary/15'
         : 'border-blue-500 bg-blue-500/15'
-      : 'border-primary/50 bg-primary/10'
+      : 'border-secondary/30 bg-secondary/8'
     const statusColor = checkedIn
       ? manager.employment_type === 'regular'
-        ? 'text-secondary'
+        ? 'text-primary'
         : 'text-blue-500'
-      : 'text-primary'
+      : 'text-secondary'
     return (
       <button
         key={manager.id}
@@ -856,7 +856,7 @@ export function StaffAttendanceView() {
           </h3>
           {yardManagers.length === 0 ? (
             <p className="rounded-2xl border border-dashed border-border px-5 py-6 text-center text-xs text-muted-foreground">
-              まだヤード管理者が登録されていません。
+              まだヤード管理者が登録されてい��せん。
             </p>
           ) : (
             <div className={`grid ${yardGridCols} gap-2`}>

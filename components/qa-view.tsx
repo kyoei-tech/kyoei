@@ -276,7 +276,7 @@ export function QAView() {
               setAddingQuestion((v) => !v)
               setQuestionForm(emptyQuestionForm())
             }}
-            className="flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95"
+            className="flex shrink-0 items-center gap-1.5 rounded-full bg-secondary px-3.5 py-1.5 text-sm font-semibold text-secondary-foreground transition-opacity hover:opacity-90 active:scale-95"
           >
             {addingQuestion ? (
               <X className="h-4 w-4" aria-hidden="true" />
@@ -367,7 +367,7 @@ export function QAView() {
             type="button"
             onClick={submitQuestion}
             disabled={!questionForm.title.trim()}
-            className="self-end rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95 disabled:opacity-40"
+            className="self-end rounded-full bg-secondary px-5 py-2 text-sm font-semibold text-secondary-foreground transition-opacity hover:opacity-90 active:scale-95 disabled:opacity-40"
           >
             質問する
           </button>
@@ -536,7 +536,7 @@ export function QAView() {
                   setAnswering((v) => !v)
                   setAnswerForm(emptyAnswerForm())
                 }}
-                className="flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+                className="flex items-center gap-1.5 rounded-full bg-secondary px-3.5 py-1.5 text-xs font-semibold text-secondary-foreground transition-opacity hover:opacity-90"
               >
                 {answering ? (
                   <X className="h-3.5 w-3.5" aria-hidden="true" />
@@ -576,12 +576,12 @@ export function QAView() {
               <button
                 type="button"
                 onClick={() => submitAnswer(activeQuestion.id)}
-                disabled={
-                  !answerForm.responder.trim() || !answerForm.body.trim()
-                }
-                className="self-end rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95 disabled:opacity-40"
-              >
-                回答する
+              disabled={
+                !answerForm.responder.trim() || !answerForm.body.trim()
+              }
+              className="self-end rounded-full bg-secondary px-4 py-1.5 text-xs font-semibold text-secondary-foreground transition-opacity hover:opacity-90 active:scale-95 disabled:opacity-40"
+            >
+              回答する
               </button>
             </div>
           )}

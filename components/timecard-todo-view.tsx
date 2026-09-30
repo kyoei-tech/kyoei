@@ -349,11 +349,11 @@ export function TodoView({ onBack }: { onBack: () => void }) {
           </div>
           <button
             type="button"
-            onClick={submitAdd}
-            disabled={!form.title.trim() || uploadingAdd}
-            className="self-end rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95 disabled:opacity-40"
-          >
-            追加する
+              onClick={submitAdd}
+              disabled={!form.title.trim() || uploadingAdd}
+              className="self-end rounded-full bg-secondary px-5 py-2 text-sm font-semibold text-secondary-foreground transition-opacity hover:opacity-90 active:scale-95 disabled:opacity-40"
+            >
+              追加する
           </button>
         </section>
       )}

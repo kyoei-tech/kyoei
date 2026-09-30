@@ -171,7 +171,7 @@ export function TimecardHomeView({
         <div className="mb-0.5 flex items-center justify-between">
           <span
             className={`text-base font-bold tracking-wide ${
-              state.clockedIn ? 'text-secondary' : 'text-muted-foreground'
+              state.clockedIn ? 'text-primary' : 'text-muted-foreground'
             }`}
           >
             {state.clockedIn ? '出勤時刻' : 'タイムカード'}
@@ -184,7 +184,7 @@ export function TimecardHomeView({
         </p>
         <p
           className={`text-center font-mono text-4xl font-semibold tabular-nums tracking-tight ${
-            state.clockedIn ? 'text-secondary' : 'text-foreground'
+            state.clockedIn ? 'text-primary' : 'text-foreground'
           }`}
         >
           {statusParts.meridiem && (
@@ -203,13 +203,13 @@ export function TimecardHomeView({
         <div className="mb-1 flex items-center justify-center gap-1.5">
           <Timer
             className={`h-5 w-5 ${
-              state.clockedIn ? 'text-secondary' : 'text-muted-foreground'
+              state.clockedIn ? 'text-primary' : 'text-muted-foreground'
             }`}
             aria-hidden="true"
           />
           <span
             className={`text-base font-bold tracking-wide ${
-              state.clockedIn ? 'text-secondary' : 'text-muted-foreground'
+              state.clockedIn ? 'text-primary' : 'text-muted-foreground'
             }`}
           >
             {state.clockedIn ? '勤務時間' : 'タイマー'}
@@ -217,7 +217,7 @@ export function TimecardHomeView({
         </div>
         <p
           className={`font-mono font-bold tabular-nums tracking-tight ${
-            state.clockedIn ? 'text-secondary' : 'text-muted-foreground'
+            state.clockedIn ? 'text-primary' : 'text-muted-foreground'
           }`}
         >
           {(() => {
@@ -249,8 +249,8 @@ export function TimecardHomeView({
           aria-pressed={state.clockedIn}
           className={`flex flex-col items-center justify-center gap-2 rounded-3xl border py-5 text-base font-bold leading-tight transition-all active:scale-[0.97] disabled:opacity-40 ${
             state.clockedIn
-              ? 'border-secondary bg-secondary text-secondary-foreground shadow-lg shadow-secondary/20'
-              : 'border-border bg-card text-secondary hover:border-secondary/60'
+              ? 'border-primary bg-primary text-primary-foreground shadow-lg shadow-primary/20'
+              : 'border-border bg-card text-primary hover:border-primary/60'
           }`}
         >
           <Stamp className="h-7 w-7" aria-hidden="true" />
@@ -260,7 +260,7 @@ export function TimecardHomeView({
           type="button"
           onClick={() => setPendingAction('clock-out')}
           disabled={!state.clockedIn}
-          className="flex flex-col items-center justify-center gap-2 rounded-3xl border border-border bg-card py-5 text-base font-bold leading-tight text-primary transition-all hover:border-primary/60 active:scale-[0.97] disabled:opacity-40"
+          className="flex flex-col items-center justify-center gap-2 rounded-3xl border border-border bg-card py-5 text-base font-bold leading-tight text-secondary transition-all hover:border-secondary/60 active:scale-[0.97] disabled:opacity-40"
         >
           <Stamp className="h-7 w-7" aria-hidden="true" />
           退勤
