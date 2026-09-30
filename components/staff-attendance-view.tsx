@@ -496,7 +496,7 @@ export function StaffAttendanceView() {
           <p className="mt-1 text-sm text-muted-foreground">
             {partTimeMode
               ? 'ボタンを2回連続でタップすると出勤状況が切り替わります。ヤード管理者は3回タップでコメントを編集できます。'
-              : 'ボタンを2回連続でタップすると出勤状況が切り替わります���3回タップでコメントを編集できます。'}
+              : 'ボタンを2回連続でタップすると出勤状況が切り替わります。3回タップでコメントを編集できます。'}
           </p>
         </div>
         {!partTimeMode && (
@@ -856,7 +856,7 @@ export function StaffAttendanceView() {
           </h3>
           {yardManagers.length === 0 ? (
             <p className="rounded-2xl border border-dashed border-border px-5 py-6 text-center text-xs text-muted-foreground">
-              まだヤード管理者が登録されていません。
+              まだヤード管理者が登録されて���ません。
             </p>
           ) : (
             <div className={`grid ${yardGridCols} gap-2`}>
