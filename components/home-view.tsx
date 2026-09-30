@@ -125,31 +125,36 @@ export function HomeView({
   const { data: confirmMessages } = useConfirmActionMessages()
   const { pushNotificationsEnabled, staffMemberId } = useSettings()
   const { data: notificationRules } = usePushNotificationRules()
-  const { data: trips } = useRealtimeTable<TripHistoryEntry>(
-    'trip_history',
-    fetchTripHistory,
-    { cacheKey: 'device' },
-  )
+  const { data: trips, isLoading: tripsLoading } =
+    useRealtimeTable<TripHistoryEntry>('trip_history', fetchTripHistory, {
+      cacheKey: 'device',
+    })
   // isSplitRestReturn is set optimistically at 帰庫 (before the completed
   // trip has even finished saving to 運行履歴), then reconciled here against
   // that saved row once it appears — and reverted if the row is later
   // deleted from 運行履歴, so deleting the trip that caused a 分割休息
   // determination correctly un-flags it instead of leaving a stale badge.
+  // Gate on tripsLoading (not "did we ever match") so that even a fresh
+  // session that restores isSplitRestReturn=true from storage — e.g. after
+  // every 運行履歴 row was deleted from another device before this one ever
+  // matched — still clears the stale flag once the (now-empty) data loads,
+  // rather than only reacting to a match this session previously observed.
   const matchedSplitRestTripId = useRef<string | null>(null)
   useEffect(() => {
     if (mode !== 'return' || startedAt == null) {
       matchedSplitRestTripId.current = null
       return
     }
+    if (tripsLoading) return
     const matching = trips.find((t) => t.returnedAt === startedAt)
     if (matching) {
       matchedSplitRestTripId.current = matching.id
       setIsSplitRestReturn(matching.splitRestRemainingMs != null)
-    } else if (matchedSplitRestTripId.current != null) {
+    } else {
       matchedSplitRestTripId.current = null
       setIsSplitRestReturn(false)
     }
-  }, [trips, mode, startedAt])
+  }, [trips, tripsLoading, mode, startedAt])
 
   const toggleFormat = useCallback(() => setHour12((v) => !v), [])
 

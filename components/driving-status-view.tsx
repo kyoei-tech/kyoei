@@ -171,8 +171,8 @@ export function DrivingStatusView({
       <div className={`flex flex-1 flex-col justify-between gap-2.5 ${PAGE_BLEED_CLASS} ${pageTintClass('working')}`}>
       <div className="grid grid-cols-2 gap-2.5">
         <div className="rounded-2xl border border-border bg-card px-3 py-3 text-center">
-          <p className="text-sm font-bold text-secondary">出庫時刻</p>
-          <p className="font-mono text-2xl font-bold tabular-nums text-white">
+          <p className="text-sm font-bold text-foreground">出庫時刻</p>
+          <p className="font-mono text-2xl font-bold tabular-nums text-foreground">
             {departureParts.time}
           </p>
           <p className="mt-1 text-xs font-medium text-muted-foreground">
@@ -231,13 +231,13 @@ export function DrivingStatusView({
       {!isDriving && (
         <div className="rounded-2xl border border-border bg-card px-5 py-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-bold text-secondary">
+            <span className="text-sm font-bold text-foreground">
               {`${
                 BREAK_BUTTONS.find((b) => b.id === trip.activeCategory)
                   ?.label ?? ''
               } 経過時間`}
             </span>
-            <span className="font-mono text-2xl font-bold tabular-nums text-white">
+            <span className="font-mono text-2xl font-bold tabular-nums text-foreground">
               {formatDuration(activeSegmentElapsedMs)}
             </span>
           </div>
@@ -248,14 +248,14 @@ export function DrivingStatusView({
         <div className="flex items-center justify-between">
           <span
             className={`text-sm font-bold ${
-              breakOrange ? 'text-orange-500' : 'text-muted-foreground'
+              breakOrange ? 'text-orange-500' : 'text-foreground'
             }`}
           >
             累計休憩時間
           </span>
           <span
             className={`font-mono text-2xl font-bold tabular-nums ${
-              breakOrange ? 'text-orange-500' : 'text-white'
+              breakOrange ? 'text-orange-500' : 'text-foreground'
             }`}
           >
             {formatDuration(breakTimerMs)}

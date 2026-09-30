@@ -9,10 +9,12 @@ const LABELS: Record<Mode, string> = {
   return: '出庫可能時刻',
 }
 
+// 出庫時刻/出庫可能時刻はダークモードで白、ライトモードで黒になるよう
+// text-foreground（テーマに応じて自動反転するトークン）で統一する。
 const ACCENT: Record<Mode, string> = {
   idle: 'text-muted-foreground',
-  departure: 'text-secondary',
-  return: 'text-orange-500',
+  departure: 'text-foreground',
+  return: 'text-foreground',
 }
 
 export function StatusDisplay({
@@ -42,13 +44,7 @@ export function StatusDisplay({
         <span className="ml-2 text-foreground">{parts.weekday}</span>
       </p>
       <p
-        className={`text-center font-mono text-4xl font-semibold tabular-nums tracking-tight ${
-          mode === 'idle'
-            ? 'text-foreground'
-            : mode === 'departure'
-              ? 'text-white'
-              : ACCENT[mode]
-        }`}
+        className={`text-center font-mono text-4xl font-semibold tabular-nums tracking-tight ${ACCENT[mode]}`}
       >
         {parts.meridiem && (
           <span className="mr-1 text-sm font-medium text-muted-foreground">
