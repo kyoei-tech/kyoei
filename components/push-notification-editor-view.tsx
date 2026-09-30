@@ -282,7 +282,7 @@ export function PushNotificationEditorView({
           <button
             type="button"
             onClick={onSubmit}
-            className="flex-1 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:scale-95"
+            className="flex-1 rounded-full bg-secondary px-4 py-2 text-sm font-semibold text-secondary-foreground transition-opacity hover:opacity-90 active:scale-95"
           >
             保存
           </button>
