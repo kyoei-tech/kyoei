@@ -119,7 +119,7 @@ export function DrivingStatusView({
       ? 'text-destructive'
       : drivingDurationMs >= TWELVE_HOURS_MS
         ? 'text-orange-500'
-        : 'text-secondary'
+        : 'text-primary'
 
   const continuousOver = continuousMs >= THREE_HOURS_30_MS
   const continuousRemainingMs = Math.max(0, FOUR_HOURS_MS - continuousMs)
@@ -170,9 +170,9 @@ export function DrivingStatusView({
           bottom action row instead of leaving one large gap in the middle. */}
       <div className={`flex flex-1 flex-col justify-between gap-2.5 ${PAGE_BLEED_CLASS} ${pageTintClass('working')}`}>
       <div className="grid grid-cols-2 gap-2.5">
-        <div className="rounded-2xl border border-border bg-card px-3 py-3 text-center">
-          <p className="text-sm font-bold text-foreground">出庫時刻</p>
-          <p className="font-mono text-2xl font-bold tabular-nums text-foreground">
+        <div className="rounded-2xl border border-primary/40 bg-card px-3 py-3 text-center">
+          <p className="text-sm font-bold text-primary">出庫時刻</p>
+          <p className="font-mono text-2xl font-bold tabular-nums text-primary">
             {departureParts.time}
           </p>
           <p className="mt-1 text-xs font-medium text-muted-foreground">
@@ -183,7 +183,7 @@ export function DrivingStatusView({
           className={`rounded-2xl border px-3 py-3 text-center transition-colors ${
             drivingOverFifteen
               ? 'border-destructive bg-destructive'
-              : 'border-border bg-card'
+              : 'border-primary/40 bg-card'
           }`}
         >
           <p className={`text-sm font-bold ${drivingAccent}`}>運行時間</p>
@@ -204,18 +204,18 @@ export function DrivingStatusView({
         </div>
       </div>
 
-      <div className="rounded-2xl border border-border bg-card px-5 py-3">
+      <div className="rounded-2xl border border-primary/40 bg-card px-5 py-3">
         <div className="flex items-center justify-between">
           <span
             className={`text-sm font-bold ${
-              continuousOver ? 'text-destructive' : 'text-foreground'
+              continuousOver ? 'text-destructive' : 'text-primary'
             }`}
           >
             連続走行時間
           </span>
           <span
             className={`font-mono text-2xl font-bold tabular-nums ${
-              continuousOver ? 'text-destructive' : 'text-foreground'
+              continuousOver ? 'text-destructive' : 'text-primary'
             }`}
           >
             {formatDuration(continuousMs)}
@@ -229,33 +229,33 @@ export function DrivingStatusView({
       </div>
 
       {!isDriving && (
-        <div className="rounded-2xl border border-border bg-card px-5 py-3">
+        <div className="rounded-2xl border border-primary/40 bg-card px-5 py-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-bold text-foreground">
+            <span className="text-sm font-bold text-primary">
               {`${
                 BREAK_BUTTONS.find((b) => b.id === trip.activeCategory)
                   ?.label ?? ''
               } 経過時間`}
             </span>
-            <span className="font-mono text-2xl font-bold tabular-nums text-foreground">
+            <span className="font-mono text-2xl font-bold tabular-nums text-primary">
               {formatDuration(activeSegmentElapsedMs)}
             </span>
           </div>
         </div>
       )}
 
-      <div className="rounded-2xl border border-border bg-card px-5 py-3">
+      <div className="rounded-2xl border border-primary/40 bg-card px-5 py-3">
         <div className="flex items-center justify-between">
           <span
             className={`text-sm font-bold ${
-              breakOrange ? 'text-orange-500' : 'text-foreground'
+              breakOrange ? 'text-orange-500' : 'text-primary'
             }`}
           >
             累計休憩時間
           </span>
           <span
             className={`font-mono text-2xl font-bold tabular-nums ${
-              breakOrange ? 'text-orange-500' : 'text-foreground'
+              breakOrange ? 'text-orange-500' : 'text-primary'
             }`}
           >
             {formatDuration(breakTimerMs)}
@@ -263,7 +263,7 @@ export function DrivingStatusView({
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-x-2 gap-y-2 rounded-2xl border border-border bg-card px-5 py-3 text-center">
+      <div className="grid grid-cols-3 gap-x-2 gap-y-2 rounded-2xl border border-primary/40 bg-card px-5 py-3 text-center">
         {categoryList.map(({ key, ms }) => (
           <div key={key}>
             <p className="text-xs text-muted-foreground">

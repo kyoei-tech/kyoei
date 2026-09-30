@@ -9,12 +9,18 @@ const LABELS: Record<Mode, string> = {
   return: '出庫可能時刻',
 }
 
-// 出庫時刻/出庫可能時刻はダークモードで白、ライトモードで黒になるよう
-// text-foreground（テーマに応じて自動反転するトークン）で統一する。
+// 出庫時刻/出庫可能時刻はブランドグリーン（primary）で強調し、カード枠も
+// 同色にして「アクティブな状態」を示す統一デザインに合わせる。
 const ACCENT: Record<Mode, string> = {
   idle: 'text-muted-foreground',
-  departure: 'text-foreground',
-  return: 'text-foreground',
+  departure: 'text-primary',
+  return: 'text-primary',
+}
+
+const BORDER: Record<Mode, string> = {
+  idle: 'border-border',
+  departure: 'border-primary/40',
+  return: 'border-primary/40',
 }
 
 export function StatusDisplay({
@@ -31,7 +37,7 @@ export function StatusDisplay({
   return (
     <section
       aria-label="連動表示"
-      className="rounded-3xl border border-border bg-card px-5 py-3"
+      className={`rounded-3xl border bg-card px-5 py-3 ${BORDER[mode]}`}
     >
       <div className="mb-0.5 flex items-center justify-between">
         <span className={`text-base font-bold tracking-wide ${ACCENT[mode]}`}>

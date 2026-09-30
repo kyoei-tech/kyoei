@@ -145,5 +145,13 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Subtle brand-green glow behind the UI, matching the reference design:
+       a soft radial wash in both themes rather than a flat neutral fill. */
+    background-image: radial-gradient(
+      ellipse 120% 60% at 50% 0%,
+      color-mix(in oklch, var(--brand-lime) 16%, var(--background)) 0%,
+      var(--background) 70%
+    );
+    background-attachment: fixed;
   }
 }

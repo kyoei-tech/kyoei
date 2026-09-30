@@ -14,8 +14,14 @@ const COUNTDOWN_OPTIONS = [3, 9, 33]
 // so the two linked labels read as one visual pair.
 const LABEL_ACCENT: Record<Mode, string> = {
   idle: 'text-muted-foreground',
-  departure: 'text-secondary',
+  departure: 'text-primary',
   return: 'text-orange-500',
+}
+
+const BORDER: Record<Mode, string> = {
+  idle: 'border-border',
+  departure: 'border-primary/40',
+  return: 'border-border',
 }
 
 export function ShiftTimer({
@@ -33,7 +39,7 @@ export function ShiftTimer({
 }) {
   const accent =
     mode === 'departure'
-      ? 'text-secondary'
+      ? 'text-primary'
       : mode === 'return'
         ? finished
           ? 'text-destructive'
@@ -43,7 +49,7 @@ export function ShiftTimer({
   return (
     <section
       aria-label="シフトタイマー"
-      className="flex flex-1 flex-col items-center justify-center rounded-3xl border border-border bg-card px-5 py-4 text-center"
+      className={`flex flex-1 flex-col items-center justify-center rounded-3xl border bg-card px-5 py-4 text-center ${BORDER[mode]}`}
     >
       <div className="mb-1 flex items-center justify-center gap-1.5">
         <Timer className={`h-5 w-5 ${LABEL_ACCENT[mode]}`} aria-hidden="true" />
