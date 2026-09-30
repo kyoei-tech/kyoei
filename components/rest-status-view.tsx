@@ -69,9 +69,9 @@ export function RestStatusView({
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-2xl border border-border bg-card px-3 py-3.5 text-center">
-          <p className="text-sm font-bold text-foreground">帰庫時刻</p>
-          <p className="font-mono text-2xl font-bold tabular-nums text-foreground">
+        <div className="rounded-2xl border border-primary/40 bg-card px-3 py-3.5 text-center">
+          <p className="text-sm font-bold text-primary">帰庫時刻</p>
+          <p className="font-mono text-2xl font-bold tabular-nums text-primary">
             {returnParts.time}
           </p>
           <p className="mt-1 text-xs font-medium text-muted-foreground">
@@ -82,19 +82,19 @@ export function RestStatusView({
           className={`rounded-2xl border px-3 py-3.5 text-center ${
             isCompletingSplitRest
               ? 'border-destructive bg-destructive/10'
-              : 'border-border bg-card'
+              : 'border-primary/40 bg-card'
           }`}
         >
           <p
             className={`text-sm font-bold ${
-              isCompletingSplitRest ? 'text-destructive' : 'text-foreground'
+              isCompletingSplitRest ? 'text-destructive' : 'text-primary'
             }`}
           >
             {isCompletingSplitRest ? '分割休息満了時刻' : '出庫可能時刻'}
           </p>
           <p
             className={`font-mono text-2xl font-bold tabular-nums ${
-              isCompletingSplitRest ? 'text-destructive' : 'text-foreground'
+              isCompletingSplitRest ? 'text-destructive' : 'text-primary'
             }`}
           >
             {departableParts.time}
@@ -126,16 +126,28 @@ export function RestStatusView({
         })}
       </div>
 
-      <div className="flex flex-1 flex-col items-center justify-center rounded-3xl border border-border bg-card px-6 py-6 text-center">
+      <div
+        className={`flex flex-1 flex-col items-center justify-center rounded-3xl border bg-card px-6 py-6 text-center ${
+          isCompletingSplitRest ? 'border-destructive/40' : 'border-primary/40'
+        }`}
+      >
         {isCompletingSplitRest && (
           <p className="mb-1 text-sm font-bold text-destructive">
             分割休息中
           </p>
         )}
-        <p className="text-base font-bold tracking-wide text-muted-foreground">
+        <p
+          className={`text-base font-bold tracking-wide ${
+            isCompletingSplitRest ? 'text-destructive' : 'text-primary'
+          }`}
+        >
           休息時間
         </p>
-        <p className="mt-1 font-mono text-6xl font-bold tabular-nums tracking-tight text-foreground">
+        <p
+          className={`mt-1 font-mono text-6xl font-bold tabular-nums tracking-tight ${
+            isCompletingSplitRest ? 'text-destructive' : 'text-primary'
+          }`}
+        >
           {formatDuration(restElapsedMs)}
         </p>
       </div>
