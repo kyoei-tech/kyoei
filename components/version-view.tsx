@@ -274,7 +274,7 @@ export function VersionView() {
         <div>
           <h2 className="text-xl font-bold text-foreground">Version</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            これまでの更新内容��日付順に確認できます。各項目の編集ボタンから削除・非表示・編集を行えます（暗証番号が必要です）。
+            これまでの更新内容を日付順に確認できます。各項目の編集ボタンから削除・非表示・編集を行えます（暗証番号が必要です）。
           </p>
         </div>
         <button
@@ -754,7 +754,7 @@ export function VersionView() {
                     }))
                   }
                   rows={3}
-                  placeholder="どこが、どう変わったかを書いて�����さい"
+                  placeholder="どこが、どう変わったかを書いてください"
                   className="resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-primary/60"
                 />
               </label>
