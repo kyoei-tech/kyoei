@@ -10,6 +10,7 @@ struct KyoeiApp: App {
     @State private var shift = ShiftStore()
     @State private var sharedData = SharedData()
     @State private var pendingNotifications = PendingNotificationStore()
+    @State private var auth = AuthStore()
 
     init() {
         UNUserNotificationCenter.current().delegate = ForegroundNotificationDelegate.shared
@@ -22,6 +23,7 @@ struct KyoeiApp: App {
                 .environment(shift)
                 .environment(sharedData)
                 .environment(pendingNotifications)
+                .environment(auth)
                 .preferredColorScheme(settings.colorScheme)
                 .environment(\.locale, Locale(identifier: "ja_JP"))
         }

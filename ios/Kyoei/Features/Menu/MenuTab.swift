@@ -161,7 +161,7 @@ private struct MenuDestination: View {
         case .qa:
             QAView()
         case .mypage:
-            TabPage { ComingSoonView(title: item.label, phase: 4) }
+            MyPageView()
         }
     }
 }

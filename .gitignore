@@ -22,3 +22,6 @@ ios/**/.swiftpm/
 ios/**/Package.resolved
 xcuserdata/
 ios/Kyoei/Kyoei.entitlements
+
+# Sample dispatch sheets (contain real driver names)
+sample_haisha.pdf

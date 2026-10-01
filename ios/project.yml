@@ -41,6 +41,11 @@ targets:
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
+        # Supabase email confirmation links return to the app (AuthStore.redirectURL).
+        CFBundleURLTypes:
+          - CFBundleURLName: jp.kyoei.app.auth
+            CFBundleURLSchemes:
+              - kyoei
         NSCameraUsageDescription: 事故報告で相手の免許証を撮影するために使用します。
         NSPhotoLibraryAddUsageDescription: 事故報告の画像を写真に保存するために使用します。
         # Injected from Config/Secrets.xcconfig; read by App/AppConfig.swift.

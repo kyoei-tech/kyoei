@@ -51,8 +51,16 @@ scripts/migrate-blob-to-supabase-storage.mjs   既存添付の移行（1 回だ�
    - `20261001000100_admin_test_accounts.sql` … テストアカウント管理用の RPC。**適用後に PIN を変更してください**（手順はファイル冒頭のコメント）
    - `20261001000200_push_notifications.sql` … デバイストークンのテーブル、登録用 RPC、通知トリガー
 2. プッシュ通知を設定する：APNs の鍵の作成、Edge Function のデプロイ、Vault への登録（手順は `supabase/functions/push-dispatch/README.md`）
-3. 設定ファイルを作る：`cp ios/Config/Secrets.example.xcconfig ios/Config/Secrets.xcconfig` を実行し、Supabase の URL と anon キーを記入する
-4. `brew install xcodegen && cd ios && xcodegen && open Kyoei.xcodeproj`
+3. 登録確認メールのリンクでアプリに戻れるよう、Supabase の Redirect URLs に `kyoei://auth/callback` を追加する。方法は次のどちらか
+   - ダッシュボードの Authentication → URL Configuration → Redirect URLs で追加する
+   - スクリプトで追加する（既存の URL は残る。何度実行しても同じ結果）
+
+     ```sh
+     SUPABASE_ACCESS_TOKEN=<個人アクセストークン> SUPABASE_PROJECT_REF=<プロジェクトref> \
+       node scripts/add-auth-redirect-url.mjs --dry-run   # 内容を確認してから --dry-run を外す
+     ```
+4. 設定ファイルを作る：`cp ios/Config/Secrets.example.xcconfig ios/Config/Secrets.xcconfig` を実行し、Supabase の URL と anon キーを記入する
+5. `brew install xcodegen && cd ios && xcodegen && open Kyoei.xcodeproj`
 
 Xcode がなくても、ロジックのテスト、アプリ側コードの型チェック、Edge Function のテストは実行できます。
 
@@ -98,6 +106,10 @@ ios/scripts/check.sh
   - 運行履歴（全表示とカレンダー、隠し編集、出勤日の調整）、無事故カレンダー（月間・年間・カテゴリー）
   - 参照ページ：LoL MAP、LoL、AA、高額車、緊急連絡先、初心者ノート（画像は Storage）、ドライバー語録、Q&A
   - 事故報告：端末内だけに保存（ファイル保護あり、iCloud バックアップ対象外）。カメラ撮影と、共有シートでの画像書き出しに対応
-- [ ] フェーズ 4：マイページ、認証、配車表（PDF 解析）
+- [x] フェーズ 4（PDF の解析と、その結果の表示を除く）
+  - ログイン・新規登録（確認メールは `kyoei://auth/callback` でアプリに戻る。ログイン情報は Keychain に保存）
+  - マイページ（出勤簿の名前との紐付け、プロフィール、本人用メニュー）
+  - 配車表：PDF のアップロード（Storage の本人フォルダ）、一覧、原本表示（PDFKit、端末キャッシュ付き）、共有、削除。再インストール後もログインすれば過去分を表示できる
+- [ ] 配車表の解析（Supabase Edge Function を想定）と、解析結果の表示。画面案は検討中
 
-未実装の画面（マイページのみ）は `ComingSoonView` に担当フェーズを表示しています。アプリアイコンは 1024px の原画が必要なため未設定です。
+マイページ内の 点検簿・自己評価シート・社長賞投票・休暇申請・修理申請・荷姿履歴 は、Web 版と同じく「準備中」の表示です。アプリアイコンは 1024px の原画が必要なため未設定です。

@@ -11,6 +11,7 @@ struct AppShell: View {
     @Environment(ShiftStore.self) private var shift
     @Environment(SharedData.self) private var data
     @Environment(PendingNotificationStore.self) private var pendingNotifications
+    @Environment(AuthStore.self) private var auth
 
     @State private var tab: AppTab = .home
     @State private var menuPath: [MenuItem] = []
@@ -48,6 +49,9 @@ struct AppShell: View {
         .syncing(data.deviceTrips)
         .syncing(data.accidentRows)
         .task { await runTicker() }
+        .task { await auth.observe() }
+        // Email confirmation links come back as kyoei://auth/callback?code=…
+        .onOpenURL { url in Task { await auth.handle(url: url) } }
         // おしらせ modal: live inserts plus a catch-up on every return to the foreground.
         .task(id: settings.settings.pushNotificationsEnabled) {
             guard settings.settings.pushNotificationsEnabled else { return }

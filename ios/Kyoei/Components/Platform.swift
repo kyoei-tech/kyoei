@@ -12,6 +12,14 @@ extension View {
         #endif
     }
 
+    func emailKeyboard() -> some View {
+        #if os(iOS)
+        keyboardType(.emailAddress).textInputAutocapitalization(.never)
+        #else
+        self
+        #endif
+    }
+
     func inlineNavigationTitle() -> some View {
         #if os(iOS)
         navigationBarTitleDisplayMode(.inline)
