@@ -12,6 +12,15 @@ extension View {
         #endif
     }
 
+    /// Login IDs and setup codes: ASCII keyboard, no auto-capitalization.
+    func asciiKeyboard() -> some View {
+        #if os(iOS)
+        keyboardType(.asciiCapable).textInputAutocapitalization(.never)
+        #else
+        self
+        #endif
+    }
+
     func emailKeyboard() -> some View {
         #if os(iOS)
         keyboardType(.emailAddress).textInputAutocapitalization(.never)

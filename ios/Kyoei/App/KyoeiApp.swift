@@ -11,6 +11,7 @@ struct KyoeiApp: App {
     @State private var sharedData = SharedData()
     @State private var pendingNotifications = PendingNotificationStore()
     @State private var auth = AuthStore()
+    @State private var lock = AppLockStore()
 
     init() {
         UNUserNotificationCenter.current().delegate = ForegroundNotificationDelegate.shared
@@ -18,12 +19,13 @@ struct KyoeiApp: App {
 
     var body: some Scene {
         WindowGroup {
-            AppShell()
+            RootView()
                 .environment(settings)
                 .environment(shift)
                 .environment(sharedData)
                 .environment(pendingNotifications)
                 .environment(auth)
+                .environment(lock)
                 .preferredColorScheme(settings.colorScheme)
                 .environment(\.locale, Locale(identifier: "ja_JP"))
         }

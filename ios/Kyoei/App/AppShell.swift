@@ -52,9 +52,6 @@ struct AppShell: View {
         .syncing(data.deviceTrips)
         .syncing(data.accidentRows)
         .task { await runTicker() }
-        .task { await auth.observe() }
-        // Email confirmation links come back as kyoei://auth/callback?code=…
-        .onOpenURL { url in Task { await auth.handle(url: url) } }
         // おしらせ modal: live inserts plus a catch-up on every return to the foreground.
         .task(id: settings.settings.pushNotificationsEnabled) {
             guard settings.settings.pushNotificationsEnabled else { return }

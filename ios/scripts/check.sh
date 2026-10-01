@@ -22,10 +22,11 @@ else
     (cd AppCheck && swift build)
 fi
 
-echo "== Edge Function tests (push-dispatch, parse-dispatch-sheet)"
+echo "== Edge Function tests (push-dispatch, parse-dispatch-sheet, account-setup)"
 if command -v node >/dev/null 2>&1; then
     node --test ../supabase/functions/push-dispatch/push-dispatch.test.ts \
-        ../supabase/functions/parse-dispatch-sheet/parse-dispatch-sheet.test.ts
+        ../supabase/functions/parse-dispatch-sheet/parse-dispatch-sheet.test.ts \
+        ../supabase/functions/account-setup/account-setup.test.ts
 else
     echo "(node not found; skipped)"
 fi

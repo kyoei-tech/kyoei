@@ -45,6 +45,7 @@ targets:
           - CFBundleURLName: jp.kyoei.app.auth
             CFBundleURLSchemes:
               - kyoei
+        NSFaceIDUsageDescription: しばらく離れたあとにアプリを開くとき、本人確認に使用します。
         NSCameraUsageDescription: 配車表の車台番号の照合と、事故報告での免許証などの撮影に使用します。
         NSPhotoLibraryAddUsageDescription: 事故報告の画像を写真に保存するために使用します。
         # Injected from Config/Secrets.xcconfig; read by App/AppConfig.swift.
