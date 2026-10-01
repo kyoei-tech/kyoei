@@ -2,11 +2,11 @@ import Foundation
 
 // 配車表 (dispatch_sheets). The original PDF lives in the private
 // dispatch-sheets bucket under the uploader's own folder; the parsed result
-// (extracted_data) is filled in by the parser once that is decided — until
-// then a sheet is "解析待ち" and only its original PDF is shown.
+// (extracted_data, see DispatchSheetContent) is written by the
+// parse-dispatch-sheet Edge Function right after upload.
 
 public struct DispatchSheetRow: Codable, Equatable, Identifiable, Sendable {
-    public static let selectColumns = "id, blob_url, original_filename, uploaded_at, dispatch_date, vehicle_count:extracted_data->vehicleCount"
+    public static let selectColumns = "id, blob_url, original_filename, uploaded_at, dispatch_date, parse_error, vehicle_count:extracted_data->vehicleCount"
 
     public var id: String
     /// Storage object path ("<auth uid>/<file>") — the column keeps its web-era name.
@@ -14,10 +14,30 @@ public struct DispatchSheetRow: Codable, Equatable, Identifiable, Sendable {
     public var original_filename: String
     public var uploaded_at: String
     public var dispatch_date: String?
+    /// Set when the parser could not read the PDF.
+    public var parse_error: String?
     /// extracted_data->vehicleCount, when parsed.
     public var vehicle_count: Int?
 
     public var isParsed: Bool { vehicle_count != nil }
+
+    public enum ParseStatus: Equatable, Sendable {
+        case parsed(vehicles: Int), pending, failed
+    }
+
+    public var parseStatus: ParseStatus {
+        if let vehicle_count { return .parsed(vehicles: vehicle_count) }
+        return parse_error == nil ? .pending : .failed
+    }
+
+    /// "17台" / "解析中" / "読み取れませんでした"
+    public var statusLabel: String {
+        switch parseStatus {
+        case .parsed(let vehicles): "\(vehicles)台"
+        case .pending: "解析中"
+        case .failed: "読み取れませんでした"
+        }
+    }
 
     public var pdf: AttachmentReference { .stored(bucket: .dispatchSheets, path: blob_url) }
 
@@ -45,6 +65,24 @@ public struct DispatchSheetInsert: Encodable, Equatable, Sendable {
         original_filename = filename
         uploaded_by_staff_id = staffID
     }
+}
+
+/// The full parse result for one sheet (the list only loads the counts).
+public struct DispatchSheetDetailRow: Decodable, Equatable, Sendable {
+    public static let selectColumns = "id, extracted_data, parse_error"
+
+    public var id: String
+    public var extracted_data: DispatchSheetContent?
+    public var parse_error: String?
+}
+
+/// Request body for the parse-dispatch-sheet Edge Function.
+public struct ParseDispatchSheetRequest: Encodable, Equatable, Sendable {
+    public var sheetId: String?
+    public var reparseOutdated: Bool?
+
+    public static func sheet(_ id: String) -> Self { Self(sheetId: id, reparseOutdated: nil) }
+    public static let outdated = Self(sheetId: nil, reparseOutdated: true)
 }
 
 public enum DispatchSheetUpload {

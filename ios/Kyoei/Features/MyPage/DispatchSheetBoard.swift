@@ -1,0 +1,946 @@
+import KyoeiCore
+import PDFKit
+import SwiftUI
+
+// 配車表の表示: 回戦まとめ (where to load, where to go, what, how soon) and
+// 1台詳細 (one PDF row per card), with the 車台番号 camera check button at
+// the top of both. Design: canvas "B1 採用案" — 照合済 is a green
+// 「✓ 車台番号 照合済」 label, 未照合 a filled orange 「車台番号 未照合」.
+
+extension Color {
+    /// 未照合. Deliberately stronger than the amber 卸日 chips; white text on it is ~5:1.
+    static let chassisUnchecked = Color(light: 0xC2410C, dark: 0xC2410C)
+    static let chassisUncheckedSoft = Color(light: 0xFFEDD5, dark: 0x3A1A0A)
+    static let chassisUncheckedText = Color(light: 0x9A3412, dark: 0xFDBA74)
+}
+
+/// One sheet: parse status, the two parsed views, and the original PDF.
+struct DispatchSheetDetail: View {
+    let sheet: DispatchSheetRow
+    let onBack: () -> Void
+
+    enum Tab: String, CaseIterable, Identifiable {
+        case summary = "回戦まとめ"
+        case vehicles = "1台詳細"
+        case original = "原本"
+        var id: String { rawValue }
+    }
+
+    @State private var content: DispatchSheetContent?
+    @State private var loadFailed = false
+    @State private var checks: RealtimeTable<ChassisCheckRow>
+    @State private var acknowledgments: RealtimeTable<BlankAcknowledgmentRow>
+    @State private var tab: Tab = .summary
+    @State private var scan: ScanRequest?
+    @State private var reparsing = false
+    @State private var message: String?
+
+    init(sheet: DispatchSheetRow, onBack: @escaping () -> Void) {
+        self.sheet = sheet
+        self.onBack = onBack
+        let sheetID = sheet.id
+        _checks = State(initialValue: RealtimeTable(table: "dispatch_chassis_checks") {
+            try await DispatchSheetRepository.fetchChecks(sheetID: sheetID)
+        })
+        _acknowledgments = State(initialValue: RealtimeTable(table: "dispatch_blank_acknowledgments") {
+            try await DispatchSheetRepository.fetchBlankAcknowledgments(sheetID: sheetID)
+        })
+    }
+
+    private var checkIndex: ChassisChecks { ChassisChecks(checks.rows) }
+    private var chassisState: SheetChassisState { SheetChassisState(checks: checkIndex, acknowledgments: acknowledgments.rows) }
+
+    var body: some View {
+        VStack(spacing: 8) {
+            BackHeader(label: "一覧へ戻る", variant: .subtle, onBack: onBack)
+                .padding(.horizontal, 16)
+            heading.padding(.horizontal, 16)
+            Picker("表示", selection: $tab) {
+                ForEach(Tab.allCases) { Text($0.rawValue).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 16)
+
+            if tab == .original {
+                DispatchSheetOriginal(sheet: sheet)
+            } else if let content {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        scanButton
+                        if let message {
+                            Text(message).appFont(12, weight: .semibold).foregroundStyle(Color.destructive)
+                        }
+                        if !content.warnings.isEmpty {
+                            SheetWarnings(warnings: content.warnings) { tab = .original }
+                        }
+                        if tab == .summary {
+                            DispatchSummaryList(content: content, state: chassisState)
+                        } else {
+                            DispatchVehicleList(content: content, state: chassisState, actions: cardActions)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 24)
+                    .frame(maxWidth: 448)
+                    .frame(maxWidth: .infinity)
+                }
+            } else {
+                unparsed
+            }
+        }
+        .syncing(checks)
+        .syncing(acknowledgments)
+        // Reload whenever the list row says the parse result changed
+        // (Realtime on dispatch_sheets updates `sheet`).
+        .task(id: "\(sheet.id)|\(sheet.statusLabel)") { await loadContent() }
+        .fullScreen(item: $scan) { request in
+            if let content {
+                ChassisScanFlow(
+                    vehicles: content.vehicles,
+                    target: request.target,
+                    state: chassisState,
+                    onConfirm: { vehicle, read, method in record(vehicle, read: read, method: method) },
+                    onClose: { scan = nil }
+                )
+            }
+        }
+    }
+
+    private var heading: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(sheet.title).appFont(18, weight: .bold).foregroundStyle(Color.appForeground)
+            if let content {
+                let progress = ChassisCheckProgress(vehicles: content.vehicles, checks: checkIndex)
+                Text([
+                    "\(content.vehicles.count)台",
+                    content.vehicleNumber.map { "\($0)号車" },
+                    content.dispatchNumber.map { "配車番号 \($0)" },
+                    "照合 \(progress.checked)/\(progress.total)",
+                ].compactMap { $0 }.joined(separator: " ・ "))
+                .appFont(12).foregroundStyle(Color.mutedForeground)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var scanButton: some View {
+        Button { scan = ScanRequest(target: nil) } label: {
+            Label("車台番号をカメラで照合", systemImage: "camera.viewfinder")
+                .appFont(16, weight: .bold)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .foregroundStyle(Color.primaryForeground)
+                .background(Color.primary, in: RoundedRectangle(cornerRadius: 16))
+        }
+        .buttonStyle(PressScaleStyle())
+    }
+
+    @ViewBuilder private var unparsed: some View {
+        VStack(spacing: 12) {
+            switch sheet.parseStatus {
+            case .failed:
+                EmptyStateBox(text: "この配車表は読み取れませんでした。原本で確認してください。", verticalPadding: 24)
+                reparseButton
+            case .pending:
+                ProgressView("配車表を読み取っています…").appFont(14)
+                reparseButton
+            case .parsed:
+                if loadFailed {
+                    EmptyStateBox(text: "読み込めませんでした。通信状況を確認してください。", verticalPadding: 24)
+                } else {
+                    ProgressView()
+                }
+            }
+            Button("原本を見る") { tab = .original }
+                .buttonStyle(PillButtonStyle(kind: .outline))
+            Spacer()
+        }
+        .padding(16)
+    }
+
+    private var reparseButton: some View {
+        Button {
+            reparsing = true
+            Task {
+                defer { reparsing = false }
+                do {
+                    try await DispatchSheetRepository.parse(sheetID: sheet.id)
+                    await loadContent()
+                } catch {
+                    message = "読み取りに失敗しました。通信状況を確認して、もう一度お試しください。"
+                }
+            }
+        } label: {
+            Label(reparsing ? "読み取り中…" : "もう一度読み取る", systemImage: "arrow.clockwise")
+        }
+        .buttonStyle(PillButtonStyle(kind: .secondary))
+        .disabled(reparsing)
+    }
+
+    private func loadContent() async {
+        guard sheet.isParsed else { return }
+        do {
+            content = try await DispatchSheetRepository.fetchDetail(id: sheet.id).extracted_data
+            loadFailed = content == nil
+        } catch is CancellationError {
+        } catch {
+            loadFailed = true
+        }
+    }
+
+    /// 照合 of a printed number, or 記録 of `read` for a blank 車体番号.
+    private func record(_ vehicle: DispatchVehicle, read: String, method: ChassisCheckMethod) {
+        Task {
+            do {
+                try await DispatchSheetRepository.recordCheck(ChassisCheckInsert(sheetID: sheet.id, vehicle: vehicle, read: read, method: method))
+                message = nil
+            } catch {
+                message = vehicle.needsRecording
+                    ? "車体番号を記録できませんでした。同じ番号を別の車に記録していないか、通信状況を確認してください。"
+                    : "照合結果を保存できませんでした。通信状況を確認してください。"
+            }
+            await checks.refresh()
+        }
+    }
+
+    private var cardActions: VehicleCardActions {
+        VehicleCardActions(
+            scan: { scan = ScanRequest(target: $0) },
+            uncheck: uncheck,
+            acknowledgeBlank: acknowledgeBlank,
+            removeAcknowledgment: removeAcknowledgment,
+            showOriginal: { tab = .original }
+        )
+    }
+
+    private func acknowledgeBlank(_ vehicle: DispatchVehicle) {
+        Task {
+            do {
+                try await DispatchSheetRepository.acknowledgeBlank(BlankAcknowledgmentInsert(sheetID: sheet.id, vehicle: vehicle))
+                message = nil
+            } catch {
+                message = "確認を保存できませんでした。通信状況を確認してください。"
+            }
+            await acknowledgments.refresh()
+        }
+    }
+
+    private func removeAcknowledgment(_ ack: BlankAcknowledgmentRow) {
+        Task {
+            do {
+                try await DispatchSheetRepository.removeBlankAcknowledgment(id: ack.id)
+            } catch {
+                message = "取り消せませんでした。もう一度お試しください。"
+            }
+            await acknowledgments.refresh()
+        }
+    }
+
+    private func uncheck(_ check: ChassisCheckRow) {
+        Task {
+            do {
+                try await DispatchSheetRepository.removeCheck(id: check.id)
+            } catch {
+                message = "取り消せませんでした。もう一度お試しください。"
+            }
+            await checks.refresh()
+        }
+    }
+}
+
+struct ScanRequest: Identifiable {
+    let id = UUID()
+    /// The vehicle whose 未照合 badge was tapped, if any.
+    let target: DispatchVehicle?
+}
+
+// MARK: - 回戦まとめ
+
+/// A sheet's 照合/記録 rows and 空欄の確認, looked up per vehicle.
+struct SheetChassisState {
+    let checks: ChassisChecks
+    let acknowledgments: [BlankAcknowledgmentRow]
+
+    func status(of vehicle: DispatchVehicle) -> ChassisStatus {
+        .of(vehicle, checks: checks, acknowledgments: acknowledgments)
+    }
+
+    func progress(_ vehicles: [DispatchVehicle]) -> ChassisCheckProgress {
+        ChassisCheckProgress(vehicles: vehicles, checks: checks)
+    }
+
+    func reviewCount(_ vehicles: [DispatchVehicle]) -> Int {
+        vehicles.needingReview(checks: checks, acknowledgments: acknowledgments).count
+    }
+}
+
+private struct DispatchSummaryList: View {
+    let content: DispatchSheetContent
+    let state: SheetChassisState
+
+    var body: some View {
+        let today = LocalDate(Date())
+        ForEach(content.rounds) { round in
+            let routes = round.routes
+            let earliest = routes.compactMap { $0.earliestDropoff(today: today) }.min()
+            let review = state.reviewCount(round.vehicles)
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("\(round.title) ・ \(round.vehicles.count)台").appFont(17, weight: .black)
+                    if review > 0 { ReviewChip(text: "要確認 \(review)台") }
+                    Spacer(minLength: 4)
+                    if let earliest, earliest.urgency <= .tomorrow {
+                        DueChip(prefix: "直近の期限", due: earliest, condition: nil, solid: true)
+                    }
+                }
+                ChassisProgressChips(progress: state.progress(round.vehicles))
+                ForEach(routes) { route in
+                    RouteBlock(route: route, today: today, state: state)
+                }
+            }
+            .padding(14)
+            .card(radius: 18, border: earliest.map { $0.isUrgent } == true ? .destructive : .border)
+        }
+    }
+}
+
+private struct RouteBlock: View {
+    let route: DispatchRoute
+    let today: LocalDate
+    let state: SheetChassisState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            RouteLine(pickup: route.pickup, dropoff: route.dropoff)
+            HStack {
+                Text("\(route.vehicles.count)台").appFont(12, weight: .bold).foregroundStyle(Color.mutedForeground)
+                Spacer()
+                if let due = route.earliestDropoff(today: today) {
+                    DueChip(prefix: "卸", due: due, condition: nil)
+                } else {
+                    Chip(text: "卸 指定なし", style: .gray)
+                }
+            }
+            Divider()
+            ForEach(route.vehicles) { vehicle in
+                SummaryVehicleRow(vehicle: vehicle, status: state.status(of: vehicle))
+            }
+        }
+        .padding(10)
+        .background(Color.appBackground, in: RoundedRectangle(cornerRadius: 12))
+    }
+}
+
+/// Name over the full 車体番号 (never abbreviated), badge on the right. A
+/// blank number not yet confirmed is shaded red with 要確認.
+private struct SummaryVehicleRow: View {
+    let vehicle: DispatchVehicle
+    let status: ChassisStatus
+
+    var body: some View {
+        HStack(spacing: 6) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(vehicle.vehicleName).appFont(13, weight: .bold).foregroundStyle(Color.appForeground)
+                switch status {
+                case .blankNeedsReview:
+                    Text("車体番号 空欄").appFont(12, weight: .heavy).foregroundStyle(Color.destructive)
+                case .blankConfirmed:
+                    Text("車体番号 空欄・確認済").appFont(12).foregroundStyle(Color.mutedForeground)
+                case .done(let check):
+                    ChassisNumberText(chassis: check.isRecorded ? check.chassis_number : vehicle.chassisNumber, compact: true)
+                case .unmatched:
+                    ChassisNumberText(chassis: vehicle.chassisNumber, compact: true)
+                }
+            }
+            Spacer(minLength: 4)
+            switch status {
+            case .blankNeedsReview: ReviewChip(text: "要確認")
+            case .blankConfirmed: ChassisBadge(kind: .record, isDone: false)
+            case .done: ChassisBadge(kind: vehicle.needsRecording ? .record : .match, isDone: true)
+            case .unmatched: ChassisBadge(kind: .match, isDone: false)
+            }
+        }
+        .padding(.vertical, status.needsReview ? 6 : 2)
+        .padding(.horizontal, status.needsReview ? 6 : 0)
+        .background(status.needsReview ? Color.destructive.opacity(0.1) : .clear, in: RoundedRectangle(cornerRadius: 8))
+        .padding(.horizontal, status.needsReview ? -6 : 0)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// Red 「⚠ 要確認」.
+private struct ReviewChip: View {
+    let text: String
+
+    var body: some View {
+        Label(text, systemImage: "exclamationmark.triangle.fill")
+            .labelStyle(.titleAndIcon)
+            .appFont(12, weight: .black)
+            .foregroundStyle(Color.destructiveForeground)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(Color.destructive, in: RoundedRectangle(cornerRadius: 6))
+            .fixedSize()
+    }
+}
+
+// MARK: - 1台詳細
+
+private struct DispatchVehicleList: View {
+    let content: DispatchSheetContent
+    let state: SheetChassisState
+    let actions: VehicleCardActions
+
+    var body: some View {
+        let today = LocalDate(Date())
+        ForEach(content.rounds) { round in
+            let review = state.reviewCount(round.vehicles)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("\(round.title) ・ \(round.vehicles.count)台").appFont(15, weight: .black)
+                    if review > 0 { ReviewChip(text: "要確認 \(review)台") }
+                    Spacer()
+                }
+                ChassisProgressChips(progress: state.progress(round.vehicles))
+                ForEach(round.vehicles) { vehicle in
+                    VehicleCard(vehicle: vehicle, status: state.status(of: vehicle), today: today, actions: actions)
+                }
+            }
+            .padding(.top, 4)
+        }
+    }
+}
+
+struct VehicleCardActions {
+    let scan: (DispatchVehicle) -> Void
+    let uncheck: (ChassisCheckRow) -> Void
+    let acknowledgeBlank: (DispatchVehicle) -> Void
+    let removeAcknowledgment: (BlankAcknowledgmentRow) -> Void
+    let showOriginal: () -> Void
+}
+
+private struct VehicleCard: View {
+    let vehicle: DispatchVehicle
+    let status: ChassisStatus
+    let today: LocalDate
+    let actions: VehicleCardActions
+
+    @Environment(\.openURL) private var openURL
+
+    private var check: ChassisCheckRow? {
+        if case .done(let check) = status { return check }
+        return nil
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 8) {
+                Text(vehicle.vehicleName.isEmpty ? "（品名なし）" : vehicle.vehicleName)
+                    .appFont(22, weight: .black).foregroundStyle(Color.appForeground)
+                Spacer(minLength: 4)
+                badge
+            }
+            chassisSection
+            VStack(alignment: .leading, spacing: 6) {
+                PlaceRow(label: "積", place: vehicle.pickup, ref: vehicle.pickupRef)
+                PlaceRow(label: "降", place: vehicle.dropoff, ref: vehicle.dropoffRef)
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.appBackground, in: RoundedRectangle(cornerRadius: 12))
+            dates
+            if !vehicle.alerts.isEmpty || !vehicle.notes.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    if !vehicle.alerts.isEmpty {
+                        FlowChips(texts: vehicle.alerts, style: .amber)
+                    }
+                    if !vehicle.notes.isEmpty {
+                        Text(vehicle.notes).appFont(12, weight: .bold).foregroundStyle(Color.appForeground)
+                    }
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+            }
+            ForEach(vehicle.phones, id: \.self) { phone in
+                if let url = telURL(phone) {
+                    Button { openURL(url) } label: {
+                        Label(phone, systemImage: "phone.fill").appFont(14, weight: .bold)
+                    }
+                    .buttonStyle(PillButtonStyle(kind: .outline))
+                }
+            }
+            meta
+            if !vehicle.warnings.isEmpty {
+                Button(action: actions.showOriginal) {
+                    HStack(alignment: .top, spacing: 6) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                        Text("要確認：\(vehicle.warnings.joined(separator: "、"))。原本で確認してください。")
+                            .multilineTextAlignment(.leading)
+                    }
+                    .appFont(12, weight: .bold)
+                    .foregroundStyle(Color.destructive)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(14)
+        .background(Color.card, in: RoundedRectangle(cornerRadius: 18))
+        // 未照合・未記録: an orange bar down the left edge.
+        .overlay(alignment: .leading) {
+            if check == nil {
+                UnevenRoundedRectangle(topLeadingRadius: 18, bottomLeadingRadius: 18)
+                    .fill(Color.chassisUnchecked)
+                    .frame(width: 5)
+            }
+        }
+        .overlay(
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(check == nil ? Color.border : Color.primary, lineWidth: check == nil ? 1 : 2)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .contextMenu {
+            switch status {
+            case .done(let check):
+                Button(check.isRecorded ? "記録を取り消す" : "照合を取り消す", systemImage: "arrow.uturn.backward", role: .destructive) { actions.uncheck(check) }
+            case .blankConfirmed(let ack):
+                Button("空欄の確認を取り消す", systemImage: "arrow.uturn.backward", role: .destructive) { actions.removeAcknowledgment(ack) }
+            case .unmatched, .blankNeedsReview:
+                EmptyView()
+            }
+        }
+    }
+
+    @ViewBuilder private var badge: some View {
+        switch status {
+        case .unmatched:
+            Button { actions.scan(vehicle) } label: { ChassisBadge(kind: .match, isDone: false) }
+                .buttonStyle(PressScaleStyle())
+                .accessibilityHint("カメラで車台番号を照合します")
+        case .blankNeedsReview:
+            ReviewChip(text: "要確認")
+        case .blankConfirmed:
+            Button { actions.scan(vehicle) } label: { ChassisBadge(kind: .record, isDone: false) }
+                .buttonStyle(PressScaleStyle())
+                .accessibilityHint("カメラで車体番号を記録します")
+        case .done:
+            ChassisBadge(kind: vehicle.needsRecording ? .record : .match, isDone: true)
+        }
+    }
+
+    @ViewBuilder private var chassisSection: some View {
+        switch status {
+        case .unmatched:
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                ChassisNumberText(chassis: vehicle.chassisNumber)
+                Spacer(minLength: 4)
+                Text("バッジをタップで照合").appFont(11, weight: .bold).foregroundStyle(Color.chassisUncheckedText)
+            }
+        case .done(let check):
+            ChassisNumberText(chassis: check.isRecorded ? check.chassis_number : vehicle.chassisNumber)
+            CheckedBox(check: check)
+        case .blankNeedsReview:
+            BlankNotice(onShowOriginal: actions.showOriginal, onConfirm: { actions.acknowledgeBlank(vehicle) })
+        case .blankConfirmed:
+            Label("原本・伝票で空欄を確認済み", systemImage: "checkmark")
+                .appFont(12, weight: .bold).foregroundStyle(Color.mutedForeground)
+            Button { actions.scan(vehicle) } label: {
+                Label("車体番号を記録", systemImage: "camera.fill")
+                    .appFont(16, weight: .bold)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .foregroundStyle(Color.chassisUncheckedText)
+                    .background(Color.chassisUncheckedSoft, in: RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.chassisUnchecked, lineWidth: 2))
+            }
+            .buttonStyle(PressScaleStyle())
+            .accessibilityHint("配車表に車体番号がないため、実車の車体番号をカメラで読み取って記録します")
+        }
+    }
+
+    private var dates: some View {
+        HStack(spacing: 6) {
+            Chip(text: ["積", vehicle.pickupDate, vehicle.pickupCondition].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " "), style: .gray)
+            if let due = DispatchDue(monthDay: vehicle.dropoffDate, today: today) {
+                DueChip(prefix: "卸", due: due, condition: vehicle.dropoffCondition)
+            } else {
+                Chip(text: "卸 指定なし", style: .gray)
+            }
+        }
+    }
+
+    @ViewBuilder private var meta: some View {
+        let rows = [
+            ("請求先", vehicle.billTo), ("オークション", vehicle.auctionInfo), ("出荷地", vehicle.shipFrom),
+            ("納入地", vehicle.deliverTo), ("緊締", vehicle.lashing),
+        ].filter { !$0.1.isEmpty }
+        if !rows.isEmpty {
+            Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 2) {
+                ForEach(rows, id: \.0) { label, value in
+                    GridRow {
+                        Text(label).foregroundStyle(Color.mutedForeground)
+                        Text(value).foregroundStyle(Color.appForeground)
+                    }
+                    .appFont(12)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Pieces
+
+/// 車体番号が空欄: confirm against 原本 and 伝票 before the record button appears.
+private struct BlankNotice: View {
+    let onShowOriginal: () -> Void
+    let onConfirm: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("車体番号が空欄です", systemImage: "exclamationmark.triangle.fill")
+                .appFont(16, weight: .black).foregroundStyle(Color.chassisUncheckedText)
+            Text("念のため配車表原本と伝票を確認してください。")
+                .appFont(13, weight: .bold).foregroundStyle(Color.appForeground)
+            HStack(spacing: 8) {
+                Button(action: onShowOriginal) {
+                    Label("原本を見る", systemImage: "doc.text")
+                        .appFont(13, weight: .heavy)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 11)
+                        .foregroundStyle(Color.chassisUncheckedText)
+                        .background(Color.card, in: Capsule())
+                        .overlay(Capsule().strokeBorder(Color.chassisUnchecked, lineWidth: 1.5))
+                }
+                Button(action: onConfirm) {
+                    Label("空欄を確認しました", systemImage: "checkmark")
+                        .appFont(13, weight: .heavy)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 11)
+                        .foregroundStyle(.white)
+                        .background(Color.chassisUnchecked, in: Capsule())
+                }
+                .layoutPriority(1)
+            }
+            .buttonStyle(PressScaleStyle())
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.chassisUncheckedSoft, in: RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Color.chassisUnchecked, lineWidth: 2))
+    }
+}
+
+/// Green box under a matched/recorded number: 「コーションプレートで記録」 and when.
+private struct CheckedBox: View {
+    let check: ChassisCheckRow
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "checkmark")
+                .font(.system(size: 13, weight: .heavy))
+                .foregroundStyle(Color.primaryForeground)
+                .frame(width: 26, height: 26)
+                .background(Color.primary, in: Circle())
+            VStack(alignment: .leading, spacing: 1) {
+                Label(check.headline, systemImage: check.method == .cautionPlate ? "list.bullet.rectangle" : "seal")
+                    .appFont(15, weight: .black)
+                Text(check.detailLine()).appFont(12, weight: .bold)
+            }
+            Spacer(minLength: 0)
+        }
+        .foregroundStyle(Color.primary)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .background(Color.primary.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.primary, lineWidth: 1.5))
+    }
+}
+
+/// B1: 「✓ 車台番号 照合済」 (green) / 「📷 車台番号 未照合」 (filled orange).
+/// For a blank 車体番号 on the sheet: 「車体番号 記録済」 / 「車体番号 未記録」.
+struct ChassisBadge: View {
+    enum Kind { case match, record }
+
+    let kind: Kind
+    let isDone: Bool
+
+    var body: some View {
+        Label(text, systemImage: isDone ? "checkmark" : "camera.fill")
+            .labelStyle(BadgeLabelStyle())
+            .appFont(12, weight: isDone ? .bold : .heavy)
+            .foregroundStyle(isDone ? Color.primaryForeground : .white)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(isDone ? Color.primary : Color.chassisUnchecked, in: Capsule())
+            .fixedSize()
+    }
+
+    private var text: String {
+        switch (kind, isDone) {
+        case (.match, true): "車台番号 照合済"
+        case (.match, false): "車台番号 未照合"
+        case (.record, true): "車体番号 記録済"
+        case (.record, false): "車体番号 未記録"
+        }
+    }
+
+    private struct BadgeLabelStyle: LabelStyle {
+        func makeBody(configuration: Configuration) -> some View {
+            HStack(spacing: 4) {
+                configuration.icon.font(.system(size: 11, weight: .bold))
+                configuration.title
+            }
+        }
+    }
+}
+
+/// 「車台番号 照合 3/7台」 plus 「未照合 あと4台」 until all are done
+/// (記録 of blank-numbered vehicles counts the same as 照合).
+private struct ChassisProgressChips: View {
+    let progress: ChassisCheckProgress
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Chip(text: "車台番号 照合 \(progress.checked)/\(progress.total)台", style: progress.isComplete ? .solidGreen : .green)
+            if !progress.isComplete {
+                Text("未照合 あと\(progress.remaining)台")
+                    .appFont(12, weight: .heavy)
+                    .foregroundStyle(Color.chassisUncheckedText)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 3)
+                    .background(Color.chassisUncheckedSoft, in: Capsule())
+                    .overlay(Capsule().stroke(Color.chassisUnchecked, lineWidth: 1.5))
+            }
+        }
+    }
+}
+
+/// Mono chassis number with the last 4 digits emphasized.
+/// Always the full number — 車体番号 is never abbreviated anywhere.
+struct ChassisNumberText: View {
+    let chassis: String
+    /// Smaller type for 回戦まとめ rows.
+    var compact = false
+
+    var body: some View {
+        if chassis.isEmpty {
+            Text("車体番号 空欄").appFont(14).foregroundStyle(Color.mutedForeground)
+        } else {
+            (Text(chassis.dropLast(4)).font(.system(size: compact ? 14 : 17, weight: .bold, design: .monospaced))
+                + Text(chassis.suffix(4)).font(.system(size: compact ? 15 : 22, weight: .heavy, design: .monospaced)).foregroundColor(.primary))
+                .foregroundStyle(Color.appForeground)
+                .textSelection(.enabled)
+        }
+    }
+}
+
+private struct RouteLine: View {
+    let pickup: String
+    let dropoff: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Label(pickup.isEmpty ? "積地不明" : pickup, systemImage: "shippingbox")
+            Image(systemName: "arrow.down").font(.system(size: 11, weight: .bold)).foregroundStyle(Color.mutedForeground).padding(.leading, 4)
+            Label(dropoff.isEmpty ? "降地不明" : dropoff, systemImage: "mappin.and.ellipse")
+        }
+        .appFont(14, weight: .bold)
+        .foregroundStyle(Color.appForeground)
+    }
+}
+
+private struct PlaceRow: View {
+    let label: String
+    let place: String
+    let ref: String
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(label).appFont(11, weight: .heavy).foregroundStyle(Color.primaryForeground)
+                .frame(width: 20, height: 20).background(Color.primary, in: Circle())
+            VStack(alignment: .leading, spacing: 0) {
+                Text(place.isEmpty ? "不明" : place).appFont(14, weight: .bold).foregroundStyle(Color.appForeground)
+                if !ref.isEmpty {
+                    Text(ref).appFont(11).foregroundStyle(Color.mutedForeground)
+                }
+            }
+        }
+    }
+}
+
+struct Chip: View {
+    enum Style { case green, solidGreen, gray, amber, red, solidRed }
+
+    let text: String
+    var style: Style = .green
+
+    var body: some View {
+        Text(text)
+            .appFont(12, weight: .bold)
+            .foregroundStyle(foreground)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 3)
+            .background(background, in: Capsule())
+            .fixedSize()
+    }
+
+    private var foreground: Color {
+        switch style {
+        case .green: .primary
+        case .solidGreen: .primaryForeground
+        case .gray: .mutedForeground
+        case .amber: .secondary
+        case .red: .destructive
+        case .solidRed: .destructiveForeground
+        }
+    }
+
+    private var background: Color {
+        switch style {
+        case .green: .primary.opacity(0.12)
+        case .solidGreen: .primary
+        case .gray: .muted
+        case .amber: .secondary.opacity(0.15)
+        case .red: .destructive.opacity(0.12)
+        case .solidRed: .destructive
+        }
+    }
+}
+
+/// 卸日: red for today (or past), yellow for tomorrow, gray after that.
+private struct DueChip: View {
+    let prefix: String
+    let due: DispatchDue
+    let condition: String?
+    var solid = false
+
+    var body: some View {
+        let date = "\(due.date.month)/\(due.date.day)"
+        let text = [prefix, date, condition, due.label.map { "（\($0)）" }].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " ")
+        Chip(text: text, style: style)
+    }
+
+    private var style: Chip.Style {
+        switch due.urgency {
+        case .overdue, .today: solid ? .solidRed : .red
+        case .tomorrow: .amber
+        case .later: .gray
+        }
+    }
+}
+
+private struct FlowChips: View {
+    let texts: [String]
+    let style: Chip.Style
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 6) { ForEach(texts, id: \.self) { Chip(text: $0, style: style) } }
+            VStack(alignment: .leading, spacing: 4) { ForEach(texts, id: \.self) { Chip(text: $0, style: style) } }
+        }
+    }
+}
+
+private struct SheetWarnings: View {
+    let warnings: [String]
+    let onShowOriginal: () -> Void
+
+    var body: some View {
+        Button(action: onShowOriginal) {
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                VStack(alignment: .leading, spacing: 2) {
+                    ForEach(warnings, id: \.self) { Text($0) }
+                    Text("原本で確認する ›").underline()
+                }
+                Spacer(minLength: 0)
+            }
+            .appFont(12, weight: .bold)
+            .foregroundStyle(Color.destructive)
+            .padding(10)
+            .background(Color.destructive.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - 原本
+
+struct DispatchSheetOriginal: View {
+    let sheet: DispatchSheetRow
+
+    @State private var document: PDFDocument?
+    @State private var failed = false
+    @State private var sharing = false
+
+    var body: some View {
+        VStack(spacing: 4) {
+            if document != nil {
+                HStack {
+                    Spacer()
+                    Button { sharing = true } label: { Label("共有", systemImage: "square.and.arrow.up").appFont(13, weight: .semibold) }
+                }
+                .padding(.horizontal, 16)
+            }
+            Group {
+                if let document {
+                    PDFDocumentView(document: document)
+                } else if failed {
+                    EmptyStateBox(text: "原本を読み込めませんでした。通信状況を確認してください。").padding(16)
+                } else {
+                    ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .task(id: sheet.id) {
+            do {
+                document = PDFDocument(data: try await PDFCache.load(sheet.blob_url))
+                failed = document == nil
+            } catch {
+                failed = true
+            }
+        }
+        .sheet(isPresented: $sharing) {
+            ShareSheet(items: [PDFCache.url(for: sheet.blob_url)])
+        }
+    }
+}
+
+/// PDFKit viewer (pinch to zoom; landscape sheets fit the width).
+private struct PDFDocumentView {
+    let document: PDFDocument
+
+    @MainActor private func configure(_ view: PDFView) {
+        view.document = document
+        view.autoScales = true
+        view.displayMode = .singlePageContinuous
+        view.displayDirection = .vertical
+    }
+}
+
+#if canImport(UIKit)
+extension PDFDocumentView: UIViewRepresentable {
+    func makeUIView(context: Context) -> PDFView {
+        let view = PDFView()
+        configure(view)
+        return view
+    }
+
+    func updateUIView(_ view: PDFView, context: Context) {
+        if view.document !== document { configure(view) }
+    }
+}
+#else
+extension PDFDocumentView: NSViewRepresentable {
+    func makeNSView(context: Context) -> PDFView {
+        let view = PDFView()
+        configure(view)
+        return view
+    }
+
+    func updateNSView(_ view: PDFView, context: Context) {
+        if view.document !== document { configure(view) }
+    }
+}
+#endif

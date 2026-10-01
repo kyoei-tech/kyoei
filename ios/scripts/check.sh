@@ -22,9 +22,28 @@ else
     (cd AppCheck && swift build)
 fi
 
-echo "== push-dispatch Edge Function tests"
+echo "== Edge Function tests (push-dispatch, parse-dispatch-sheet)"
 if command -v node >/dev/null 2>&1; then
-    node --test ../supabase/functions/push-dispatch/push-dispatch.test.ts
+    node --test ../supabase/functions/push-dispatch/push-dispatch.test.ts \
+        ../supabase/functions/parse-dispatch-sheet/parse-dispatch-sheet.test.ts
 else
     echo "(node not found; skipped)"
+fi
+
+# iOS-only code (#if os(iOS): camera, VisionKit, UIKit wrappers) is skipped
+# by the macOS check above, so also build for the iOS Simulator when Xcode
+# is installed. Uses a throwaway copy of the AppCheck manifest with iOS 17
+# added; nothing in the repo changes.
+XCODE=/Applications/Xcode.app/Contents/Developer
+if [ -d "$XCODE/Platforms/iPhoneSimulator.platform" ]; then
+    echo "== App sources build (iOS Simulator)"
+    WORK="${TMPDIR:-/tmp}/kyoei-ioscheck"
+    mkdir -p "$WORK/Sources"
+    ln -sfn "$PWD/Kyoei" "$WORK/Sources/KyoeiAppCheck"
+    sed -e 's#platforms: \[.macOS(.v14)\]#platforms: [.macOS(.v14), .iOS(.v17)]#' \
+        -e "s#\"../KyoeiCore\"#\"$PWD/KyoeiCore\"#" AppCheck/Package.swift > "$WORK/Package.swift"
+    (cd "$WORK" && DEVELOPER_DIR="$XCODE" xcodebuild -quiet -scheme KyoeiAppCheck \
+        -destination 'generic/platform=iOS Simulator' -derivedDataPath "$WORK/dd" build)
+else
+    echo "(Xcode not found; iOS build skipped)"
 fi
