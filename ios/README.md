@@ -13,7 +13,7 @@ ios/
 │   ├── Data/       Supabase クライアント、RealtimeTable、Storage、RPC、ローカル通知、DeviceID（Keychain）
 │   ├── Design/     カラートークン（globals.css から変換）、タブ別フォント倍率、カードの共通スタイル
 │   ├── Components/ 共通 UI（PinGate、確認ダイアログ、BackHeader、MonthNav、添付画像など）
-│   └── Features/   画面ごとの実装（Home / Timecard / Menu …）
+│   └── Features/   画面ごとの実装（Home / Timecard / Staff / News / Yard / Menu）
 ├── AppCheck/       開発用。Kyoei/ を macOS 向けに型チェックする（Xcode 不要）
 ├── Config/         Secrets.xcconfig（git 管理外）とひな形
 ├── scripts/check.sh
@@ -87,7 +87,10 @@ ios/scripts/check.sh
   - タイムカード：出勤・退勤、休憩、共有メモ、個人メモ、やること（画像は Storage）
   - 無事故日数、今月の目標
   - 運行タイマーのローカル通知、運行履歴への保存、出勤簿との同期
-- [ ] フェーズ 2：出勤簿、おしらせ、ヤード配置
+- [x] フェーズ 2
+  - 出勤簿：2 回タップで出退勤の切り替え、3 回タップでコメント編集、社員とヤード管理者の追加・編集・削除
+  - おしらせ：一覧、詳細、投稿、過去の投稿の編集・削除。開いている間はモーダル、前面に戻ったときは見逃した投稿を取り込む
+  - ヤード配置：かな対応の移動先検索、ヤード・位置・行き先の編集。行き先名を変えると、割り当て済みの位置にも反映
 - [ ] フェーズ 3：メニュー配下の各画面と設定（テストアカウント管理と通知の種類選択の UI を含む）
 - [ ] フェーズ 4：マイページ、認証、配車表（PDF 解析）
 

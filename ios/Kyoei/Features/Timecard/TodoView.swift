@@ -187,8 +187,10 @@ private struct TodoForm: View {
                             .accessibilityLabel("画像を削除")
                         }
                 } else {
+                    // Captured outside: the label closure isn't main-actor isolated.
+                    let isUploading = uploading
                     PhotosPicker(selection: $photo, matching: .images) {
-                        ImagePickerLabel(uploading: uploading)
+                        ImagePickerLabel(uploading: isUploading)
                     }
                     .disabled(uploading)
                 }

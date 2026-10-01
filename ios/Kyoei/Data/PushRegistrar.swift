@@ -87,8 +87,7 @@ final class PushRegistrar {
     }
 }
 
-/// Routes notification interactions into the UI: the おしらせ modal while in
-/// the foreground, and the matching tab when a notification is tapped.
+/// Routes a tapped notification to the matching tab.
 @MainActor
 @Observable
 final class NotificationRouter {
@@ -96,12 +95,6 @@ final class NotificationRouter {
 
     /// Set when a tapped notification should open a tab; AppShell consumes it.
     var requestedTab: AppTab?
-
-    @ObservationIgnored weak var pendingNotifications: PendingNotificationStore?
-
-    func presentInApp(title: String, body: String) {
-        pendingNotifications?.enqueue(title: title, message: body)
-    }
 }
 
 #if canImport(UIKit)

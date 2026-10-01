@@ -15,6 +15,8 @@ struct AppShell: View {
     @State private var tab: AppTab = .home
     @State private var menuPath: [MenuItem] = []
     @State private var testDriveGate = PinGate(code: AppShell.testDriveModePasscode)
+    @State private var newsNotifier = NewsNotifier()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         VStack(spacing: 0) {
@@ -46,6 +48,15 @@ struct AppShell: View {
         .syncing(data.deviceTrips)
         .syncing(data.accidentDates)
         .task { await runTicker() }
+        // おしらせ modal: live inserts plus a catch-up on every return to the foreground.
+        .task(id: settings.settings.pushNotificationsEnabled) {
+            guard settings.settings.pushNotificationsEnabled else { return }
+            await newsNotifier.run(announce: announceNews)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active, settings.settings.pushNotificationsEnabled else { return }
+            Task { await newsNotifier.catchUp(announce: announceNews) }
+        }
         .task(id: PushSettingsKey(settings.settings)) {
             // Covers launch and any change to 通知 on/off, 乗務員ID or topics.
             shift.notificationsEnabled = settings.settings.pushNotificationsEnabled
@@ -67,11 +78,11 @@ struct AppShell: View {
             case .timecard: TimecardHomeView(openMenuItem: openMenuItem)
             }
         case .yard:
-            TabPage { ComingSoonView(title: AppTab.yard.label, phase: 2) }
+            YardLayoutView()
         case .staff:
-            TabPage { ComingSoonView(title: AppTab.staff.label, phase: 2) }
+            StaffAttendanceView()
         case .news:
-            TabPage { ComingSoonView(title: AppTab.news.label, phase: 2) }
+            NewsView()
         case .menu:
             MenuTab(path: $menuPath)
         }
@@ -108,6 +119,10 @@ struct AppShell: View {
             }
             try? await Task.sleep(for: .seconds(1))
         }
+    }
+
+    private func announceNews() {
+        pendingNotifications.enqueue(title: NewsNotifier.title, message: NewsNotifier.message)
     }
 
     private func openRequestedTab() {

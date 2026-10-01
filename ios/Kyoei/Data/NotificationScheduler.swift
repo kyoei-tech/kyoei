@@ -51,7 +51,7 @@ enum NotificationScheduler {
 /// Decides how notifications show while the app is open, and handles taps.
 ///  - Local driving-timer alerts: no banner; ShiftStore's tick raises the
 ///    blocking in-app modal instead (as the web app did).
-///  - Remote おしらせ push: the same blocking modal, no banner.
+///  - Remote おしらせ push: no banner; NewsNotifier raises the modal.
 ///  - Remote 出勤簿 status push: a regular banner.
 /// Tapping a remote push opens the matching tab.
 final class ForegroundNotificationDelegate: NSObject, UNUserNotificationCenterDelegate, Sendable {
@@ -63,11 +63,6 @@ final class ForegroundNotificationDelegate: NSObject, UNUserNotificationCenterDe
     ) async -> UNNotificationPresentationOptions {
         let content = notification.request.content
         switch PushKind(userInfo: content.userInfo)?.foregroundPresentation ?? .suppressed {
-        case .modal:
-            let title = content.title
-            let body = content.body
-            await MainActor.run { NotificationRouter.shared.presentInApp(title: title, body: body) }
-            return []
         case .banner:
             return [.banner, .list, .sound]
         case .suppressed:

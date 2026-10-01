@@ -64,8 +64,10 @@ public enum PushKind: Equatable, Sendable {
     /// How to present it while the app is in the foreground.
     public var foregroundPresentation: ForegroundPresentation {
         switch self {
-        // Like the web app: a new おしらせ is a blocking "了解しました。" modal.
-        case .news: .modal
+        // The in-app NewsNotifier already raises the blocking "了解しました。"
+        // modal for every new post (live and catch-up), so the push itself is
+        // hidden to avoid announcing the same post twice.
+        case .news: .suppressed
         // Status changes are frequent; a banner is enough.
         case .staffStatus: .banner
         }
@@ -81,5 +83,5 @@ public enum PushKind: Equatable, Sendable {
 }
 
 public enum ForegroundPresentation: Equatable, Sendable {
-    case modal, banner, suppressed
+    case banner, suppressed
 }

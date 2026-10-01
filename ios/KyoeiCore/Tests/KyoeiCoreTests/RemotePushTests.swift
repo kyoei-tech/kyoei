@@ -16,7 +16,7 @@ import Testing
     @Test func pushKindRouting() {
         let news = PushKind(userInfo: ["kind": "news", "id": "n1", "aps": [:]])
         #expect(news == .news(id: "n1"))
-        #expect(news?.foregroundPresentation == .modal)
+        #expect(news?.foregroundPresentation == .suppressed)
         #expect(news?.destinationTab == .news)
         let staff = PushKind(userInfo: ["kind": "staff_status", "id": "s1"])
         #expect(staff?.foregroundPresentation == .banner)
