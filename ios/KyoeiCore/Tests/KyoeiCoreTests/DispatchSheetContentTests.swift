@@ -196,4 +196,16 @@ import Testing
         let insert = BlankAcknowledgmentInsert(sheetID: "s", vehicle: blank)
         #expect(insert == BlankAcknowledgmentInsert(sheetID: "s", vehicle: blank) && insert.vehicle_index == 1)
     }
+
+    @Test func matchingAnotherVehicleThanTheTargetIsAWarning() throws {
+        let vehicles = try Self.decode(Self.v2).vehicles
+        let freed = vehicles[1], alto = vehicles[2]
+        let readAlto = ChassisMatch.evaluate(candidates: ["HA36S-522329"], against: vehicles)
+        #expect(readAlto?.wrongVehicle(for: freed) == alto)
+        #expect(readAlto?.wrongVehicle(for: alto) == nil)
+        // Opened from the top button (no target): any match is fine.
+        #expect(readAlto?.wrongVehicle(for: nil) == nil)
+        // A plain mismatch is not a "wrong vehicle".
+        #expect(ChassisMatch.evaluate(candidates: ["XX1-000000"], against: vehicles)?.wrongVehicle(for: freed) == nil)
+    }
 }

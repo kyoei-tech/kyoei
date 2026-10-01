@@ -27,6 +27,8 @@ struct ChassisScanFlow: View {
         case scanning
         case matched(DispatchVehicle)
         case mismatch(read: String)
+        /// Opened from `target`'s badge, but the number is another vehicle's.
+        case wrongVehicle(target: DispatchVehicle, matched: DispatchVehicle, read: String)
         /// Confirm recording `read` for a blank-numbered vehicle.
         case record(DispatchVehicle, read: String)
         /// The number read for a blank vehicle is another vehicle's printed number.
@@ -63,6 +65,8 @@ struct ChassisScanFlow: View {
                 matched(vehicle)
             case .mismatch(let read):
                 mismatch(read)
+            case .wrongVehicle(let target, let matched, let read):
+                wrongVehicle(target: target, matched: matched, read: read)
             case .record(let vehicle, let read):
                 record(vehicle, read: read)
             case .belongsTo(let vehicle, let read, let other):
@@ -72,7 +76,7 @@ struct ChassisScanFlow: View {
         .sensoryFeedback(trigger: phase) { _, new in
             switch new {
             case .matched, .record: .success
-            case .mismatch, .belongsTo: .error
+            case .mismatch, .wrongVehicle, .belongsTo: .error
             case .scanning: nil
             }
         }
@@ -147,7 +151,9 @@ struct ChassisScanFlow: View {
             return
         }
         if previousMatch == chassis {
-            phase = .matched(vehicle)
+            // A full, stable read of another vehicle's number is a definite
+            // result, so its warning is shown without waiting for a tap.
+            phase = phaseFor(match: .matched(vehicle: vehicle, chassis: chassis))
         } else {
             previousMatch = chassis
         }
@@ -158,10 +164,20 @@ struct ChassisScanFlow: View {
             phase = recordingPhase(for: target, read: read)
             return
         }
-        switch ChassisMatch.evaluate(candidates: candidates, against: vehicles) {
-        case .matched(let vehicle, _)?: phase = .matched(vehicle)
-        case .mismatch(let read)?: phase = .mismatch(read: read)
-        case nil: break
+        if let match = ChassisMatch.evaluate(candidates: candidates, against: vehicles) {
+            phase = phaseFor(match: match)
+        }
+    }
+
+    private func phaseFor(match: ChassisMatch) -> Phase {
+        switch match {
+        case .matched(let vehicle, let chassis):
+            if let target, let other = match.wrongVehicle(for: target) {
+                return .wrongVehicle(target: target, matched: other, read: chassis)
+            }
+            return .matched(vehicle)
+        case .mismatch(let read):
+            return .mismatch(read: read)
         }
     }
 
@@ -194,11 +210,6 @@ struct ChassisScanFlow: View {
         let existing = state.checks.check(for: vehicle)
         return ResultCard(tint: Color.primary, icon: "checkmark.circle.fill", title: "車台番号が一致しました") {
             VehicleSummary(vehicle: vehicle)
-            if let target, target.id != vehicle.id {
-                Text("選んだ車（\(target.vehicleName)）ではなく、この車と一致しました。")
-                    .appFont(13, weight: .bold).foregroundStyle(Color.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
             if let existing {
                 Label("この車は照合済みです（\(existing.caption())）", systemImage: "checkmark.seal.fill")
                     .appFont(13, weight: .bold).foregroundStyle(Color.primary)
@@ -262,6 +273,30 @@ struct ChassisScanFlow: View {
         }
     }
 
+    // MARK: 別の車と一致（警告）
+
+    private func wrongVehicle(target: DispatchVehicle, matched: DispatchVehicle, read: String) -> some View {
+        ResultCard(tint: Color.destructive, icon: "exclamationmark.triangle.fill", title: "照合する車と違います") {
+            ReadNumber(label: "読み取った車台番号", number: read, tint: Color.destructive)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("照合しようとした車").appFont(12).foregroundStyle(Color.mutedForeground)
+                VehicleSummary(vehicle: target)
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                Text("読み取った番号の車（配車表）").appFont(12).foregroundStyle(Color.destructive)
+                VehicleSummary(vehicle: matched)
+            }
+            Text("読み取った番号は、配車表の「\(matched.vehicleName)」の車台番号です。照合しようとした「\(target.vehicleName)」とは別の車です。積む車を間違えていないか確認してください。")
+                .appFont(13, weight: .semibold).foregroundStyle(Color.appForeground)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Button(action: rescan) {
+                Label("もう一度撮影", systemImage: "camera.fill").appFont(16, weight: .bold).frame(maxWidth: .infinity)
+            }
+            .buttonStyle(PillButtonStyle(kind: .destructive))
+            Button("閉じる", action: onClose).buttonStyle(PillButtonStyle(kind: .outline))
+        }
+    }
+
     // MARK: 記録（配車表の車体番号が空欄）
 
     private func record(_ vehicle: DispatchVehicle, read: String) -> some View {
@@ -287,18 +322,15 @@ struct ChassisScanFlow: View {
     private func belongsTo(_ vehicle: DispatchVehicle, read: String, other: DispatchVehicle) -> some View {
         ResultCard(tint: Color.destructive, icon: "exclamationmark.triangle.fill", title: "別の車の車台番号です") {
             ReadNumber(label: "読み取った番号", number: read, tint: Color.destructive)
-            Text("この番号は、配車表の「\(other.vehicleName)」の車台番号です。記録しようとしている「\(vehicle.vehicleName)」とは別の車の可能性があります。")
+            Text("この番号は、配車表の「\(other.vehicleName)」の車台番号です。記録しようとしている「\(vehicle.vehicleName)」とは別の車の可能性があります。積む車を間違えていないか確認してください。")
                 .appFont(13, weight: .semibold).foregroundStyle(Color.appForeground)
                 .frame(maxWidth: .infinity, alignment: .leading)
             VehicleSummary(vehicle: other)
-            Button { phase = .matched(other) } label: {
-                Text("「\(other.vehicleName)」として照合する").appFont(15, weight: .bold).frame(maxWidth: .infinity)
-            }
-            .buttonStyle(PillButtonStyle(kind: .primary))
+            // Same as the other warnings: nothing can be confirmed from here.
             Button(action: rescan) {
-                Label("もう一度撮影", systemImage: "camera.fill").appFont(15, weight: .bold).frame(maxWidth: .infinity)
+                Label("もう一度撮影", systemImage: "camera.fill").appFont(16, weight: .bold).frame(maxWidth: .infinity)
             }
-            .buttonStyle(PillButtonStyle(kind: .outline))
+            .buttonStyle(PillButtonStyle(kind: .destructive))
             Button("閉じる", action: onClose).buttonStyle(PillButtonStyle(kind: .outline))
         }
     }

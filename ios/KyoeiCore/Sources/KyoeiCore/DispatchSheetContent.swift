@@ -245,6 +245,14 @@ public enum ChassisMatch: Equatable, Sendable {
         }
         return candidates.first.map { .mismatch(read: $0) }
     }
+
+    /// When the camera was opened from one vehicle's badge (`target`), a
+    /// match with a *different* vehicle on the sheet is a warning, not a
+    /// success: it is probably the wrong car. Returns that other vehicle.
+    public func wrongVehicle(for target: DispatchVehicle?) -> DispatchVehicle? {
+        guard case .matched(let vehicle, _) = self, let target, !target.needsRecording, vehicle.id != target.id else { return nil }
+        return vehicle
+    }
 }
 
 public enum ChassisCheckMethod: String, Codable, CaseIterable, Identifiable, Sendable {
