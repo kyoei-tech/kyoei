@@ -39,6 +39,18 @@ enum NotificationScheduler {
         }
     }
 
+    /// プッシュ通知の管理's test button: delivers `title`/`message` shortly.
+    static func schedulePreview(title: String, message: String, after seconds: TimeInterval) async {
+        let content = UNMutableNotificationContent()
+        content.title = StyledText.plain(title)
+        content.body = StyledText.plain(message)
+        content.sound = .default
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: seconds, repeats: false)
+        try? await UNUserNotificationCenter.current().add(
+            UNNotificationRequest(identifier: "kyoei.preview.\(UUID().uuidString)", content: content, trigger: trigger)
+        )
+    }
+
     static func clearDriving() async {
         let center = UNUserNotificationCenter.current()
         let pending = await center.pendingNotificationRequests()

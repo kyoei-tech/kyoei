@@ -41,7 +41,15 @@ struct MenuTab: View {
             .background(AppBackground())
             .hiddenNavigationBar()
             .navigationDestination(for: MenuItem.self) { item in
-                MenuDestination(item: item, onBack: { path.removeLast() })
+                // LoL reached from AA's 会場詳細 opens on the AA entries and
+                // steps back to AA rather than to the menu.
+                let fromAA = item == .lol && path.dropLast().last == .aa
+                MenuDestination(
+                    item: item,
+                    backLabel: fromAA ? "開催日一覧へ戻る" : "メニューへ戻る",
+                    onBack: { path.removeLast() },
+                    push: { path.append($0) }
+                )
             }
         }
     }
@@ -106,18 +114,55 @@ private struct MenuRow: View {
     }
 }
 
-/// Sub-page router. Each case is replaced by its real screen in phases 3–4.
+/// Sub-page router. The "メニューへ戻る" header stays pinned above the page's
+/// own scroll view, like the web app's sticky BackHeader.
 private struct MenuDestination: View {
     let item: MenuItem
+    let backLabel: String
     let onBack: () -> Void
+    let push: (MenuItem) -> Void
 
     var body: some View {
-        TabPage {
-            BackHeader(label: "メニューへ戻る", variant: .subtle, onBack: onBack)
-            ComingSoonView(title: item.label, phase: item == .mypage ? 4 : 3)
+        VStack(spacing: 0) {
+            BackHeader(label: backLabel, variant: .subtle, onBack: onBack)
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .frame(maxWidth: 448)
+                .frame(maxWidth: .infinity)
+            content
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(AppBackground())
         .hiddenNavigationBar()
+    }
+
+    @ViewBuilder private var content: some View {
+        switch item {
+        case .settings:
+            SettingsView()
+        case .tripHistory:
+            TripHistoryView()
+        case .accidents:
+            AccidentCalendarView()
+        case .lolmap:
+            LolMapView()
+        case .lol:
+            LolView(initialDestinationID: backLabel == "開催日一覧へ戻る" ? "aa" : nil)
+        case .aa:
+            AuctionView(onOpenVenueDetail: { push(.lol) })
+        case .cars:
+            HighValueCarsView()
+        case .emergency:
+            EmergencyContactsView()
+        case .notes:
+            BeginnerNotesView()
+        case .terms:
+            DriverTermsView()
+        case .qa:
+            QAView()
+        case .mypage:
+            TabPage { ComingSoonView(title: item.label, phase: 4) }
+        }
     }
 }
 

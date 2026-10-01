@@ -13,7 +13,7 @@ ios/
 │   ├── Data/       Supabase クライアント、RealtimeTable、Storage、RPC、ローカル通知、DeviceID（Keychain）
 │   ├── Design/     カラートークン（globals.css から変換）、タブ別フォント倍率、カードの共通スタイル
 │   ├── Components/ 共通 UI（PinGate、確認ダイアログ、BackHeader、MonthNav、添付画像など）
-│   └── Features/   画面ごとの実装（Home / Timecard / Staff / News / Yard / Menu）
+│   └── Features/   画面ごとの実装（Home / Timecard / Staff / News / Yard / Menu / Settings / TripHistory / Accidents / Reference）
 ├── AppCheck/       開発用。Kyoei/ を macOS 向けに型チェックする（Xcode 不要）
 ├── Config/         Secrets.xcconfig（git 管理外）とひな形
 ├── scripts/check.sh
@@ -91,7 +91,13 @@ ios/scripts/check.sh
   - 出勤簿：2 回タップで出退勤の切り替え、3 回タップでコメント編集、社員とヤード管理者の追加・編集・削除
   - おしらせ：一覧、詳細、投稿、過去の投稿の編集・削除。開いている間はモーダル、前面に戻ったときは見逃した投稿を取り込む
   - ヤード配置：かな対応の移動先検索、ヤード・位置・行き先の編集。行き先名を変えると、割り当て済みの位置にも反映
-- [ ] フェーズ 3：メニュー配下の各画面と設定（テストアカウント管理と通知の種類選択の UI を含む）
+- [x] フェーズ 3：メニュー配下の全画面
+  - 設定：フォント、背景色、乗務員 ID、アルバイトモード、試験運転モード、通知（受け取る種類の選択を含む）
+  - テストアカウント管理（PIN は DB 側で照合）
+  - 隠し管理メニュー（プッシュ通知・アラート文言・検索結果登録）と Version
+  - 運行履歴（全表示とカレンダー、隠し編集、出勤日の調整）、無事故カレンダー（月間・年間・カテゴリー）
+  - 参照ページ：LoL MAP、LoL、AA、高額車、緊急連絡先、初心者ノート（画像は Storage）、ドライバー語録、Q&A
+  - 事故報告：端末内だけに保存（ファイル保護あり、iCloud バックアップ対象外）。カメラ撮影と、共有シートでの画像書き出しに対応
 - [ ] フェーズ 4：マイページ、認証、配車表（PDF 解析）
 
-未実装の画面は `ComingSoonView` に担当フェーズを表示しています。アプリアイコンは 1024px の原画が必要なため未設定です。
+未実装の画面（マイページのみ）は `ComingSoonView` に担当フェーズを表示しています。アプリアイコンは 1024px の原画が必要なため未設定です。

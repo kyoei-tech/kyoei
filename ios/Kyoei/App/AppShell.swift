@@ -46,7 +46,7 @@ struct AppShell: View {
         .syncing(data.confirmMessageRows)
         .syncing(data.notificationRuleRows)
         .syncing(data.deviceTrips)
-        .syncing(data.accidentDates)
+        .syncing(data.accidentRows)
         .task { await runTicker() }
         // おしらせ modal: live inserts plus a catch-up on every return to the foreground.
         .task(id: settings.settings.pushNotificationsEnabled) {

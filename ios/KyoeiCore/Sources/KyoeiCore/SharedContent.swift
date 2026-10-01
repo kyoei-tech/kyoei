@@ -68,14 +68,6 @@ public struct WeeklyGoalRow: Codable, Equatable, Sendable {
     }
 }
 
-// MARK: - accident_records (dates only)
-
-public struct AccidentDateRow: Codable, Equatable, Sendable {
-    public var occurred_on: String
-
-    public var date: LocalDate? { LocalDate(iso: occurred_on) }
-}
-
 // MARK: - timecard_shared_memos / timecard_todo_items
 
 public struct SharedMemoRow: Codable, Equatable, Identifiable, Sendable {

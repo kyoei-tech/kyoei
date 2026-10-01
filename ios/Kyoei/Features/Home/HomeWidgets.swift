@@ -1,28 +1,36 @@
 import KyoeiCore
 import SwiftUI
 
-/// 連続無事故日数 badge; tapping opens 無事故カレンダー. Port of
-/// accident-streak-badge.tsx.
+/// 連続無事故日数 badge. With `onOpen` it is a button into 無事故カレンダー;
+/// `large` is the headline version on that page. Port of accident-streak-badge.tsx.
 struct AccidentStreakBadge: View {
-    let onOpen: () -> Void
+    var large = false
+    var onOpen: (() -> Void)?
     @Environment(SharedData.self) private var data
 
     var body: some View {
         if let streak = data.accidentStreak() {
-            Button(action: onOpen) {
-                HStack(spacing: 6) {
-                    (Text("連続無事故日数 ") + Text("\(streak)").font(.system(size: 30, weight: .bold, design: .monospaced)) + Text(" 日 達成！"))
-                        .appFont(14, weight: .semibold)
+            let content = HStack(spacing: 6) {
+                (Text("連続無事故日数 ") + Text("\(streak)").font(.system(size: large ? 48 : 30, weight: .bold, design: .monospaced)) + Text(" 日 達成！"))
+                    .appFont(14, weight: .semibold)
+                if onOpen != nil {
                     Image(systemName: "chevron.right").font(.system(size: 14, weight: .semibold))
                 }
-                .foregroundStyle(Color.secondary)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 6)
-                .background(Color.secondary.opacity(0.1), in: Capsule())
-                .overlay(Capsule().stroke(Color.secondary.opacity(0.3)))
             }
-            .buttonStyle(.plain)
-            .frame(maxWidth: .infinity)
+            .foregroundStyle(Color.secondary)
+            if let onOpen {
+                Button(action: onOpen) {
+                    content
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 6)
+                        .background(Color.secondary.opacity(0.1), in: Capsule())
+                        .overlay(Capsule().stroke(Color.secondary.opacity(0.3)))
+                }
+                .buttonStyle(.plain)
+                .frame(maxWidth: .infinity)
+            } else {
+                content.frame(maxWidth: .infinity)
+            }
         } else {
             Text("まだ事故記録がありません")
                 .appFont(12)

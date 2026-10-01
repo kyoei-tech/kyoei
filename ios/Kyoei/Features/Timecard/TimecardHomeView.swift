@@ -34,7 +34,7 @@ private struct TimecardHomeMain: View {
             TabPage {
                 VStack(spacing: 6) {
                     LiveClockCard(parts: formatClock(now, hour12: hour12, seconds: false), hour12: hour12, onToggleFormat: store.toggleHour12)
-                    AccidentStreakBadge { openMenuItem(.accidents) }
+                    AccidentStreakBadge(onOpen: { openMenuItem(.accidents) })
                     WeeklyGoalCard(goalID: "timecard")
                 }
                 LinkedTimeCard(

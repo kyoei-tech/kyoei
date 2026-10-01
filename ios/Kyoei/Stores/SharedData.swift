@@ -33,7 +33,8 @@ final class SharedData {
         return rows.compactMap(\.entry)
     }
 
-    let accidentDates = RealtimeTable<AccidentDateRow>(table: "accident_records", select: "occurred_on")
+    /// 無事故カレンダー's records; also drives the 連続無事故日数 badge.
+    let accidentRows = RealtimeTable<AccidentRecordRow>(table: "accident_records") { try await AccidentRepository.fetch() }
 
     var confirmMessages: ConfirmMessages { ConfirmMessages(rows: confirmMessageRows.rows) }
     var notificationRules: [PushNotificationRule] { notificationRuleRows.rows.map(\.rule) }
@@ -41,6 +42,6 @@ final class SharedData {
 
     /// 連続無事故日数, or nil when there are no accident records yet.
     func accidentStreak(now: Date = Date()) -> Int? {
-        AccidentStreak.streakDays(occurredOn: accidentDates.rows.compactMap(\.date), now: now)
+        AccidentStreak.streakDays(occurredOn: accidentRows.rows.compactMap(\.date), now: now)
     }
 }

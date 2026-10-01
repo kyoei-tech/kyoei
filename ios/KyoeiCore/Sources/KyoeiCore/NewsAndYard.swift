@@ -111,10 +111,13 @@ public struct DestinationTitleRow: Codable, Equatable, Identifiable, Sendable {
 
 public struct DestinationStoreRow: Codable, Equatable, Identifiable, Sendable {
     public static let selectColumns = "id, title_id, name"
+    /// The registry editor also needs the manual order.
+    public static let registryColumns = "id, title_id, name, sort_order"
 
     public var id: String
     public var title_id: String
     public var name: String
+    public var sort_order: Int? = nil
 }
 
 public enum YardLayout {
