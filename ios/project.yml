@@ -56,9 +56,8 @@ targets:
         # machine in Config/Local.xcconfig for free-team device builds.
         PRODUCT_BUNDLE_IDENTIFIER: $(KYOEI_BUNDLE_ID)
         CODE_SIGN_ENTITLEMENTS: $(KYOEI_ENTITLEMENTS)
-        # No app icon yet (needs the 1024px original); without this XcodeGen
-        # expects an AppIcon set in Resources/Assets.xcassets.
-        ASSETCATALOG_COMPILER_APPICON_NAME: ""
+        # Resources/Assets.xcassets/AppIcon: the lime logo on charcoal.
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         MARKETING_VERSION: 0.1.0
         CURRENT_PROJECT_VERSION: 1
         SWIFT_VERSION: "6.0"
