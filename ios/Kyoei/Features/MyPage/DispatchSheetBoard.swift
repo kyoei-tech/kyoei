@@ -126,11 +126,12 @@ struct DispatchSheetDetail: View {
     private var scanButton: some View {
         Button { scan = ScanRequest(target: nil) } label: {
             Label("車台番号をカメラで照合", systemImage: "camera.viewfinder")
-                .appFont(16, weight: .bold)
+                .appFont(16, weight: .black)
+                .italic()
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
-                .foregroundStyle(Color.primaryForeground)
-                .background(Color.primary, in: RoundedRectangle(cornerRadius: 16))
+                .foregroundStyle(Color.brandForeground)
+                .background(Color.brand, in: SlantedRectangle(slant: 10))
         }
         .buttonStyle(PressScaleStyle())
     }
@@ -668,10 +669,10 @@ struct ChassisBadge: View {
         Label(text, systemImage: isDone ? "checkmark" : "camera.fill")
             .labelStyle(BadgeLabelStyle())
             .appFont(12, weight: isDone ? .bold : .heavy)
-            .foregroundStyle(isDone ? Color.primaryForeground : .white)
+            .foregroundStyle(isDone ? Color.brandForeground : .white)
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
-            .background(isDone ? Color.primary : Color.chassisUnchecked, in: Capsule())
+            .background(isDone ? Color.brand : Color.chassisUnchecked, in: Capsule())
             .fixedSize()
     }
 

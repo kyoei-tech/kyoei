@@ -31,7 +31,7 @@ private struct TimecardHomeMain: View {
         let state = store.timecard
         let hour12 = store.shift.hour12
         EverySecond { now in
-            TabPage {
+            FitHomePage {
                 VStack(spacing: 6) {
                     LiveClockCard(parts: formatClock(now, hour12: hour12, seconds: false), hour12: hour12, onToggleFormat: store.toggleHour12)
                     AccidentStreakBadge(onOpen: { openMenuItem(.accidents) })

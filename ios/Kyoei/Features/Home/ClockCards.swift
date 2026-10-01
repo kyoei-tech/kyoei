@@ -4,6 +4,51 @@ import SwiftUI
 // Building blocks of the ホーム screens. Ports of live-clock.tsx,
 // format-toggle.tsx, status-display.tsx and shift-timer.tsx.
 
+/// ホーム must fit on one screen without scrolling. `FitHomePage` first lays
+/// the cards out at their regular size; if that doesn't fit the space between
+/// the header and the tab bar it switches every card to its compact size
+/// (`homeCompact`), and only if even that doesn't fit (e.g. the largest font
+/// setting) does it fall back to scrolling.
+struct HomeCompactKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var homeCompact: Bool {
+        get { self[HomeCompactKey.self] }
+        set { self[HomeCompactKey.self] = newValue }
+    }
+}
+
+/// Hands `homeCompact` to code that builds views from a parent's helpers.
+struct CompactReader<Content: View>: View {
+    @ViewBuilder var content: (Bool) -> Content
+    @Environment(\.homeCompact) private var compact
+
+    var body: some View { content(compact) }
+}
+
+struct FitHomePage<Content: View>: View {
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        ViewThatFits(in: .vertical) {
+            column(compact: false)
+            column(compact: true)
+            ScrollView { column(compact: true) }
+        }
+    }
+
+    private func column(compact: Bool) -> some View {
+        VStack(alignment: .leading, spacing: compact ? 8 : 12) { content }
+            .environment(\.homeCompact, compact)
+            .padding(.horizontal, 16)
+            .padding(.vertical, compact ? 10 : 16)
+            .frame(maxWidth: 448)
+            .frame(maxWidth: .infinity)
+    }
+}
+
 /// Re-renders its content once per second, aligned to the wall clock.
 struct EverySecond<Content: View>: View {
     @ViewBuilder var content: (Date) -> Content
@@ -40,19 +85,21 @@ struct LiveClockCard: View {
     let hour12: Bool
     let onToggleFormat: () -> Void
 
+    @Environment(\.homeCompact) private var compact
+
     var body: some View {
-        VStack(spacing: 2) {
+        VStack(spacing: compact ? 0 : 2) {
             DateLine(parts: parts)
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 if !parts.meridiem.isEmpty {
                     Text(parts.meridiem).appFont(18, weight: .medium).foregroundStyle(Color.mutedForeground)
                 }
-                Text(parts.time).timerFont(48, weight: .semibold).foregroundStyle(Color.appForeground)
+                Text(parts.time).timerFont(compact ? 40 : 48, weight: .semibold).foregroundStyle(Color.appForeground)
             }
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 20)
-        .padding(.vertical, 12)
+        .padding(.vertical, compact ? 8 : 12)
         .overlay(alignment: .topTrailing) {
             FormatToggle(hour12: hour12, onToggle: onToggleFormat).padding(12)
         }
@@ -72,6 +119,7 @@ struct DateLine: View {
 }
 
 /// Second clock linked to the shift: 出庫時刻 / 出庫可能時刻 / 出勤時刻.
+/// Compact: label and date on the left, the time on the right, in one row.
 struct LinkedTimeCard: View {
     let label: String
     let parts: ClockParts
@@ -79,28 +127,48 @@ struct LinkedTimeCard: View {
     let hour12: Bool
     let onToggleFormat: () -> Void
 
+    @Environment(\.homeCompact) private var compact
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack {
-                Text(label)
-                    .appFont(16, weight: .bold)
-                    .foregroundStyle(active ? Color.primary : Color.mutedForeground)
-                Spacer()
-                FormatToggle(hour12: hour12, onToggle: onToggleFormat)
-            }
-            DateLine(parts: parts)
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                if !parts.meridiem.isEmpty {
-                    Text(parts.meridiem).appFont(14, weight: .medium).foregroundStyle(Color.mutedForeground)
+        Group {
+            if compact {
+                HStack(alignment: .center, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(label)
+                            .appFont(14, weight: .bold)
+                            .foregroundStyle(active ? Color.primary : Color.mutedForeground)
+                        DateLine(parts: parts)
+                    }
+                    Spacer(minLength: 4)
+                    time(size: 32)
                 }
-                Text(parts.time).timerFont(36, weight: .semibold)
-                    .foregroundStyle(active ? Color.primary : Color.appForeground)
+            } else {
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack {
+                        Text(label)
+                            .appFont(16, weight: .bold)
+                            .foregroundStyle(active ? Color.primary : Color.mutedForeground)
+                        Spacer()
+                        FormatToggle(hour12: hour12, onToggle: onToggleFormat)
+                    }
+                    DateLine(parts: parts)
+                    time(size: 36).frame(maxWidth: .infinity)
+                }
             }
-            .frame(maxWidth: .infinity)
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
+        .padding(.horizontal, compact ? 16 : 20)
+        .padding(.vertical, compact ? 8 : 12)
         .card(radius: Radius.card, border: active ? Color.primary.opacity(0.4) : .border)
+    }
+
+    private func time(size: CGFloat) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 4) {
+            if !parts.meridiem.isEmpty {
+                Text(parts.meridiem).appFont(14, weight: .medium).foregroundStyle(Color.mutedForeground)
+            }
+            Text(parts.time).timerFont(size, weight: .semibold)
+                .foregroundStyle(active ? Color.primary : Color.appForeground)
+        }
     }
 }
 
@@ -109,11 +177,13 @@ struct SplitTimerText: View {
     let text: String
     let color: Color
 
+    @Environment(\.homeCompact) private var compact
+
     var body: some View {
         let parts = text.split(separator: ":").map(String.init)
         HStack(alignment: .firstTextBaseline, spacing: 4) {
-            Text("\(parts[safe: 0] ?? "00"):\(parts[safe: 1] ?? "00")").timerFont(60)
-            Text(":\(parts[safe: 2] ?? "00")").timerFont(30)
+            Text("\(parts[safe: 0] ?? "00"):\(parts[safe: 1] ?? "00")").timerFont(compact ? 50 : 60)
+            Text(":\(parts[safe: 2] ?? "00")").timerFont(compact ? 26 : 30)
         }
         .foregroundStyle(color)
     }

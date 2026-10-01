@@ -175,11 +175,11 @@ private struct ThemeSection: View {
     @Binding var theme: ThemeMode
 
     var body: some View {
-        SettingsCard(title: "背景色", note: "背景を黒か白から選べます。デバイスのダークモードに自動で合わせることもできます。") {
+        SettingsCard(title: "背景色", note: "昼間はライト、夜間はダークが見やすくなります。初期設定は「デバイスに合わせる」で、iPhoneのダークモードに合わせて自動で切り替わります。") {
             HStack(spacing: 8) {
+                option(.system, "デバイスに合わせる", "iphone")
                 option(.light, "ライト", "sun.max")
                 option(.dark, "ダーク", "moon")
-                option(.system, "デバイスに合わせる", "display")
             }
         }
     }

@@ -38,7 +38,7 @@ private struct DriverHomeMain: View {
     var body: some View {
         EverySecond { now in
             let status = DriverHomeStatus(snapshot: snapshot, trips: data.trips, now: now)
-            TabPage {
+            FitHomePage {
                 VStack(spacing: 6) {
                     LiveClockCard(parts: formatClock(now, hour12: snapshot.hour12, seconds: false), hour12: snapshot.hour12, onToggleFormat: store.toggleHour12)
                     AccidentStreakBadge(onOpen: { openMenuItem(.accidents) })
@@ -52,16 +52,6 @@ private struct DriverHomeMain: View {
                     onToggleFormat: store.toggleHour12
                 )
                 timerCard(now: now)
-                if snapshot.mode != .idle {
-                    Button {
-                        store.driverScreen = snapshot.mode == .departure ? .driving : .rest
-                    } label: {
-                        Label("運行情報", systemImage: "chevron.right")
-                            .labelStyle(TrailingIconLabelStyle())
-                            .appFont(16, weight: .semibold)
-                    }
-                    .buttonStyle(PillButtonStyle())
-                }
                 actionButtons(status: status)
             }
             .pageTint(tint)
@@ -94,7 +84,12 @@ private struct DriverHomeMain: View {
         return formatClock(date, hour12: snapshot.hour12, seconds: false)
     }
 
-    @ViewBuilder private func timerCard(now: Date) -> some View {
+    private func timerCard(now: Date) -> some View {
+        // Read inside FitHomePage, where the regular/compact choice is set.
+        CompactReader { compact in timerCardBody(now: now, compact: compact) }
+    }
+
+    @ViewBuilder private func timerCardBody(now: Date, compact: Bool) -> some View {
         let (label, text, color, finished): (String, String, Color, Bool) = {
             switch snapshot.mode {
             case .idle:
@@ -108,15 +103,38 @@ private struct DriverHomeMain: View {
             }
         }()
         VStack(spacing: 4) {
-            Label(label, systemImage: "timer")
-                .appFont(16, weight: .bold)
-                .foregroundStyle(snapshot.mode == .return ? Color.orange : (snapshot.mode == .idle ? Color.mutedForeground : Color.primary))
+            // 運行情報 (the drill-down into 運行状況 / 休息状況) lives on the
+            // timer card itself, so it costs no extra row on ホーム.
+            HStack(spacing: 8) {
+                if snapshot.mode == .idle { Spacer(minLength: 0) }
+                Label(label, systemImage: "timer")
+                    .appFont(16, weight: .bold)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                    .foregroundStyle(snapshot.mode == .return ? Color.orange : (snapshot.mode == .idle ? Color.mutedForeground : Color.primary))
+                Spacer(minLength: 0)
+                if snapshot.mode != .idle {
+                    Button {
+                        store.driverScreen = snapshot.mode == .departure ? .driving : .rest
+                    } label: {
+                        Label("運行情報", systemImage: "chevron.right")
+                            .labelStyle(TrailingIconLabelStyle())
+                            .appFont(13, weight: .heavy)
+                            .foregroundStyle(Color.primaryForeground)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color.primary, in: Capsule())
+                            .fixedSize()
+                    }
+                    .buttonStyle(PressScaleStyle())
+                }
+            }
             SplitTimerText(text: text, color: color)
             switch snapshot.mode {
             case .return:
-                CountdownPicker(selected: snapshot.countdownHours, onSelect: store.setCountdownHours).padding(.top, 8)
+                CountdownPicker(selected: snapshot.countdownHours, onSelect: store.setCountdownHours).padding(.top, compact ? 2 : 8)
             case .idle:
-                Text("出庫・帰庫ボタンで開始します").appFont(14).foregroundStyle(Color.mutedForeground).padding(.top, 12)
+                Text("出庫・帰庫ボタンで開始します").appFont(14).foregroundStyle(Color.mutedForeground).padding(.top, compact ? 4 : 12)
             case .departure:
                 EmptyView()
             }
@@ -124,9 +142,9 @@ private struct DriverHomeMain: View {
                 Text("出庫可能時刻になりました").appFont(16, weight: .semibold).foregroundStyle(Color.destructive).padding(.top, 12)
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 180)
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
+        .frame(maxWidth: .infinity, minHeight: compact ? nil : 140)
+        .padding(.horizontal, 16)
+        .padding(.vertical, compact ? 10 : 14)
         .card(radius: Radius.card, border: snapshot.mode == .departure ? Color.primary.opacity(0.4) : .border)
         .accessibilityElement(children: .combine)
     }
@@ -135,8 +153,8 @@ private struct DriverHomeMain: View {
         let departed = snapshot.mode == .departure
         // While departed, reflect the actual trip's kind so the dimmed color stays accurate.
         let isSplit = departed ? snapshot.trip?.splitRestRemaining != nil : status.isSplitRestEligible
-        let departColor: Color = isSplit ? .destructive : .primary
-        let departForeground: Color = isSplit ? .destructiveForeground : .primaryForeground
+        let departColor: Color = isSplit ? .destructive : .brand
+        let departForeground: Color = isSplit ? .destructiveForeground : .brandForeground
         HStack(spacing: 12) {
             BigActionButton(
                 title: departed ? "出庫中" : (status.isSplitRestEligible ? "分割休息による出庫" : "出庫"),
@@ -246,17 +264,20 @@ struct BigActionButton: View {
     var dimmed = false
     let action: () -> Void
 
+    @Environment(\.homeCompact) private var compact
+
     var body: some View {
         Button(action: action) {
             VStack(spacing: 8) {
                 Image(systemName: systemImage).font(.system(size: 26, weight: .semibold))
-                Text(title).appFont(16, weight: .bold).multilineTextAlignment(.center)
+                Text(title).appFont(17, weight: .black).italic().multilineTextAlignment(.center)
             }
-            .frame(maxWidth: .infinity, minHeight: 92)
-            .foregroundStyle(dimmed ? fill.opacity(0.7) : foreground)
-            .background(dimmed ? fill.opacity(0.1) : fill, in: RoundedRectangle(cornerRadius: Radius.card))
-            .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(dimmed ? fill.opacity(0.25) : fill))
-            .shadow(color: dimmed ? .clear : fill.opacity(0.2), radius: 8, y: 4)
+            .frame(maxWidth: .infinity, minHeight: compact ? 76 : 92)
+            .padding(.horizontal, 14)
+            .foregroundStyle(dimmed ? Color.mutedForeground : foreground)
+            // The logo's slant (design R01 / L03).
+            .background(dimmed ? Color.muted : fill, in: SlantedRectangle(slant: 14))
+            .overlay(SlantedRectangle(slant: 14).stroke(dimmed ? Color.border : fill))
         }
         .buttonStyle(PressScaleStyle())
     }

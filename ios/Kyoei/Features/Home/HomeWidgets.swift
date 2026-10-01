@@ -7,11 +7,12 @@ struct AccidentStreakBadge: View {
     var large = false
     var onOpen: (() -> Void)?
     @Environment(SharedData.self) private var data
+    @Environment(\.homeCompact) private var compact
 
     var body: some View {
         if let streak = data.accidentStreak() {
             let content = HStack(spacing: 6) {
-                (Text("連続無事故日数 ") + Text("\(streak)").font(.system(size: large ? 48 : 30, weight: .bold, design: .monospaced)) + Text(" 日 達成！"))
+                (Text("連続無事故日数 ") + Text("\(streak)").font(.system(size: large ? 48 : (compact ? 24 : 30), weight: .heavy).width(.condensed).italic()) + Text(" 日 達成！"))
                     .appFont(14, weight: .semibold)
                 if onOpen != nil {
                     Image(systemName: "chevron.right").font(.system(size: 14, weight: .semibold))
@@ -22,7 +23,7 @@ struct AccidentStreakBadge: View {
                 Button(action: onOpen) {
                     content
                         .padding(.horizontal, 16)
-                        .padding(.vertical, 6)
+                        .padding(.vertical, compact ? 2 : 6)
                         .background(Color.secondary.opacity(0.1), in: Capsule())
                         .overlay(Capsule().stroke(Color.secondary.opacity(0.3)))
                 }
@@ -53,6 +54,7 @@ struct WeeklyGoalCard: View {
     @State private var nextDraft = ""
     @State private var saving = false
     @State private var rolledOver: String?
+    @Environment(\.homeCompact) private var compact
 
     init(goalID: String = "current") {
         self.goalID = goalID
@@ -79,7 +81,7 @@ struct WeeklyGoalCard: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(.vertical, compact ? 6 : 10)
         .card()
         .contentShape(Rectangle())
         .onTapGesture(count: 2) {

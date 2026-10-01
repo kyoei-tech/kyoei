@@ -114,8 +114,9 @@ private struct MenuRow: View {
     }
 }
 
-/// Sub-page router. The "メニューへ戻る" header stays pinned above the page's
-/// own scroll view, like the web app's sticky BackHeader.
+/// Sub-page router. "メニューへ戻る" floats on the top layer (BackHeader /
+/// backButtonHost); a page that shows its own deeper back button (e.g. a
+/// detail's 一覧へ戻る) replaces it while open.
 private struct MenuDestination: View {
     let item: MenuItem
     let backLabel: String
@@ -125,13 +126,12 @@ private struct MenuDestination: View {
     var body: some View {
         VStack(spacing: 0) {
             BackHeader(label: backLabel, variant: .subtle, onBack: onBack)
-                .padding(.horizontal, 16)
-                .padding(.top, 8)
-                .frame(maxWidth: 448)
-                .frame(maxWidth: .infinity)
             content
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        // Inside the NavigationStack, so preferences from pushed pages are
+        // collected here rather than relying on them crossing the stack.
+        .backButtonHost()
         .background(AppBackground())
         .hiddenNavigationBar()
     }

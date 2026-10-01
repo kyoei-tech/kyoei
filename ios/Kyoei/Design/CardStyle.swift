@@ -1,11 +1,16 @@
 import SwiftUI
 
 extension View {
-    /// Rounded card surface with a hairline border (Tailwind `rounded-2xl/3xl
-    /// border bg-card`).
-    func card(radius: CGFloat = 16, border: Color = .border, fill: Color = .card) -> some View {
-        background(fill, in: RoundedRectangle(cornerRadius: radius))
-            .overlay(RoundedRectangle(cornerRadius: radius).stroke(border))
+    /// Rounded card surface. The default (a `.card` fill) is R01's carbon
+    /// card with a lime hairline; callers that pass their own fill or border
+    /// (selected options, inputs, tinted boxes) get a flat surface.
+    func card(radius: CGFloat = 16, border: Color = .cardEdge, fill: Color = .card) -> some View {
+        let shape = RoundedRectangle(cornerRadius: radius)
+        return background {
+            shape.fill(fill)
+                .overlay { if fill == .card { CarbonTexture().clipShape(shape) } }
+        }
+        .overlay(shape.stroke(border))
     }
 
     /// Whole-page tint telling at a glance whether the driver/worker is
@@ -28,9 +33,11 @@ enum PageTint {
 }
 
 extension View {
-    /// Tabular monospaced digits for clocks and timers (`font-mono tabular-nums`).
+    /// Clocks and timers in the logo's style: heavy, condensed, italic, with
+    /// tabular digits so ticking numbers don't jitter. (`weight` is kept for
+    /// call sites; the face is always heavy.)
     func timerFont(_ size: CGFloat, weight: Font.Weight = .bold) -> some View {
-        appFont(size, weight: weight, design: .monospaced).monospacedDigit()
+        modifier(NumberFontModifier(size: size))
     }
 }
 

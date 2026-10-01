@@ -3,8 +3,8 @@ import SwiftUI
 
 /// Bottom navigation. A custom bar rather than TabView because (a) re-tapping
 /// the active tab must reset it to its top screen, (b) the home and menu tabs
-/// carry hidden 5-tap gestures, and (c) the bar is brand-lime. Port of
-/// components/bottom-tabs.tsx.
+/// carry hidden 5-tap gestures, and (c) the bar is the brand's charcoal with
+/// a lime active tab in both appearances. Port of components/bottom-tabs.tsx.
 struct AppTabBar: View {
     let selection: AppTab
     let onSelect: (AppTab) -> Void
@@ -22,16 +22,21 @@ struct AppTabBar: View {
                 Button {
                     handleTap(tab)
                 } label: {
+                    let active = tab == selection
                     VStack(spacing: 4) {
                         Image(systemName: tab.systemImage)
-                            .font(.system(size: 20, weight: tab == selection ? .bold : .medium))
+                            .font(.system(size: 20, weight: active ? .bold : .medium))
                         Text(tab.label)
-                            .appFont(10.4, weight: .bold)
+                            .appFont(10.4, weight: active ? .heavy : .bold)
                     }
-                    .foregroundStyle(Color.appForeground)
-                    .opacity(tab == selection ? 1 : 0.6)
+                    .foregroundStyle(active ? Color.brand : Color.chromeMuted)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 6)
+                    .overlay(alignment: .top) {
+                        if active {
+                            SlantedRectangle(slant: 3).fill(Color.brand).frame(width: 36, height: 3).offset(y: -8)
+                        }
+                    }
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -41,10 +46,7 @@ struct AppTabBar: View {
         .padding(.horizontal, 8)
         .padding(.top, 8)
         .padding(.bottom, 8)
-        .background(Color.brandLime.ignoresSafeArea(edges: .bottom))
-        .overlay(alignment: .top) {
-            Rectangle().fill(Color.black.opacity(0.1)).frame(height: 1)
-        }
+        .background(Color.chrome.ignoresSafeArea(edges: .bottom))
     }
 
     private func handleTap(_ tab: AppTab) {
@@ -72,30 +74,43 @@ extension AppTab {
     }
 }
 
-/// Persistent 運行中/休息中 (出勤中/退勤済み) band, shown on every tab so the
-/// driver never forgets to flip the switch. Port of components/status-band.tsx.
-struct StatusBand: View {
+/// Charcoal header with the logo, shown on every tab in both appearances
+/// (L03 / R01). It also carries the persistent 運行中/休息中 (出勤中/退勤済み)
+/// status so the driver never forgets to flip the switch — the former
+/// status band. Port of components/status-band.tsx.
+struct BrandHeader: View {
     let status: ShiftBandStatus
 
     var body: some View {
-        switch status {
-        case .hidden:
-            EmptyView()
-        case .working(let label):
-            band(label, color: .brandLime)
-        case .resting(let label):
-            band(label, color: .restingBand)
+        HStack(spacing: 12) {
+            Image("KyoeiLogo")
+                .resizable()
+                .scaledToFit()
+                .frame(height: 22)
+                .accessibilityLabel("KYOEI")
+            Spacer(minLength: 8)
+            switch status {
+            case .hidden:
+                EmptyView()
+            case .working(let label):
+                pill(label, fill: .brand, foreground: .brandForeground)
+            case .resting(let label):
+                pill(label, fill: .restingBand, foreground: .black)
+            }
         }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 10)
+        .background(Color.chrome.ignoresSafeArea(edges: .top))
     }
 
-    private func band(_ label: String, color: Color) -> some View {
+    private func pill(_ label: String, fill: Color, foreground: Color) -> some View {
         Text(label)
-            .appFont(12, weight: .bold)
+            .appFont(12, weight: .heavy)
             .tracking(0.5)
-            .foregroundStyle(.white)
-            .frame(maxWidth: .infinity)
+            .foregroundStyle(foreground)
+            .padding(.horizontal, 14)
             .padding(.vertical, 4)
-            .background(color)
+            .background(fill, in: SlantedRectangle(slant: 6))
             .accessibilityAddTraits(.updatesFrequently)
     }
 }

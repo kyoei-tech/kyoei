@@ -32,7 +32,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public static let fontScales: [Double] = [1, 1.1, 1.2, 1.3, 1.4, 1.5]
     public static let defaultFontLevel = 1
 
-    public var theme: ThemeMode = .light
+    /// Follows the device (iOS dark/light) until the user picks one.
+    public var theme: ThemeMode = .system
     public var fontLevels: [AppTab: Int] = Dictionary(uniqueKeysWithValues: AppTab.allCases.map { ($0, AppSettings.defaultFontLevel) })
     /// When true, per-tab font levels are ignored and text follows the device's
     /// own text size (Dynamic Type) instead.

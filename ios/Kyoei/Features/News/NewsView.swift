@@ -5,6 +5,9 @@ import SwiftUI
 /// staff) posting / editing past posts. A new post instantly pushes to every
 /// device via the database trigger. Port of components/news-view.tsx.
 struct NewsView: View {
+    /// Bumped by the shell when the おしらせ tab is tapped: back to the list,
+    /// like the メニュー tab does for its sub-pages.
+    var resetToken = 0
     @Environment(SettingsStore.self) private var settings
     @State private var table = RealtimeTable<NewsPostRow>(table: "news_posts", fetch: NewsRepository.fetch)
     @State private var gate = PinGate(code: "2486")
@@ -37,6 +40,7 @@ struct NewsView: View {
         }
         .syncing(table)
         .pinGate(gate)
+        .onChange(of: resetToken) { _, _ in screen = .list }
     }
 
     private var list: some View {

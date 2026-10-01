@@ -15,15 +15,18 @@ struct AppShell: View {
 
     @State private var tab: AppTab = .home
     @State private var menuPath: [MenuItem] = []
+    /// Bumped on every おしらせ tab tap so an open post returns to the list.
+    @State private var newsReset = 0
     @State private var testDriveGate = PinGate(code: AppShell.testDriveModePasscode)
     @State private var newsNotifier = NewsNotifier()
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         VStack(spacing: 0) {
-            StatusBand(status: shift.bandStatus(for: settings.settings.appMode))
+            BrandHeader(status: shift.bandStatus(for: settings.settings.appMode))
             content
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .backButtonHost()
                 .environment(\.fontScale, settings.settings.fontScale(for: tab))
             AppTabBar(
                 selection: tab,
@@ -69,6 +72,14 @@ struct AppShell: View {
         .onChange(of: data.notificationRules) { _, rules in shift.notificationRules = rules }
         // A tap can also cold-launch the app, before onChange could observe it.
         .onAppear(perform: openRequestedTab)
+        #if DEBUG
+        // Screenshots in the simulator: `-KyoeiOpenMenu settings` opens that menu page.
+        .onAppear {
+            if let raw = UserDefaults.standard.string(forKey: "KyoeiOpenMenu"), let item = MenuItem(rawValue: raw) {
+                openMenuItem(item)
+            }
+        }
+        #endif
         .onChange(of: NotificationRouter.shared.requestedTab) { _, _ in openRequestedTab() }
         .onChange(of: data.deviceTrips.isLoading) { _, _ in reconcileTrips() }
         .onChange(of: data.trips) { _, _ in reconcileTrips() }
@@ -86,7 +97,7 @@ struct AppShell: View {
         case .staff:
             StaffAttendanceView()
         case .news:
-            NewsView()
+            NewsView(resetToken: newsReset)
         case .menu:
             MenuTab(path: $menuPath)
         }
@@ -97,6 +108,8 @@ struct AppShell: View {
         switch newTab {
         case .menu:
             menuPath = []
+        case .news:
+            newsReset += 1
         case .home:
             shift.driverScreen = .home
             shift.timecardScreen = .home
@@ -162,7 +175,7 @@ struct TabPage<Content: View>: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) { content }
                 .padding(.horizontal, 16)
-                .padding(.vertical, 24)
+                .padding(.vertical, 16)
                 .frame(maxWidth: 448)
                 .frame(maxWidth: .infinity)
         }

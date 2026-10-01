@@ -50,3 +50,19 @@ extension View {
         modifier(AppFontModifier(size: size, weight: weight, design: design))
     }
 }
+
+/// The numerals face (see `timerFont`), scaled like `appFont`.
+struct NumberFontModifier: ViewModifier {
+    let size: CGFloat
+
+    @Environment(\.fontScale) private var fontScale
+    @Environment(\.followsDeviceFont) private var followsDeviceFont
+    @ScaledMetric(relativeTo: .body) private var dynamicTypeFactor: CGFloat = 1
+
+    func body(content: Content) -> some View {
+        let factor = followsDeviceFont ? dynamicTypeFactor : fontScale
+        content
+            .font(.system(size: size * factor, weight: .heavy).width(.condensed).italic())
+            .monospacedDigit()
+    }
+}
