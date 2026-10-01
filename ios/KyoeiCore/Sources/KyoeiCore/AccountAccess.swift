@@ -118,13 +118,82 @@ public struct AccountRow: Codable, Equatable, Sendable {
 public struct AccountSetupRequest: Encodable, Equatable, Sendable {
     public var token: String
     public var password: String
-    public init(token: String, password: String) {
+    /// This iPhone's admin-approval public key (P-256, X9.63, base64),
+    /// registered with the account while the one-time code is redeemed.
+    public var devicePublicKey: String?
+    public init(token: String, password: String, devicePublicKey: String? = nil) {
         self.token = token
         self.password = password
+        self.devicePublicKey = devicePublicKey
     }
 }
 
 public struct AccountSetupResult: Decodable, Equatable, Sendable {
     public var loginId: String
     public var purpose: String
+}
+
+// MARK: - Admin console sign-in approval
+
+/// pending_admin_login(): a console sign-in waiting for this account's
+/// approval. Carries the three numbers to choose from, never the answer.
+public struct AdminLoginRequestRow: Decodable, Equatable, Identifiable, Sendable {
+    public var id: String
+    public var choices: [Int]
+    public var user_agent: String
+    public var created_at: String
+    public var expires_at: String
+
+    public init(id: String, choices: [Int], user_agent: String, created_at: String, expires_at: String) {
+        self.id = id
+        self.choices = choices
+        self.user_agent = user_agent
+        self.created_at = created_at
+        self.expires_at = expires_at
+    }
+
+    /// "Mac の Chrome" etc., from the console's user agent.
+    public var deviceLabel: String { AdminLoginApproval.describe(userAgent: user_agent) }
+}
+
+public enum AdminLoginApproval {
+    /// What the Secure Enclave key signs. Mirrors
+    /// supabase/functions/admin-login-approve/service.ts approvalMessage().
+    public static func message(requestID: String, choice: Int, approve: Bool) -> String {
+        "kyoei-admin-login|\(requestID)|\(choice)|\(approve ? "approve" : "deny")"
+    }
+
+    public static func describe(userAgent ua: String) -> String {
+        let os: String = if ua.contains("Windows") { "Windows" }
+            else if ua.contains("iPhone") { "iPhone" }
+            else if ua.contains("iPad") { "iPad" }
+            else if ua.contains("Android") { "Android" }
+            else if ua.contains("Macintosh") || ua.contains("Mac OS X") { "Mac" }
+            else { "パソコン" }
+        let browser: String? = if ua.contains("Edg/") { "Edge" }
+            else if ua.contains("Chrome/") && !ua.contains("Chromium") { "Chrome" }
+            else if ua.contains("Firefox/") { "Firefox" }
+            else if ua.contains("Safari/") { "Safari" }
+            else { nil }
+        return browser.map { "\(os) の \($0)" } ?? os
+    }
+}
+
+public struct AdminLoginApprovalBody: Encodable, Equatable, Sendable {
+    public var requestId: String
+    public var choice: Int
+    public var approve: Bool
+    public var signature: String
+
+    public init(requestId: String, choice: Int, approve: Bool, signature: String) {
+        self.requestId = requestId
+        self.choice = choice
+        self.approve = approve
+        self.signature = signature
+    }
+}
+
+public struct AdminLoginApprovalResult: Decodable, Equatable, Sendable {
+    /// "approved" / "denied" / "wrong_number"
+    public var result: String
 }

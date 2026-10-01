@@ -12,6 +12,7 @@ struct KyoeiApp: App {
     @State private var pendingNotifications = PendingNotificationStore()
     @State private var auth = AuthStore()
     @State private var lock = AppLockStore()
+    @State private var approvals = AdminApprovalStore()
 
     init() {
         UNUserNotificationCenter.current().delegate = ForegroundNotificationDelegate.shared
@@ -26,6 +27,7 @@ struct KyoeiApp: App {
                 .environment(pendingNotifications)
                 .environment(auth)
                 .environment(lock)
+                .environment(approvals)
                 .preferredColorScheme(settings.colorScheme)
                 .environment(\.locale, Locale(identifier: "ja_JP"))
         }

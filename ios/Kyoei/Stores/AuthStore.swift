@@ -124,10 +124,13 @@ final class AuthStore {
         guard let code = SetupCode.normalize(input) else {
             return "コードは「XXXX-XXXX-XXXX-XXXX」の16文字です。もう一度確認してください。"
         }
+        // This iPhone becomes the one that approves admin console sign-ins
+        // (a new key each time a code is used; the old one stops working).
+        let devicePublicKey = try? DeviceKey.createNew()
         do {
             let result: AccountSetupResult = try await Backend.client.functions.invoke(
                 "account-setup",
-                options: FunctionInvokeOptions(body: AccountSetupRequest(token: code, password: password))
+                options: FunctionInvokeOptions(body: AccountSetupRequest(token: code, password: password, devicePublicKey: devicePublicKey))
             )
             pendingSetupCode = nil
             if userID != nil { try? await Backend.client.auth.signOut() }

@@ -17,7 +17,7 @@ const admin = createClient(requireEnv('SUPABASE_URL'), requireEnv('SUPABASE_SERV
 
 Deno.serve(async (request) => {
   if (request.method !== 'POST') return new Response('Method not allowed', { status: 405 })
-  let body: { token?: unknown; password?: unknown }
+  let body: { token?: unknown; password?: unknown; devicePublicKey?: unknown }
   try {
     body = await request.json()
   } catch {
@@ -35,6 +35,10 @@ Deno.serve(async (request) => {
     },
     setPassword: async (userID, password) => {
       const { error } = await admin.auth.admin.updateUserById(userID, { password })
+      if (error) throw error
+    },
+    registerDevice: async (userID, publicKey) => {
+      const { error } = await admin.from('account_devices').upsert({ user_id: userID, public_key: publicKey, registered_at: new Date().toISOString() })
       if (error) throw error
     },
   })

@@ -47,4 +47,18 @@ import Testing
         let result = try JSONDecoder().decode(AccountSetupResult.self, from: Data(#"{"loginId":"1001","purpose":"setup"}"#.utf8))
         #expect(result.loginId == "1001")
     }
+
+    @Test func adminLoginApproval() throws {
+        #expect(AdminLoginApproval.message(requestID: "r1", choice: 42, approve: true) == "kyoei-admin-login|r1|42|approve")
+        #expect(AdminLoginApproval.message(requestID: "r1", choice: 0, approve: false) == "kyoei-admin-login|r1|0|deny")
+        let mac = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0 Safari/537.36"
+        #expect(AdminLoginApproval.describe(userAgent: mac) == "Mac の Chrome")
+        #expect(AdminLoginApproval.describe(userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/141.0 Safari/537.36 Edg/141.0") == "Windows の Edge")
+        #expect(AdminLoginApproval.describe(userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/26.0 Safari/605.1.15") == "Mac の Safari")
+        #expect(AdminLoginApproval.describe(userAgent: "") == "パソコン")
+        let row = try JSONDecoder().decode(AdminLoginRequestRow.self, from: Data(#"{"id":"r1","choices":[80,25,51],"user_agent":"x","created_at":"2026-10-02T03:00:00+00:00","expires_at":"2026-10-02T03:03:00+00:00"}"#.utf8))
+        #expect(row.choices == [80, 25, 51])
+        let body = String(decoding: try JSONEncoder().encode(AccountSetupRequest(token: "T", password: "p", devicePublicKey: "K")), as: UTF8.self)
+        #expect(body.contains(#""devicePublicKey":"K""#))
+    }
 }

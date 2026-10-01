@@ -22,13 +22,21 @@ else
     (cd AppCheck && swift build)
 fi
 
-echo "== Edge Function tests (push-dispatch, parse-dispatch-sheet, account-setup)"
+echo "== Edge Function tests"
 if command -v node >/dev/null 2>&1; then
     node --test ../supabase/functions/push-dispatch/push-dispatch.test.ts \
         ../supabase/functions/parse-dispatch-sheet/parse-dispatch-sheet.test.ts \
-        ../supabase/functions/account-setup/account-setup.test.ts
+        ../supabase/functions/account-setup/account-setup.test.ts \
+        ../supabase/functions/admin-login-approve/admin-login-approve.test.ts
 else
     echo "(node not found; skipped)"
+fi
+
+echo "== Admin console tests"
+if [ -d ../admin/node_modules ]; then
+    (cd ../admin && npm test --silent)
+else
+    echo "(admin/node_modules missing; run npm install in admin/)"
 fi
 
 # iOS-only code (#if os(iOS): camera, VisionKit, UIKit wrappers) is skipped

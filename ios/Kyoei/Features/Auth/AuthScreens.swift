@@ -10,6 +10,7 @@ import SwiftUI
 struct RootView: View {
     @Environment(AuthStore.self) private var auth
     @Environment(AppLockStore.self) private var lock
+    @Environment(AdminApprovalStore.self) private var approvals
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -23,8 +24,14 @@ struct RootView: View {
                 switch auth.accountStatus {
                 case .checking:
                     SplashView()
-                case .active:
+                case .active(let account):
                     AppShell()
+                        // Admins: console sign-ins wait here for approval.
+                        .task(id: account.is_admin && scenePhase == .active) {
+                            guard account.is_admin, scenePhase == .active else { return }
+                            await approvals.poll()
+                        }
+                    if !lock.isLocked { AdminApprovalView() }
                 case .missing:
                     AccountBlockedView(message: "このアカウントはまだ使えません。管理者に、アカウントの登録（ログインIDの発行）を依頼してください。")
                 case .disabled:

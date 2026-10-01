@@ -46,6 +46,7 @@ function deps(redeemed: Redeemed | null, overrides: Partial<Deps> = {}) {
     redeem: async () => { calls.push('redeem'); return redeemed },
     release: async () => void calls.push('release'),
     setPassword: async () => void calls.push('setPassword'),
+    registerDevice: async () => void calls.push('registerDevice'),
     ...overrides,
   }
   return { d, calls }
@@ -80,4 +81,16 @@ test('a failed password update releases the token for another try', async () => 
   const outcome = await handle({ token: TOKEN, password: 'correct horse' }, d)
   assert.equal(outcome.status, 500)
   assert.deepEqual(calls, ['redeem', 'release'])
+})
+
+test('a device key is registered only with a valid code', async () => {
+  const key = btoa(String.fromCharCode(4, ...new Array(64).fill(7)))
+  const ok = deps({ user_id: 'u1', login_id: '1001', purpose: 'reset' })
+  assert.equal((await handle({ token: TOKEN, password: 'correct horse', devicePublicKey: key }, ok.d)).status, 200)
+  assert.deepEqual(ok.calls, ['redeem', 'setPassword', 'registerDevice'])
+  const bad = deps({ user_id: 'u1', login_id: '1001', purpose: 'reset' })
+  assert.equal((await handle({ token: TOKEN, password: 'correct horse', devicePublicKey: 'AAAA' }, bad.d)).status, 400)
+  const expired = deps(null)
+  assert.equal((await handle({ token: TOKEN, password: 'correct horse', devicePublicKey: key }, expired.d)).status, 410)
+  assert.deepEqual(expired.calls, ['redeem'])
 })
