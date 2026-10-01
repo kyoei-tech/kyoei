@@ -1,0 +1,62 @@
+# XcodeGen spec for the KYOEI iOS app. Generate the Xcode project with:
+#   brew install xcodegen && cd ios && xcodegen
+# Kyoei.xcodeproj is generated output and git-ignored.
+name: Kyoei
+options:
+  bundleIdPrefix: jp.kyoei
+  developmentLanguage: ja
+  deploymentTarget:
+    iOS: "17.0"
+configFiles:
+  Debug: Config/Secrets.xcconfig
+  Release: Config/Secrets.xcconfig
+packages:
+  KyoeiCore:
+    path: KyoeiCore
+  Supabase:
+    url: https://github.com/supabase/supabase-swift
+    from: 2.55.0
+targets:
+  Kyoei:
+    type: application
+    platform: iOS
+    sources:
+      - path: Kyoei
+    dependencies:
+      - package: KyoeiCore
+      - package: Supabase
+        product: Supabase
+    entitlements:
+      path: Kyoei/Kyoei.entitlements
+      properties:
+        # Xcode re-signs this as "production" when exporting for TestFlight/App Store.
+        aps-environment: development
+    info:
+      path: Kyoei/Info.plist
+      properties:
+        CFBundleDisplayName: KYOEI
+        CFBundleDevelopmentRegion: ja
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        # Injected from Config/Secrets.xcconfig; read by App/AppConfig.swift.
+        SUPABASE_URL: $(SUPABASE_URL)
+        SUPABASE_ANON_KEY: $(SUPABASE_ANON_KEY)
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: jp.kyoei.app
+        MARKETING_VERSION: 0.1.0
+        CURRENT_PROJECT_VERSION: 1
+        SWIFT_VERSION: "6.0"
+        TARGETED_DEVICE_FAMILY: "1"
+schemes:
+  Kyoei:
+    build:
+      targets:
+        Kyoei: all
+    run:
+      config: Debug
+    archive:
+      config: Release

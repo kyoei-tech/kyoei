@@ -1,0 +1,294 @@
+import KyoeiCore
+import SwiftUI
+
+/// 乗務員モードのホーム: clocks, 出庫/帰庫 and the drill-downs into 運行状況 /
+/// 休息状況. Port of components/home-view.tsx.
+struct DriverHomeView: View {
+    let openMenuItem: (MenuItem) -> Void
+
+    @Environment(ShiftStore.self) private var store
+
+    var body: some View {
+        switch (store.driverScreen, store.shift.mode) {
+        case (.driving, .departure):
+            DrivingStatusView(onBack: { store.driverScreen = .home }, onOpenEmergencyContacts: { openMenuItem(.emergency) })
+        case (.rest, .return):
+            RestStatusView(onBack: { store.driverScreen = .home })
+        default:
+            DriverHomeMain(openMenuItem: openMenuItem)
+        }
+    }
+}
+
+private struct DriverHomeMain: View {
+    let openMenuItem: (MenuItem) -> Void
+
+    @Environment(ShiftStore.self) private var store
+    @Environment(SettingsStore.self) private var settings
+    @Environment(SharedData.self) private var data
+    @State private var pending: PendingAction?
+
+    private enum PendingAction: Equatable {
+        case departure(DepartureConfirmation)
+        case returnToYard
+    }
+
+    private var snapshot: ShiftSnapshot { store.shift }
+
+    var body: some View {
+        EverySecond { now in
+            let status = DriverHomeStatus(snapshot: snapshot, trips: data.trips, now: now)
+            TabPage {
+                VStack(spacing: 6) {
+                    LiveClockCard(parts: formatClock(now, hour12: snapshot.hour12, seconds: false), hour12: snapshot.hour12, onToggleFormat: store.toggleHour12)
+                    AccidentStreakBadge { openMenuItem(.accidents) }
+                    WeeklyGoalCard()
+                }
+                LinkedTimeCard(
+                    label: linkedLabel,
+                    parts: linkedParts(now: now),
+                    active: snapshot.mode != .idle,
+                    hour12: snapshot.hour12,
+                    onToggleFormat: store.toggleHour12
+                )
+                timerCard(now: now)
+                if snapshot.mode != .idle {
+                    Button {
+                        store.driverScreen = snapshot.mode == .departure ? .driving : .rest
+                    } label: {
+                        Label("運行情報", systemImage: "chevron.right")
+                            .labelStyle(TrailingIconLabelStyle())
+                            .appFont(16, weight: .semibold)
+                    }
+                    .buttonStyle(PillButtonStyle())
+                }
+                actionButtons(status: status)
+            }
+            .pageTint(tint)
+            .overlay { dialog(status: status, now: now) }
+        }
+    }
+
+    private var tint: PageTint {
+        switch snapshot.mode {
+        case .departure: .working
+        case .return: .resting
+        case .idle: .none
+        }
+    }
+
+    private var linkedLabel: String {
+        switch snapshot.mode {
+        case .idle: "連動表示（待機中）"
+        case .departure: "出庫時刻"
+        case .return: "出庫可能時刻"
+        }
+    }
+
+    private func linkedParts(now: Date) -> ClockParts {
+        let date: Date = switch snapshot.mode {
+        case .idle: now
+        case .departure: snapshot.startedAt ?? now
+        case .return: snapshot.departableAt ?? now
+        }
+        return formatClock(date, hour12: snapshot.hour12, seconds: false)
+    }
+
+    @ViewBuilder private func timerCard(now: Date) -> some View {
+        let (label, text, color, finished): (String, String, Color, Bool) = {
+            switch snapshot.mode {
+            case .idle:
+                return ("タイマー", "00:00:00", .mutedForeground, false)
+            case .departure:
+                let elapsed = snapshot.startedAt.map { now.timeIntervalSince($0) } ?? 0
+                return ("運行時間", DurationFormat.clock(elapsed), .primary, false)
+            case .return:
+                let remaining = snapshot.departableAt.map { $0.timeIntervalSince(now) } ?? 0
+                return ("出庫可能時刻まで残り", DurationFormat.clock(remaining), remaining <= 0 ? .destructive : .orange, remaining <= 0)
+            }
+        }()
+        VStack(spacing: 4) {
+            Label(label, systemImage: "timer")
+                .appFont(16, weight: .bold)
+                .foregroundStyle(snapshot.mode == .return ? Color.orange : (snapshot.mode == .idle ? Color.mutedForeground : Color.primary))
+            SplitTimerText(text: text, color: color)
+            switch snapshot.mode {
+            case .return:
+                CountdownPicker(selected: snapshot.countdownHours, onSelect: store.setCountdownHours).padding(.top, 8)
+            case .idle:
+                Text("出庫・帰庫ボタンで開始します").appFont(14).foregroundStyle(Color.mutedForeground).padding(.top, 12)
+            case .departure:
+                EmptyView()
+            }
+            if finished {
+                Text("出庫可能時刻になりました").appFont(16, weight: .semibold).foregroundStyle(Color.destructive).padding(.top, 12)
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: 180)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
+        .card(radius: Radius.card, border: snapshot.mode == .departure ? Color.primary.opacity(0.4) : .border)
+        .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder private func actionButtons(status: DriverHomeStatus) -> some View {
+        let departed = snapshot.mode == .departure
+        // While departed, reflect the actual trip's kind so the dimmed color stays accurate.
+        let isSplit = departed ? snapshot.trip?.splitRestRemaining != nil : status.isSplitRestEligible
+        let departColor: Color = isSplit ? .destructive : .primary
+        let departForeground: Color = isSplit ? .destructiveForeground : .primaryForeground
+        HStack(spacing: 12) {
+            BigActionButton(
+                title: departed ? "出庫中" : (status.isSplitRestEligible ? "分割休息による出庫" : "出庫"),
+                systemImage: "rectangle.portrait.and.arrow.right",
+                fill: departColor,
+                foreground: departForeground,
+                dimmed: departed
+            ) {
+                pending = .departure(status.firstConfirmation)
+            }
+            .disabled(departed)
+
+            BigActionButton(
+                title: snapshot.mode == .return ? "帰庫済み" : "帰庫",
+                systemImage: "rectangle.portrait.and.arrow.forward",
+                fill: departed ? .secondary : .muted,
+                foreground: departed ? .secondaryForeground : .mutedForeground,
+                dimmed: !departed
+            ) {
+                pending = .returnToYard
+            }
+            .disabled(!departed)
+        }
+    }
+
+    @ViewBuilder private func dialog(status: DriverHomeStatus, now: Date) -> some View {
+        let messages = data.confirmMessages
+        switch pending {
+        case nil:
+            EmptyView()
+        case .returnToYard:
+            ConfirmActionDialog(
+                message: messages.message("home-return", fallback: "帰庫を開始しますか？"),
+                confirmLabel: messages.confirmLabel("home-return"),
+                cancelLabel: messages.cancelLabel("home-return"),
+                onConfirm: {
+                    pending = nil
+                    store.returnToYard(staffMemberID: settings.settings.staffMemberID)
+                },
+                onCancel: { pending = nil }
+            )
+        case .departure(let step):
+            ConfirmActionDialog(
+                message: messages.message(step.messageID, fallback: Self.fallbackMessage(step)),
+                confirmLabel: messages.confirmLabel(step.messageID, fallback: Self.fallbackConfirmLabel(step)),
+                cancelLabel: messages.cancelLabel(step.messageID),
+                onConfirm: { confirm(step, status: status) },
+                onCancel: { pending = nil }
+            ) {
+                if let body = warningBody(step, status: status, messages: messages) {
+                    WarningBox(text: body)
+                }
+            }
+            .id(step.messageID)
+        }
+    }
+
+    private func confirm(_ step: DepartureConfirmation, status: DriverHomeStatus) {
+        if let next = status.confirmation(after: step) {
+            pending = .departure(next)
+            return
+        }
+        pending = nil
+        store.depart(viaSplitRest: step == .splitRestMessage, staffMemberID: settings.settings.staffMemberID)
+    }
+
+    private func warningBody(_ step: DepartureConfirmation, status: DriverHomeStatus, messages: ConfirmMessages) -> String? {
+        switch step {
+        case .departure:
+            nil
+        case .splitRestOverLimit:
+            "今月の分割休息使用回数（\(status.splitRestUsedThisMonth)回）が全運行数（\(status.tripsThisMonth)回）の1/2に達しています。このまま分割休息で出庫すると、上限を超えます。"
+        case .splitRestNearFull:
+            "あと\(DurationFormat.hoursMinutes(status.remainingToNineHours))で通常の9時間休息が完了します。ここで分割休息として出庫すると、この休息は9時間休息としては扱われません。"
+        case .splitRestEscalation:
+            "この休息では2分割（合計10時間以上）を満たせません。このまま出庫すると3分割が必要になり、休息の合計が12時間以上になります。"
+        case .splitRestMessage:
+            messages.message(
+                "home-split-rest-body",
+                fallback: "分割休息は1回3時間以上とること。\n2分割の場合は合計10時間以上、\n3分割の場合は合計12時間以上になるように休息をとること。"
+            )
+        }
+    }
+
+    private static func fallbackMessage(_ step: DepartureConfirmation) -> String {
+        switch step {
+        case .departure: "出庫を開始しますか？"
+        case .splitRestMessage: "分割休息による出庫"
+        default: "本当に分割休息で出庫しますか？"
+        }
+    }
+
+    private static func fallbackConfirmLabel(_ step: DepartureConfirmation) -> String? {
+        switch step {
+        case .splitRestOverLimit, .splitRestNearFull, .splitRestEscalation: "分割休息で出庫する"
+        default: nil
+        }
+    }
+}
+
+/// The big 出庫/帰庫 (出勤/退勤) buttons.
+struct BigActionButton: View {
+    let title: String
+    let systemImage: String
+    let fill: Color
+    let foreground: Color
+    var dimmed = false
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 8) {
+                Image(systemName: systemImage).font(.system(size: 26, weight: .semibold))
+                Text(title).appFont(16, weight: .bold).multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity, minHeight: 92)
+            .foregroundStyle(dimmed ? fill.opacity(0.7) : foreground)
+            .background(dimmed ? fill.opacity(0.1) : fill, in: RoundedRectangle(cornerRadius: Radius.card))
+            .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(dimmed ? fill.opacity(0.25) : fill))
+            .shadow(color: dimmed ? .clear : fill.opacity(0.2), radius: 8, y: 4)
+        }
+        .buttonStyle(PressScaleStyle())
+    }
+}
+
+struct PressScaleStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label.scaleEffect(configuration.isPressed ? 0.97 : 1)
+    }
+}
+
+struct TrailingIconLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 6) {
+            configuration.title
+            configuration.icon
+        }
+    }
+}
+
+/// Red explanatory box inside a confirmation dialog.
+struct WarningBox: View {
+    let text: String
+
+    var body: some View {
+        StyledTextView(raw: text)
+            .appFont(14, weight: .bold)
+            .foregroundStyle(Color.destructive)
+            .lineSpacing(3)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(Color.destructive.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
+    }
+}
