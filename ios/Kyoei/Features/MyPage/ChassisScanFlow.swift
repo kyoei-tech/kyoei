@@ -39,12 +39,20 @@ struct ChassisScanFlow: View {
     @State private var candidates: [String] = []
     @State private var previousMatch: String?
     @State private var method: ChassisCheckMethod = .cautionPlate
+    /// Vehicles confirmed in this camera session (id → how), so 続けて照合
+    /// knows them before the parent's list refreshes.
+    @State private var confirmedHere: [Int: ChassisCheckMethod] = [:]
+
+    /// Opened from the top button: after each confirmation the camera comes
+    /// back for the next car (続けて照合) instead of closing.
+    private var isContinuous: Bool { target == nil }
 
     private var isRecording: Bool { target?.needsRecording == true }
 
     /// Blank-numbered vehicles confirmed as blank (原本・伝票) and not yet recorded.
     private var recordable: [DispatchVehicle] {
         vehicles.filter {
+            guard confirmedHere[$0.id] == nil else { return false }  // recorded in this session
             if case .blankConfirmed = state.status(of: $0) { return true }
             return false
         }
@@ -102,6 +110,11 @@ struct ChassisScanFlow: View {
                 VStack(spacing: 4) {
                     Text(isRecording ? "記録する車の車体番号を写してください" : "コーションプレート、または刻印の車台番号を写してください")
                         .appFont(15, weight: .bold)
+                    if isContinuous && !confirmedHere.isEmpty {
+                        Label("続けて照合中 ・ 今回 \(confirmedHere.count)台 確認", systemImage: "checkmark.circle.fill")
+                            .appFont(13, weight: .bold)
+                            .foregroundStyle(Color.brandLime)
+                    }
                     if let target {
                         Text(isRecording
                             ? "記録する車：\(target.vehicleName)（配車表は車体番号が空欄）"
@@ -145,8 +158,12 @@ struct ChassisScanFlow: View {
         candidates = ChassisNumber.candidates(in: lines)
         // Recording is always confirmed by the driver: there is nothing on
         // the sheet to tell a complete read from a partial one.
+        // A car just confirmed in this session is still in front of the
+        // camera after 続けて照合: don't bounce straight back to it (the
+        // 「この番号で照合」 button still works).
         guard !isRecording,
-              case .matched(let vehicle, let chassis)? = ChassisMatch.evaluate(candidates: candidates, against: vehicles) else {
+              case .matched(let vehicle, let chassis)? = ChassisMatch.evaluate(candidates: candidates, against: vehicles),
+              confirmedHere[vehicle.id] == nil else {
             previousMatch = nil
             return
         }
@@ -208,25 +225,61 @@ struct ChassisScanFlow: View {
 
     private func matched(_ vehicle: DispatchVehicle) -> some View {
         let existing = state.checks.check(for: vehicle)
+        let alreadyDone = existing != nil || confirmedHere[vehicle.id] != nil
         return ResultCard(tint: Color.primary, icon: "checkmark.circle.fill", title: "車台番号が一致しました") {
             VehicleSummary(vehicle: vehicle)
-            if let existing {
-                Label("この車は照合済みです（\(existing.caption())）", systemImage: "checkmark.seal.fill")
+            if alreadyDone {
+                Label("この車は照合済みです（\(existing?.caption() ?? "今回照合")）", systemImage: "checkmark.seal.fill")
                     .appFont(13, weight: .bold).foregroundStyle(Color.primary)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                Button("閉じる", action: onClose).buttonStyle(PillButtonStyle(kind: .primary))
+                if isContinuous {
+                    continueButton(label: "続けて照合") { rescan() }
+                }
+                Button("閉じる", action: onClose).buttonStyle(PillButtonStyle(kind: isContinuous ? .outline : .primary))
             } else {
                 methodPicker
-                Button {
+                confirmButtons(confirmLabel: "確認済みにする") {
                     onConfirm(vehicle, vehicle.chassisNumber, method)
-                    onClose()
-                } label: {
-                    Label("確認済みにする", systemImage: "checkmark").appFont(16, weight: .bold).frame(maxWidth: .infinity)
+                    confirmedHere[vehicle.id] = method
                 }
-                .buttonStyle(PillButtonStyle(kind: .primary))
+                if !isContinuous {
+                    Button("撮り直す", action: rescan).buttonStyle(PillButtonStyle(kind: .outline))
+                }
             }
-            Button("別の車を照合する", action: rescan).buttonStyle(PillButtonStyle(kind: .outline))
         }
+    }
+
+    /// One "confirm and close" button, or — from the top button — "confirm
+    /// and scan the next car" first, with "confirm and close" below it.
+    @ViewBuilder private func confirmButtons(confirmLabel: String, confirm: @escaping () -> Void) -> some View {
+        if isContinuous {
+            continueButton(label: "\(confirmLabel.replacingOccurrences(of: "する", with: "して"))続けて照合") {
+                confirm()
+                rescan()
+            }
+            Button {
+                confirm()
+                onClose()
+            } label: {
+                Text("\(confirmLabel.replacingOccurrences(of: "する", with: "して"))閉じる").appFont(15, weight: .bold).frame(maxWidth: .infinity)
+            }
+            .buttonStyle(PillButtonStyle(kind: .outline))
+        } else {
+            Button {
+                confirm()
+                onClose()
+            } label: {
+                Label(confirmLabel, systemImage: "checkmark").appFont(16, weight: .bold).frame(maxWidth: .infinity)
+            }
+            .buttonStyle(PillButtonStyle(kind: .primary))
+        }
+    }
+
+    private func continueButton(label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(label, systemImage: "camera.viewfinder").appFont(16, weight: .bold).frame(maxWidth: .infinity)
+        }
+        .buttonStyle(PillButtonStyle(kind: .primary))
     }
 
     // MARK: 不一致（警告）
@@ -307,13 +360,10 @@ struct ChassisScanFlow: View {
                 .appFont(13, weight: .semibold).foregroundStyle(Color.appForeground)
                 .frame(maxWidth: .infinity, alignment: .leading)
             methodPicker
-            Button {
+            confirmButtons(confirmLabel: "この番号を記録する") {
                 onConfirm(vehicle, read, method)
-                onClose()
-            } label: {
-                Label("この番号を記録する", systemImage: "checkmark").appFont(16, weight: .bold).frame(maxWidth: .infinity)
+                confirmedHere[vehicle.id] = method
             }
-            .buttonStyle(PillButtonStyle(kind: .primary))
             Button("撮り直す", action: rescan).buttonStyle(PillButtonStyle(kind: .outline))
         }
     }
