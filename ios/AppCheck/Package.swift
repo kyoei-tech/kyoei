@@ -20,7 +20,9 @@ let package = Package(
             dependencies: [
                 "KyoeiCore",
                 .product(name: "Supabase", package: "supabase-swift"),
-            ]
+            ],
+            // The asset catalog is built by Xcode for the real app only.
+            exclude: ["Resources"]
         ),
     ]
 )

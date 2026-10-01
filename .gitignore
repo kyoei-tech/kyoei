@@ -15,13 +15,13 @@ node_modules
 .DS_Store
 # iOS
 ios/Config/Secrets.xcconfig
+ios/Config/Local.xcconfig
 ios/Kyoei.xcodeproj/
 ios/Kyoei/Info.plist
 ios/**/.build/
 ios/**/.swiftpm/
 ios/**/Package.resolved
 xcuserdata/
-ios/Kyoei/Kyoei.entitlements
 
 # Sample dispatch sheets (contain real driver names)
 sample_haisha.pdf

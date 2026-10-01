@@ -8,8 +8,9 @@ options:
   deploymentTarget:
     iOS: "17.0"
 configFiles:
-  Debug: Config/Secrets.xcconfig
-  Release: Config/Secrets.xcconfig
+  # Includes the git-ignored Secrets.xcconfig and optional Local.xcconfig.
+  Debug: Config/Base.xcconfig
+  Release: Config/Base.xcconfig
 packages:
   KyoeiCore:
     path: KyoeiCore
@@ -26,11 +27,9 @@ targets:
       - package: KyoeiCore
       - package: Supabase
         product: Supabase
-    entitlements:
-      path: Kyoei/Kyoei.entitlements
-      properties:
-        # Xcode re-signs this as "production" when exporting for TestFlight/App Store.
-        aps-environment: development
+    # Signing entitlements: Kyoei/Kyoei.entitlements (aps-environment for
+    # Push Notifications; Xcode re-signs it as "production" when exporting
+    # for TestFlight/App Store), chosen via CODE_SIGN_ENTITLEMENTS below.
     info:
       path: Kyoei/Info.plist
       properties:
@@ -46,14 +45,20 @@ targets:
           - CFBundleURLName: jp.kyoei.app.auth
             CFBundleURLSchemes:
               - kyoei
-        NSCameraUsageDescription: 事故報告で相手の免許証を撮影するために使用します。
+        NSCameraUsageDescription: 配車表の車台番号の照合と、事故報告での免許証などの撮影に使用します。
         NSPhotoLibraryAddUsageDescription: 事故報告の画像を写真に保存するために使用します。
         # Injected from Config/Secrets.xcconfig; read by App/AppConfig.swift.
         SUPABASE_URL: $(SUPABASE_URL)
         SUPABASE_ANON_KEY: $(SUPABASE_ANON_KEY)
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: jp.kyoei.app
+        # From Config/Base.xcconfig (jp.kyoei.app + push), overridable per
+        # machine in Config/Local.xcconfig for free-team device builds.
+        PRODUCT_BUNDLE_IDENTIFIER: $(KYOEI_BUNDLE_ID)
+        CODE_SIGN_ENTITLEMENTS: $(KYOEI_ENTITLEMENTS)
+        # No app icon yet (needs the 1024px original); without this XcodeGen
+        # expects an AppIcon set in Resources/Assets.xcassets.
+        ASSETCATALOG_COMPILER_APPICON_NAME: ""
         MARKETING_VERSION: 0.1.0
         CURRENT_PROJECT_VERSION: 1
         SWIFT_VERSION: "6.0"

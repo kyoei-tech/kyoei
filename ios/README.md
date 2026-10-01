@@ -64,6 +64,7 @@ scripts/migrate-blob-to-supabase-storage.mjs   既存添付の移行（1 回だ�
        node scripts/add-auth-redirect-url.mjs --dry-run   # 内容を確認してから --dry-run を外す
      ```
 4. 設定ファイルを作る：`cp ios/Config/Secrets.example.xcconfig ios/Config/Secrets.xcconfig` を実行し、Supabase の URL と anon キーを記入する
+   - 無料の Apple ID（Personal Team）で実機に入れる場合は、`cp ios/Config/Local.example.xcconfig ios/Config/Local.xcconfig` を実行し、Team ID と自分専用のアプリ ID を記入する（プッシュ通知なしでビルドされる。運行タイマーのローカル通知は動く）
 5. `brew install xcodegen && cd ios && xcodegen && open Kyoei.xcodeproj`
 
 Xcode がなくても、ロジックのテスト、アプリ側コードの型チェック、Edge Function のテストは実行できます。Xcode が入っていれば、カメラなど iOS 専用部分を含めて iOS シミュレーター向けのビルドも確認します。

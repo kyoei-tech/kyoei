@@ -1,0 +1,17 @@
+// Optional, per-machine signing overrides. Copy to Local.xcconfig
+// (git-ignored) when building to a device with a free Apple ID
+// ("Personal Team"), which cannot sign the Push Notifications capability
+// or the jp.kyoei.app ID registered to the company team.
+//
+// The resulting build runs normally but receives no remote pushes; local
+// notifications (運行タイマー) still work.
+
+// Your team ID: Xcode > Settings > Accounts, or the Team pop-up in
+// Signing & Capabilities.
+DEVELOPMENT_TEAM = YOURTEAMID
+
+// Must be unique to you.
+KYOEI_BUNDLE_ID = jp.kyoei.app.dev.yourname
+
+// No entitlements file: drops aps-environment (Push Notifications).
+KYOEI_ENTITLEMENTS =
