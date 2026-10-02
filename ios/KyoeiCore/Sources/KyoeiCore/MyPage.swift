@@ -88,7 +88,7 @@ public enum MyPageItem: String, CaseIterable, Sendable {
         case .tripHistory: "過去の出庫・帰庫と休息時間を確認できます。"
         case .inspection: "日常点検の記録をカレンダーで確認できます。"
         case .selfEvaluation: "毎月の自己評価と目標を記入・確認できます。"
-        case .awardVote: "社長賞にふさわしい方へ投票できます。"
+        case .awardVote: "毎月1日〜15日に、先月頑張った3人へ投票します（匿名）。"
         case .leaveRequest: "休暇の申請ができます。"
         case .repairRequest: "車両の修理を申請できます。"
         case .packagingHistory: "回戦ごとに、何番に何を積んだかと写真を記録・確認できます。"
@@ -96,8 +96,8 @@ public enum MyPageItem: String, CaseIterable, Sendable {
     }
 
     /// Needs the account linked to its 出勤簿 name (配車表 etc.); 点検簿 works on the account alone.
-    public var needsStaffLink: Bool { ![.inspection, .packagingHistory, .redPlates].contains(self) }
+    public var needsStaffLink: Bool { ![.inspection, .packagingHistory, .redPlates, .awardVote].contains(self) }
 
     /// Features the web app hadn't built yet either (shown as 準備中).
-    public var isComingSoon: Bool { ![.redPlates, .dispatchSheet, .tripHistory, .inspection, .packagingHistory].contains(self) }
+    public var isComingSoon: Bool { ![.redPlates, .dispatchSheet, .tripHistory, .inspection, .awardVote, .packagingHistory].contains(self) }
 }

@@ -7,6 +7,7 @@ export const CATEGORY_LABELS: Record<string, string> = {
   vehicles: '車両',
   inspection: '点検簿',
   red_plates: '赤枠管理',
+  award: '社長賞',
   content: 'アプリ内編集',
 }
 
@@ -31,6 +32,10 @@ const ACTION_LABELS: Record<string, string> = {
   return_red_plate: '赤枠を返却処理',
   create_red_plate: '赤枠を追加',
   update_red_plate: '赤枠を変更',
+  request_disclosure: '投票者の開示を申請',
+  approve_disclosure: '投票者の開示を承認',
+  reject_disclosure: '投票者の開示を却下',
+  view_disclosure: '開示済みの投票者を閲覧',
 }
 
 export function actionLabel(action: string): string {

@@ -7,15 +7,43 @@ struct DriverHomeView: View {
     let openMenuItem: (MenuItem) -> Void
 
     @Environment(ShiftStore.self) private var store
+    /// 社長賞: asked at 帰庫 while voting is open and not done yet.
+    @State private var awardReminder: AwardStatus?
+    @State private var voting = false
 
     var body: some View {
-        switch (store.driverScreen, store.shift.mode) {
-        case (.driving, .departure):
-            DrivingStatusView(onBack: { store.driverScreen = .home }, onOpenEmergencyContacts: { openMenuItem(.emergency) })
-        case (.rest, .return):
-            RestStatusView(onBack: { store.driverScreen = .home })
-        default:
-            DriverHomeMain(openMenuItem: openMenuItem)
+        Group {
+            switch (store.driverScreen, store.shift.mode) {
+            case (.driving, .departure):
+                DrivingStatusView(onBack: { store.driverScreen = .home }, onOpenEmergencyContacts: { openMenuItem(.emergency) })
+            case (.rest, .return):
+                RestStatusView(onBack: { store.driverScreen = .home })
+            default:
+                DriverHomeMain(openMenuItem: openMenuItem)
+            }
+        }
+        .onChange(of: store.shift.mode) { old, new in
+            guard old == .departure, new == .return else { return }
+            Task {
+                if let status = try? await AwardRepository.status(), status.needsReminder { awardReminder = status }
+            }
+        }
+        .overlay {
+            if let status = awardReminder {
+                ConfirmActionDialog(
+                    message: "\(status.title)の投票がまだです。\n\(status.closesOn.month)月\(status.closesOn.day)日まで投票できます。",
+                    confirmLabel: "投票する",
+                    cancelLabel: "あとで",
+                    onConfirm: {
+                        awardReminder = nil
+                        voting = true
+                    },
+                    onCancel: { awardReminder = nil }
+                )
+            }
+        }
+        .fullScreen(isPresented: $voting) {
+            AwardVoteView(onClose: { voting = false })
         }
     }
 }

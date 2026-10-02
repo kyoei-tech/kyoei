@@ -93,6 +93,8 @@ struct MyPageView: View {
                 PackingHistoryView()
             case .redPlates:
                 RedPlatesView()
+            case .awardVote:
+                AwardVoteView()
             default:
                 TabPage {
                     VStack(spacing: 8) {
