@@ -20,18 +20,6 @@ struct MenuTab: View {
                         .foregroundStyle(Color.mutedForeground)
                 }
 
-                if settings.settings.testDriveMode {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("試験運転モード")
-                            .appFont(12, weight: .semibold)
-                            .foregroundStyle(Color.primary)
-                            .padding(.horizontal, 4)
-                        ForEach(MenuItem.testDriveItems, id: \.self) { item in
-                            MenuRow(item: item, style: .testDrive)
-                        }
-                    }
-                }
-
                 VStack(spacing: 10) {
                     ForEach(regularItems, id: \.self) { item in
                         MenuRow(item: item, style: item == .emergency ? .emergency : .normal)
@@ -55,12 +43,12 @@ struct MenuTab: View {
     }
 
     private var regularItems: [MenuItem] {
-        MenuItem.regularItems(partTimeMode: settings.settings.partTimeMode, testDriveMode: settings.settings.testDriveMode)
+        MenuItem.regularItems(partTimeMode: settings.settings.partTimeMode)
     }
 }
 
 private struct MenuRow: View {
-    enum Style { case normal, emergency, testDrive }
+    enum Style { case normal, emergency }
 
     let item: MenuItem
     let style: Style
@@ -101,7 +89,6 @@ private struct MenuRow: View {
         switch style {
         case .normal: .card
         case .emergency: Color.destructive.opacity(0.06)
-        case .testDrive: Color.primary.opacity(0.05)
         }
     }
 
@@ -109,7 +96,6 @@ private struct MenuRow: View {
         switch style {
         case .normal: .border
         case .emergency: Color.destructive.opacity(0.3)
-        case .testDrive: Color.primary.opacity(0.4)
         }
     }
 }

@@ -47,8 +47,6 @@ public struct AppSettings: Codable, Equatable, Sendable {
     /// Links this device to a `staff_members` row so 出庫/帰庫 also flips that
     /// staff member's 出勤簿 status.
     public var staffMemberID: String?
-    /// Unlocks the trial menu section (マイページ etc).
-    public var testDriveMode = false
     /// Remote push events this device subscribes to.
     public var pushTopics: Set<PushTopic> = Set(PushTopic.allCases)
     /// 荷姿: ask for the loading record when a 回戦's vehicles are all 照合済.
@@ -70,7 +68,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case theme, fontLevels, deviceFont, appMode, partTimeMode, pushNotificationsEnabled, staffMemberID, testDriveMode, pushTopics, packingPrompt
+        case theme, fontLevels, deviceFont, appMode, partTimeMode, pushNotificationsEnabled, staffMemberID, pushTopics, packingPrompt
     }
 
     // Tolerant decoding: every field falls back to its default, so adding a
@@ -89,7 +87,6 @@ public struct AppSettings: Codable, Equatable, Sendable {
         partTimeMode = (try? c.decodeIfPresent(Bool.self, forKey: .partTimeMode)) ?? base.partTimeMode
         pushNotificationsEnabled = (try? c.decodeIfPresent(Bool.self, forKey: .pushNotificationsEnabled)) ?? base.pushNotificationsEnabled
         staffMemberID = (try? c.decodeIfPresent(String.self, forKey: .staffMemberID)) ?? base.staffMemberID
-        testDriveMode = (try? c.decodeIfPresent(Bool.self, forKey: .testDriveMode)) ?? base.testDriveMode
         // Unknown topic names (from a newer build) are dropped, not fatal.
         let storedTopics = (try? c.decodeIfPresent([String].self, forKey: .pushTopics)).flatMap { $0 }
         pushTopics = storedTopics.map { Set($0.compactMap(PushTopic.init(rawValue:))) } ?? base.pushTopics
@@ -105,7 +102,6 @@ public struct AppSettings: Codable, Equatable, Sendable {
         try c.encode(partTimeMode, forKey: .partTimeMode)
         try c.encode(pushNotificationsEnabled, forKey: .pushNotificationsEnabled)
         try c.encodeIfPresent(staffMemberID, forKey: .staffMemberID)
-        try c.encode(testDriveMode, forKey: .testDriveMode)
         try c.encode(pushTopics.map(\.rawValue).sorted(), forKey: .pushTopics)
         try c.encode(packingPrompt, forKey: .packingPrompt)
     }

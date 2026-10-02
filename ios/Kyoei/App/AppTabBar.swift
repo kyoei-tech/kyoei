@@ -10,11 +10,8 @@ struct AppTabBar: View {
     let onSelect: (AppTab) -> Void
     /// 5 taps on ホーム: 乗務員モード ⇄ タイムカードモード.
     let onSecretHomeGesture: () -> Void
-    /// 5 taps on メニュー: 試験運転モード (PIN-gated by the caller).
-    let onSecretMenuGesture: () -> Void
 
     @State private var homeTaps = SecretTapCounter()
-    @State private var menuTaps = SecretTapCounter()
 
     var body: some View {
         HStack(spacing: 0) {
@@ -53,8 +50,6 @@ struct AppTabBar: View {
         switch tab {
         case .home where homeTaps.registerTap():
             onSecretHomeGesture()
-        case .menu where menuTaps.registerTap():
-            onSecretMenuGesture()
         default:
             break
         }

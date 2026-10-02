@@ -5,7 +5,7 @@ import UserNotifications
 import UIKit
 #endif
 
-/// 設定: per-device font sizes, theme, 乗務員ID, part-time mode, 試験運転モード
+/// 設定: per-device font sizes, theme, 乗務員ID, part-time mode
 /// (with テストアカウント管理) and notifications. Tapping the bell 5 times opens
 /// the PIN-gated 通知の管理 admin menu. Port of components/settings-view.tsx.
 struct SettingsView: View {
@@ -56,9 +56,6 @@ struct SettingsView: View {
                 ToggleRow(title: "照合完了時に入力画面を出す", systemImage: "shippingbox", isOn: store.settings.packingPrompt) {
                     store.settings.packingPrompt.toggle()
                 }
-            }
-            if store.settings.testDriveMode {
-                TestDriveSection(onExit: { store.settings.testDriveMode = false })
             }
             NotificationSection(settings: $store.settings, onBellTap: {
                 if bellTaps.registerTap() {
@@ -255,107 +252,6 @@ private struct StaffIDSection: View {
     }
 }
 
-/// 試験運転モード: exit switch and テストアカウント管理. The account list is
-/// fetched through the PIN-checked admin RPCs, so the PIN is verified by the
-/// database rather than the app.
-private struct TestDriveSection: View {
-    let onExit: () -> Void
-
-    @State private var pin = ""
-    @State private var verifiedPIN: String?
-    @State private var accounts: [TestAccountAdmin.Account] = []
-    @State private var loading = false
-    @State private var error: String?
-    @State private var confirmDeleteID: UUID?
-
-    var body: some View {
-        SettingsCard(title: "試験運転モード", note: "メニュー上部に試験運転メニュー（マイページ・配車表など）を表示しています。不要になったらここから終了できます。") {
-            ToggleRow(title: "試験運転モードを終了", systemImage: "testtube.2", isOn: true, action: onExit)
-            Divider()
-            Text("登録済みアカウント").appFont(14, weight: .semibold).foregroundStyle(Color.appForeground)
-            Text("マイページ・配車表で登録されたアカウントです。テストで作成したアカウントはここから削除できます。")
-                .appFont(12).foregroundStyle(Color.mutedForeground)
-            if verifiedPIN == nil {
-                HStack(spacing: 8) {
-                    SecureField("暗証番号", text: $pin)
-                        .numericKeyboard()
-                        .appFont(14)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .card(radius: 12, fill: .appBackground)
-                    Button("表示") { Task { await load(pin: pin) } }
-                        .buttonStyle(PillButtonStyle()).fixedSize()
-                        .disabled(pin.isEmpty || loading)
-                }
-            }
-            if loading {
-                Text("読み込み中...").appFont(12).foregroundStyle(Color.mutedForeground)
-            }
-            if let error {
-                Text(error).appFont(12).foregroundStyle(Color.destructive)
-            }
-            if verifiedPIN != nil && !loading && accounts.isEmpty {
-                Text("登録済みアカウントはありません。").appFont(12).foregroundStyle(Color.mutedForeground)
-            }
-            ForEach(accounts) { account in
-                accountRow(account)
-            }
-        }
-    }
-
-    @ViewBuilder private func accountRow(_ account: TestAccountAdmin.Account) -> some View {
-        Group {
-            if confirmDeleteID == account.id {
-                ConfirmDeleteInline(message: "\(account.staffName)のアカウントを削除しますか？",
-                                    onConfirm: { Task { await delete(account) } },
-                                    onCancel: { confirmDeleteID = nil })
-            } else {
-                HStack(spacing: 12) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(account.staffName).appFont(14, weight: .medium).foregroundStyle(Color.appForeground)
-                        if let email = account.email {
-                            Label(email, systemImage: "envelope").appFont(12).foregroundStyle(Color.mutedForeground).lineLimit(1)
-                        }
-                    }
-                    Spacer()
-                    Button { confirmDeleteID = account.id } label: {
-                        Label("削除", systemImage: "trash").appFont(12, weight: .semibold).foregroundStyle(Color.destructive)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .card(radius: 12, fill: .appBackground)
-    }
-
-    private func load(pin: String) async {
-        loading = true
-        error = nil
-        defer { loading = false }
-        do {
-            accounts = try await TestAccountAdmin.list(pin: pin)
-            verifiedPIN = pin
-            self.pin = ""
-        } catch let failure as TestAccountAdmin.Failure {
-            error = failure.errorDescription
-        } catch {
-            self.error = "アカウント一覧を読み込めませんでした。"
-        }
-    }
-
-    private func delete(_ account: TestAccountAdmin.Account) async {
-        guard let verifiedPIN else { return }
-        do {
-            try await TestAccountAdmin.delete(account, pin: verifiedPIN)
-            accounts.removeAll { $0.id == account.id }
-        } catch {
-            self.error = "削除に失敗しました。もう一度お試しください。"
-        }
-        confirmDeleteID = nil
-    }
-}
 
 /// プッシュ通知: the master switch (OS permission + APNs registration), which
 /// remote events to receive, and the hidden 5-tap bell.

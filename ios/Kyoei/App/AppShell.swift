@@ -4,8 +4,6 @@ import SwiftUI
 /// The single app screen: status band, the active tab's content, and the
 /// bottom tab bar. Port of components/attendance-app.tsx.
 struct AppShell: View {
-    // PIN for the メニュー tab's hidden 5-tap gesture that unlocks 試験運転モード.
-    private static let testDriveModePasscode = "0525"
 
     @Environment(SettingsStore.self) private var settings
     @Environment(ShiftStore.self) private var shift
@@ -17,7 +15,6 @@ struct AppShell: View {
     @State private var menuPath: [MenuItem] = []
     /// Bumped on every おしらせ tab tap so an open post returns to the list.
     @State private var newsReset = 0
-    @State private var testDriveGate = PinGate(code: AppShell.testDriveModePasscode)
     @State private var newsNotifier = NewsNotifier()
     @Environment(\.scenePhase) private var scenePhase
     @Environment(RepairStore.self) private var repairs
@@ -39,16 +36,12 @@ struct AppShell: View {
                     // through 設定 (with its PIN), not this hidden gesture.
                     guard !settings.settings.partTimeMode else { return }
                     settings.toggleAppMode()
-                },
-                onSecretMenuGesture: {
-                    testDriveGate.guarded { settings.settings.testDriveMode = true }
                 }
             )
         }
         .background(AppBackground())
         .environment(\.followsDeviceFont, settings.settings.deviceFont)
         .overlay { PendingNotificationOverlay() }
-        .pinGate(testDriveGate)
         // App-lifetime realtime tables shared by several screens.
         .syncing(data.confirmMessageRows)
         .syncing(data.notificationRuleRows)

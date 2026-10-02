@@ -1,7 +1,7 @@
 import Foundation
 
-// メニュー tab entries. Port of components/menu-view.tsx's MENU_ITEMS /
-// TEST_DRIVE_MENU_ITEMS and their visibility rules.
+// メニュー tab entries and their visibility rules. マイページ (formerly the
+// 試験運転モード group) is a regular entry and hosts 運行履歴.
 
 public enum MenuItem: String, CaseIterable, Hashable, Sendable {
     case mypage
@@ -28,7 +28,7 @@ public enum MenuItem: String, CaseIterable, Hashable, Sendable {
 
     public var summary: String {
         switch self {
-        case .mypage: "名前・入社年月日・勤続年数を確認できます。"
+        case .mypage: "配車表・点検簿・休暇申請など、自分の記録と申請です。"
         case .lolmap: "各ボタンを押すとGoogleマップを開きます。"
         case .lol: "配達先情報の一覧を確認できます。"
         case .aa: "オークションの開催日・搬出期限を確認できます。"
@@ -43,17 +43,10 @@ public enum MenuItem: String, CaseIterable, Hashable, Sendable {
         }
     }
 
-    /// Shown in their own highlighted group only while 試験運転モード is on.
-    public static let testDriveItems: [MenuItem] = [.mypage]
-
-    /// Regular entries, in display order. LoL is hidden for part-time staff;
-    /// 運行履歴 is dropped while 試験運転モード is on because マイページ hosts it.
-    public static func regularItems(partTimeMode: Bool, testDriveMode: Bool) -> [MenuItem] {
-        let all: [MenuItem] = [.lolmap, .lol, .aa, .cars, .accidents, .tripHistory, .emergency, .notes, .terms, .qa, .settings]
-        return all.filter { item in
-            if partTimeMode && item == .lol { return false }
-            if testDriveMode && item == .tripHistory { return false }
-            return true
-        }
+    /// Entries in display order. LoL is hidden for part-time staff; 運行履歴
+    /// isn't listed because マイページ hosts it.
+    public static func regularItems(partTimeMode: Bool) -> [MenuItem] {
+        let all: [MenuItem] = [.mypage, .lolmap, .lol, .aa, .cars, .accidents, .emergency, .notes, .terms, .qa, .settings]
+        return all.filter { !(partTimeMode && $0 == .lol) }
     }
 }

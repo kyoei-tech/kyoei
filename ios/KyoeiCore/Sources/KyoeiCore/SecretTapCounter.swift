@@ -1,7 +1,7 @@
 import Foundation
 
 /// Hidden "tap N times quickly" gesture used throughout the app (home tab →
-/// モード切替, menu tab → 試験運転モード, settings bell → 通知管理, trip cards
+/// モード切替, settings bell → 通知管理, trip cards
 /// → 隠し編集). A tap more than `window` after the previous one starts over.
 public struct SecretTapCounter: Sendable {
     public let requiredTaps: Int

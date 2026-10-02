@@ -4,11 +4,11 @@ import Testing
 
 @Suite struct ShellModelTests {
     @Test func menuVisibility() {
-        let normal = MenuItem.regularItems(partTimeMode: false, testDriveMode: false)
-        #expect(normal.first == .lolmap && normal.last == .settings)
-        #expect(normal.contains(.lol) && normal.contains(.tripHistory))
-        #expect(!MenuItem.regularItems(partTimeMode: true, testDriveMode: false).contains(.lol))
-        #expect(!MenuItem.regularItems(partTimeMode: false, testDriveMode: true).contains(.tripHistory))
+        let normal = MenuItem.regularItems(partTimeMode: false)
+        #expect(normal.first == .mypage && normal.last == .settings)
+        #expect(normal.contains(.lol) && !normal.contains(.tripHistory))
+        #expect(!MenuItem.regularItems(partTimeMode: true).contains(.lol))
+        #expect(MenuItem.regularItems(partTimeMode: true).first == .mypage)
         #expect(MenuItem(rawValue: "trip-history") == .tripHistory)
     }
 
