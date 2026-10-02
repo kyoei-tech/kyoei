@@ -56,3 +56,39 @@ import Testing
         #expect(old.packingPrompt)
     }
 }
+
+@Suite struct PackingOrderTests {
+    let cars = (0..<3).map { DispatchVehicle(id: $0, round: "1", vehicleName: "車\($0)", chassisNumber: "A-\($0)", pickup: "A", dropoff: "B") }
+    let floors = ["上段", "下段前", "下段後"]
+
+    @Test func startsInSheetOrderWhenNothingIsPlaced() {
+        let order = PackingOrder(vehicles: cars, floors: floors, draft: PackingDraft())
+        #expect(order.slots == [.vehicle(0), .vehicle(1), .vehicle(2)])
+        #expect(order.draft.floor(of: 2) == "下段後")
+    }
+
+    @Test func draggingPushesTheOthersDown() {
+        var order = PackingOrder(vehicles: cars, floors: floors, draft: PackingDraft())
+        order.move(fromOffsets: [2], toOffset: 0)
+        #expect(order.slots == [.vehicle(2), .vehicle(0), .vehicle(1)])
+        #expect(order.draft.floor(of: 2) == "上段" && order.draft.floor(of: 1) == "下段後")
+        order.step(0, by: 1)
+        #expect(order.slots == [.vehicle(0), .vehicle(2), .vehicle(1)])
+    }
+
+    @Test func keepsExistingFloorsAndEmptySlots() {
+        var draft = PackingDraft()
+        draft.assign("下段後", to: 1)
+        let order = PackingOrder(vehicles: cars, floors: floors, draft: draft)
+        #expect(order.slots == [.empty(0), .empty(1), .vehicle(1), .vehicle(0), .vehicle(2)])
+        // Cars below the last floor have none.
+        #expect(order.floor(at: 3) == nil)
+        #expect(order.draft == draft)
+    }
+
+    @Test func moreCarsThanFloors() {
+        let order = PackingOrder(vehicles: cars, floors: ["1番", "2番"], draft: PackingDraft())
+        #expect(order.slots == [.vehicle(0), .vehicle(1), .vehicle(2)])
+        #expect(order.draft.floor(of: 2) == nil)
+    }
+}

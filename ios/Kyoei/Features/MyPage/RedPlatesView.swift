@@ -162,7 +162,7 @@ private struct MyPlateCard: View {
 }
 
 /// One plate: take it out (使用予定地 required), return it (own), and its record.
-private struct RedPlateDetailView: View {
+struct RedPlateDetailView: View {
     let row: RedPlateBoardRow
     let onDone: () -> Void
 

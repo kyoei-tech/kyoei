@@ -9,7 +9,15 @@ struct DrivingStatusView: View {
 
     @Environment(ShiftStore.self) private var store
     @Environment(SharedData.self) private var data
+    @Environment(AuthStore.self) private var auth
+    @Environment(SettingsStore.self) private var settings
+    @Environment(InspectionStore.self) private var inspections
     @State private var pending: Pending?
+    /// The driver's own sheets, for this 運行日's 配車表.
+    @State private var sheets = RealtimeTable<DispatchSheetRow>(table: "dispatch_sheets") { try await DispatchSheetRepository.fetchMine() }
+    @State private var openedSheet: DispatchSheetRow?
+    /// For 「赤枠持ち出し中」.
+    @State private var plates = RealtimeTable<RedPlateBoardRow>(table: "red_plate_uses") { try await RedPlateRepository.board() }
 
     private enum Pending: Equatable {
         case category(BreakCategory)
@@ -18,27 +26,77 @@ struct DrivingStatusView: View {
 
     var body: some View {
         if let trip = store.shift.trip, let departedAt = store.shift.startedAt {
+            let myPlates = RedPlateBoard.mine(plates.rows, userID: auth.userID)
             EverySecond { now in
                 TabPage {
+                    // 「赤枠持ち出し中」 sits level with the 出帰庫 button; the
+                    // emergency link moves below it then.
                     BackHeader(label: "出帰庫", onBack: onBack) {
-                        Spacer()
-                        Button(action: onOpenEmergencyContacts) {
-                            Label("事故/トラブルの時は", systemImage: "exclamationmark.triangle")
-                                .appFont(12, weight: .semibold)
-                                .foregroundStyle(Color.destructive)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .background(Color.destructive.opacity(0.1), in: Capsule())
-                                .overlay(Capsule().stroke(Color.destructive.opacity(0.3)))
+                        HStack {
+                            Spacer()
+                            if myPlates.isEmpty { emergencyButton } else { RedPlateOutBadge(plates: myPlates) }
                         }
-                        .buttonStyle(.plain)
+                    }
+                    if !myPlates.isEmpty {
+                        HStack {
+                            Spacer()
+                            emergencyButton
+                        }
+                    }
+                    if let sheet = TripDispatchSheet.sheet(departedAt: departedAt, in: sheets.rows) {
+                        dispatchSheetButton(sheet)
                     }
                     content(trip: trip, departedAt: departedAt, now: now)
                 }
                 .pageTint(.working)
                 .overlay { dialog(trip: trip, now: now) }
             }
+            .syncing(sheets)
+            .syncing(plates)
+            .fullScreen(item: $openedSheet) { sheet in
+                DispatchSheetDetail(sheet: sheet, backLabel: "運行情報へ戻る") { openedSheet = nil }
+                    .backButtonHost()
+                    .background(Color.appBackground.ignoresSafeArea())
+                    .environment(auth)
+                    .environment(settings)
+                    .environment(inspections)
+            }
         }
+    }
+
+    private var emergencyButton: some View {
+        Button(action: onOpenEmergencyContacts) {
+            Label("事故/トラブルの時は", systemImage: "exclamationmark.triangle")
+                .appFont(12, weight: .semibold)
+                .foregroundStyle(Color.destructive)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Color.destructive.opacity(0.1), in: Capsule())
+                .overlay(Capsule().stroke(Color.destructive.opacity(0.3)))
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Shown only when this 運行日's sheet has been uploaded (and read):
+    /// opens it directly, not the list.
+    private func dispatchSheetButton(_ sheet: DispatchSheetRow) -> some View {
+        Button { openedSheet = sheet } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "doc.text.fill").font(.system(size: 18, weight: .bold))
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("配車表").appFont(16, weight: .black).italic()
+                    Text(sheet.title).appFont(12, weight: .semibold).opacity(0.85)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right").font(.system(size: 14, weight: .heavy))
+            }
+            .foregroundStyle(Color.brandForeground)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 12)
+            .background(Color.brand, in: SlantedRectangle(slant: 10))
+        }
+        .buttonStyle(PressScaleStyle())
+        .accessibilityHint("今日の運行の配車表を開きます")
     }
 
     @ViewBuilder private func content(trip: TripState, departedAt: Date, now: Date) -> some View {

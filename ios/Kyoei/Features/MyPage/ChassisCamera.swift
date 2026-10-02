@@ -5,15 +5,24 @@ import SwiftUI
 import Vision
 
 /// The camera for 車台番号: preview, ライト (torch on the same device, so
-/// toggling it never disturbs the session), pinch zoom, tap to focus and a
-/// shutter. Photos stay in memory; nothing is saved unless a 記録 keeps it.
-final class ChassisCamera: NSObject, @unchecked Sendable, AVCapturePhotoCaptureDelegate {
+/// toggling it never disturbs the session), pinch zoom, tap to focus, live
+/// reading of the preview frames (かざすだけで照合) and a shutter. Photos and
+/// frames stay in memory; nothing is saved unless a 記録 keeps it.
+final class ChassisCamera: NSObject, @unchecked Sendable, AVCapturePhotoCaptureDelegate, AVCaptureVideoDataOutputSampleBufferDelegate {
     let session = AVCaptureSession()
     private let output = AVCapturePhotoOutput()
+    private let frames = AVCaptureVideoDataOutput()
     private let queue = DispatchQueue(label: "jp.kyoei.chassis-camera")
+    /// Frames are read here, one at a time; frames arriving meanwhile are dropped.
+    private let frameQueue = DispatchQueue(label: "jp.kyoei.chassis-camera.frames")
     private var device: AVCaptureDevice?
     private var pending: CheckedContinuation<Data?, Never>?
     private var configured = false
+    /// Set on frameQueue only.
+    private var onLines: (@Sendable ([String]) -> Void)?
+    private var lastRead = Date.distantPast
+    /// Seconds between two frame readings.
+    private static let readInterval: TimeInterval = 0.35
 
     func start() {
         queue.async { [self] in
@@ -23,6 +32,7 @@ final class ChassisCamera: NSObject, @unchecked Sendable, AVCapturePhotoCaptureD
     }
 
     func stop() {
+        readFrames(nil)
         queue.async { [self] in
             setTorchLocked(false)
             if session.isRunning { session.stopRunning() }
@@ -47,7 +57,30 @@ final class ChassisCamera: NSObject, @unchecked Sendable, AVCapturePhotoCaptureD
             session.addOutput(output)
             output.maxPhotoQualityPrioritization = .quality
         }
+        if session.canAddOutput(frames) {
+            frames.alwaysDiscardsLateVideoFrames = true
+            frames.setSampleBufferDelegate(self, queue: frameQueue)
+            session.addOutput(frames)
+        }
         session.commitConfiguration()
+    }
+
+    /// Reads the text lines of preview frames (a few per second) and hands
+    /// them to `handler`, on a background queue; nil stops reading.
+    func readFrames(_ handler: (@Sendable ([String]) -> Void)?) {
+        frameQueue.async { [self] in
+            onLines = handler
+            lastRead = .distantPast
+        }
+    }
+
+    func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
+        guard let onLines, Date().timeIntervalSince(lastRead) >= Self.readInterval,
+              let pixels = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
+        lastRead = Date()
+        // Portrait only: the back camera's frames are rotated right.
+        let lines = ChassisTextReader.lines(in: VNImageRequestHandler(cvPixelBuffer: pixels, orientation: .right))
+        if !lines.isEmpty { onLines(lines) }
     }
 
     var hasTorch: Bool { AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back)?.hasTorch ?? false }
@@ -164,16 +197,20 @@ enum ChassisTextReader {
             let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
             let raw = (properties?[kCGImagePropertyOrientation] as? UInt32) ?? 1
             let orientation = CGImagePropertyOrientation(rawValue: raw) ?? .up
-            let request = VNRecognizeTextRequest()
-            request.recognitionLevel = .accurate
-            request.usesLanguageCorrection = false
-            request.recognitionLanguages = ["en-US"]
-            let handler = VNImageRequestHandler(cgImage: image, orientation: orientation)
-            try? handler.perform([request])
-            return (request.results ?? []).flatMap { observation in
-                observation.topCandidates(2).map(\.string)
-            }
+            return lines(in: VNImageRequestHandler(cgImage: image, orientation: orientation))
         }.value
+    }
+
+    /// Synchronous; call off the main thread.
+    static func lines(in handler: VNImageRequestHandler) -> [String] {
+        let request = VNRecognizeTextRequest()
+        request.recognitionLevel = .accurate
+        request.usesLanguageCorrection = false
+        request.recognitionLanguages = ["en-US"]
+        try? handler.perform([request])
+        return (request.results ?? []).flatMap { observation in
+            observation.topCandidates(2).map(\.string)
+        }
     }
 }
 #endif

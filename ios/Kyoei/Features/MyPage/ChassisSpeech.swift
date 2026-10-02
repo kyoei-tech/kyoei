@@ -18,6 +18,7 @@ final class ChassisSpeech {
     @ObservationIgnored private let engine = AVAudioEngine()
     @ObservationIgnored private var request: SFSpeechAudioBufferRecognitionRequest?
     @ObservationIgnored private var task: SFSpeechRecognitionTask?
+    @ObservationIgnored private var tapInstalled = false
     @ObservationIgnored private let recognizer = SFSpeechRecognizer(locale: Locale(identifier: "ja-JP"))
 
     var number: String { SpokenChassis.normalize(transcript) }
@@ -26,9 +27,7 @@ final class ChassisSpeech {
         stop()
         problem = nil
         transcript = ""
-        let speech = await withCheckedContinuation { continuation in
-            SFSpeechRecognizer.requestAuthorization { continuation.resume(returning: $0) }
-        }
+        let speech = await Self.requestSpeechAuthorization()
         guard speech == .authorized else {
             problem = "音声認識が許可されていません。設定アプリの「KYOEI」で音声認識とマイクを許可してください。"
             return
@@ -54,19 +53,22 @@ final class ChassisSpeech {
 
             let input = engine.inputNode
             let format = input.outputFormat(forBus: 0)
-            nonisolated(unsafe) let sink = request
-            input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in sink.append(buffer) }
+            guard format.sampleRate > 0, format.channelCount > 0 else {
+                problem = "マイクを開始できませんでした。"
+                stop()
+                return
+            }
+            Self.feed(input, format: format, into: request)
+            tapInstalled = true
             engine.prepare()
             try engine.start()
             listening = true
 
-            task = recognizer.recognitionTask(with: request) { [weak self] result, error in
-                let text = result?.bestTranscription.formattedString
-                let final = result?.isFinal ?? false
+            task = Self.recognize(with: recognizer, request: request) { [weak self] text, finished in
                 Task { @MainActor [weak self] in
                     guard let self else { return }
                     if let text { self.transcript = text }
-                    if final || error != nil { self.stop() }
+                    if finished { self.stop() }
                 }
             }
         } catch {
@@ -75,10 +77,40 @@ final class ChassisSpeech {
         }
     }
 
+    // The audio tap and the recognizer call back on their own threads. Closures
+    // written inside this @MainActor class would be main-actor isolated
+    // (Swift 6), and the runtime stops the app when they're called off the
+    // main thread — so they're made in these nonisolated helpers instead.
+
+    private nonisolated static func requestSpeechAuthorization() async -> SFSpeechRecognizerAuthorizationStatus {
+        await withCheckedContinuation { continuation in
+            SFSpeechRecognizer.requestAuthorization { continuation.resume(returning: $0) }
+        }
+    }
+
+    private nonisolated static func feed(_ input: AVAudioInputNode, format: AVAudioFormat, into request: SFSpeechAudioBufferRecognitionRequest) {
+        nonisolated(unsafe) let sink = request
+        input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in sink.append(buffer) }
+    }
+
+    /// `update(transcript, finished)` runs on the recognizer's queue.
+    private nonisolated static func recognize(
+        with recognizer: SFSpeechRecognizer,
+        request: SFSpeechAudioBufferRecognitionRequest,
+        update: @escaping @Sendable (String?, Bool) -> Void
+    ) -> SFSpeechRecognitionTask {
+        recognizer.recognitionTask(with: request) { result, error in
+            update(result?.bestTranscription.formattedString, (result?.isFinal ?? false) || error != nil)
+        }
+    }
+
     func stop() {
-        if engine.isRunning {
-            engine.stop()
+        if engine.isRunning { engine.stop() }
+        // Always: a tap left behind by a failed start would make the next
+        // installTap fail.
+        if tapInstalled {
             engine.inputNode.removeTap(onBus: 0)
+            tapInstalled = false
         }
         request?.endAudio()
         request = nil

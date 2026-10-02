@@ -2,6 +2,7 @@ import KyoeiCore
 import PhotosUI
 import Supabase
 import SwiftUI
+import UniformTypeIdentifiers
 
 enum PackingRepository {
     static func fetch(sheetID: String) async throws -> [PackingRecord] {
@@ -67,15 +68,26 @@ struct PackingTarget: Identifiable {
     }
 }
 
-/// 荷姿の入力: the 回戦's cars listed top to bottom (車種・型式・車体番号 in
-/// full) with the 車格's floors to pick, plus photos. ローダー is photo only.
+/// 荷姿の入力: the 回戦's cars (車種・型式・車体番号 in full), placed either by
+/// 並び替え (the default: drag the cars into floor order, top to bottom) or
+/// by picking each car's 番号, plus photos. ローダー is photo only.
 struct PackingEditorView: View {
+    enum Mode: String, CaseIterable, Identifiable {
+        case reorder = "並び替え"
+        case pick = "番号を選ぶ"
+        var id: String { rawValue }
+    }
+
     let target: PackingTarget
     let onClose: (PackingRecord?) -> Void
 
     @Environment(AuthStore.self) private var auth
     @Environment(InspectionStore.self) private var inspections
     @State private var draft = PackingDraft()
+    @State private var mode: Mode = .reorder
+    /// The 並び替え column; kept in step with `draft`.
+    @State private var order: PackingOrder?
+    @State private var dragging: PackingOrder.Slot?
     @State private var keptPhotos: [String] = []
     @State private var newPhotos: [Data] = []
     @State private var note = ""
@@ -116,7 +128,17 @@ struct PackingEditorView: View {
                     } else if floors.isEmpty {
                         Text("ローダーは写真のみの記録です。").appFont(13).foregroundStyle(Color.mutedForeground)
                     }
-                    ForEach(target.round.vehicles) { vehicle in vehicleRow(vehicle) }
+                    if !floors.isEmpty {
+                        Picker("入力方法", selection: $mode) {
+                            ForEach(Mode.allCases) { Text($0.rawValue).tag($0) }
+                        }
+                        .pickerStyle(.segmented)
+                    }
+                    if !floors.isEmpty, mode == .reorder, let order {
+                        reorderList(order)
+                    } else {
+                        ForEach(target.round.vehicles) { vehicle in vehicleRow(vehicle) }
+                    }
                     photos
                     FormField(label: "メモ（任意）") {
                         BoxedTextField(placeholder: "例：雨天のため上段は養生", text: $note, fill: .card)
@@ -136,8 +158,16 @@ struct PackingEditorView: View {
         .background(Color.appBackground.ignoresSafeArea())
         .onAppear {
             draft = PackingDraft(placements: target.existing?.placements ?? [])
+            order = PackingOrder(vehicles: target.round.vehicles, floors: floors, draft: draft)
             keptPhotos = target.existing?.photo_paths ?? []
             note = target.existing?.note ?? ""
+        }
+        // Switching back to 並び替え starts from what was picked.
+        .onChange(of: mode) { _, new in
+            if new == .reorder { order = PackingOrder(vehicles: target.round.vehicles, floors: floors, draft: draft) }
+        }
+        .onChange(of: order) { _, new in
+            if let new, mode == .reorder { draft = new.draft }
         }
         .overlay {
             if confirmsDelete {
@@ -161,7 +191,9 @@ struct PackingEditorView: View {
             }
             if !floors.isEmpty {
                 let placed = target.round.vehicles.filter { draft.floor(of: $0.id) != nil }.count
-                Text("積んだ場所をタップしてください（\(placed)/\(target.round.vehicles.count)台 入力済）")
+                Text(mode == .reorder
+                     ? "車を長押しして上下に動かし、積んだ順に並べてください（\(placed)/\(target.round.vehicles.count)台 入力済）"
+                     : "積んだ場所をタップしてください（\(placed)/\(target.round.vehicles.count)台 入力済）")
                     .appFont(12).foregroundStyle(Color.mutedForeground)
             }
         }
@@ -205,6 +237,81 @@ struct PackingEditorView: View {
         }
         .padding(14)
         .card()
+    }
+
+    // MARK: 並び替え
+
+    /// Floors down the left, cars (and 空き) in the column: a car dropped on
+    /// a row takes that floor and pushes the others along.
+    private func reorderList(_ order: PackingOrder) -> some View {
+        let vehicles = Dictionary(uniqueKeysWithValues: target.round.vehicles.map { ($0.id, $0) })
+        return VStack(spacing: 6) {
+            ForEach(Array(order.slots.enumerated()), id: \.element) { index, slot in
+                if index == order.floors.count {
+                    Text("ここから下は積む場所が入っていません").appFont(11, weight: .bold).foregroundStyle(Color.mutedForeground)
+                        .frame(maxWidth: .infinity, alignment: .leading).padding(.top, 6)
+                }
+                HStack(spacing: 8) {
+                    Text(order.floor(at: index) ?? "－")
+                        .appFont(14, weight: .black)
+                        .foregroundStyle(order.floor(at: index) == nil ? Color.mutedForeground : Color.primary)
+                        .frame(width: 56, alignment: .leading)
+                    slotCard(slot, vehicles: vehicles, index: index, count: order.slots.count)
+                        .onDrag {
+                            dragging = slot
+                            return NSItemProvider(object: String(describing: slot) as NSString)
+                        }
+                        .onDrop(of: [.text], delegate: SlotDropDelegate(slot: slot, order: $order, dragging: $dragging))
+                }
+            }
+        }
+        .animation(.easeOut(duration: 0.2), value: order.slots)
+    }
+
+    private func slotCard(_ slot: PackingOrder.Slot, vehicles: [Int: DispatchVehicle], index: Int, count: Int) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "line.3.horizontal").foregroundStyle(Color.mutedForeground)
+            switch slot {
+            case .vehicle(let id):
+                let vehicle = vehicles[id]
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text(vehicle.map { $0.vehicleName.isEmpty ? "（車名なし）" : $0.vehicleName } ?? "").appFont(16, weight: .bold).foregroundStyle(Color.appForeground)
+                        if let model = vehicle?.modelCode, !model.isEmpty {
+                            Text(model).appFont(12, weight: .semibold).monospaced().foregroundStyle(Color.mutedForeground)
+                        }
+                    }
+                    if let chassis = vehicle?.chassisNumber, !chassis.isEmpty {
+                        ChassisNumberText(chassis: chassis, compact: true)
+                    } else {
+                        Text("車体番号：空欄").appFont(12).foregroundStyle(Color.mutedForeground)
+                    }
+                }
+            case .empty:
+                Text("空き").appFont(14, weight: .bold).foregroundStyle(Color.mutedForeground)
+            }
+            Spacer(minLength: 4)
+            VStack(spacing: 2) {
+                stepButton("chevron.up", label: "上へ", disabled: index == 0) { order?.step(index, by: -1) }
+                stepButton("chevron.down", label: "下へ", disabled: index == count - 1) { order?.step(index, by: 1) }
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(slot.isEmpty ? Color.appBackground : Color.card, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.border, style: StrokeStyle(lineWidth: 1, dash: slot.isEmpty ? [5, 4] : [])))
+        .contentShape(.dragPreview, RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func stepButton(_ icon: String, label: String, disabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: icon).font(.system(size: 12, weight: .bold)).frame(width: 30, height: 20)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(disabled ? Color.border : Color.mutedForeground)
+        .disabled(disabled)
+        .accessibilityLabel(label)
     }
 
     private var photos: some View {
@@ -283,6 +390,34 @@ struct PackingEditorView: View {
                 self.error = "削除できませんでした。通信状況を確認してください。"
             }
         }
+    }
+}
+
+extension PackingOrder.Slot {
+    var isEmpty: Bool {
+        if case .empty = self { return true }
+        return false
+    }
+}
+
+/// Live reorder: as a dragged car passes over a row it moves into that
+/// place, pushing the others along.
+private struct SlotDropDelegate: DropDelegate {
+    let slot: PackingOrder.Slot
+    @Binding var order: PackingOrder?
+    @Binding var dragging: PackingOrder.Slot?
+
+    func dropEntered(info: DropInfo) {
+        guard let dragging, dragging != slot, let slots = order?.slots,
+              let from = slots.firstIndex(of: dragging), let to = slots.firstIndex(of: slot) else { return }
+        order?.move(fromOffsets: [from], toOffset: to > from ? to + 1 : to)
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .move) }
+
+    func performDrop(info: DropInfo) -> Bool {
+        dragging = nil
+        return true
     }
 }
 

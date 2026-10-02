@@ -91,3 +91,50 @@ public enum DispatchSheetUpload {
         (filename as NSString).pathExtension.lowercased() == "pdf" && data.starts(with: Array("%PDF".utf8))
     }
 }
+
+// MARK: - 運行中の配車表
+
+extension DispatchSheetRow {
+    /// 配車日 ("09月01日") as month and day; nil until parsed or when unreadable.
+    public var dispatchMonthDay: (month: Int, day: Int)? {
+        guard let dispatch_date, let match = dispatch_date.firstMatch(of: /(\d{1,2})\s*[月\/]\s*(\d{1,2})/),
+              let month = Int(match.output.1), let day = Int(match.output.2),
+              (1...12).contains(month), (1...31).contains(day) else { return nil }
+        return (month, day)
+    }
+
+    /// Whether this sheet's 配車日 is `day` (the sheet has no year, so the
+    /// month and day are compared).
+    public func isDispatched(on day: LocalDate) -> Bool {
+        guard let md = dispatchMonthDay else { return false }
+        return md.month == day.month && md.day == day.day
+    }
+}
+
+/// The 配車表 for the trip under way (運行情報 → 配車表). A trip can start
+/// before midnight for the next day's work, so the 運行日 follows the
+/// 出庫 time: departing from `eveningHour` on, the next day's sheet comes
+/// first, then that day's; earlier in the day, only that day's. The current
+/// time doesn't matter, so a trip that runs past midnight keeps its sheet.
+public enum TripDispatchSheet {
+    public static let eveningHour = 18
+
+    /// 運行日 candidates, most likely first.
+    public static func operatingDays(departedAt: Date, calendar: Calendar = .current) -> [LocalDate] {
+        let day = LocalDate(departedAt, calendar: calendar)
+        let hour = calendar.component(.hour, from: departedAt)
+        return hour >= eveningHour ? [day.adding(days: 1, calendar: calendar), day] : [day]
+    }
+
+    /// The parsed sheet for the 運行日 (the newest upload when there are
+    /// several), or nil when none has been uploaded.
+    public static func sheet(departedAt: Date, in rows: [DispatchSheetRow], calendar: Calendar = .current) -> DispatchSheetRow? {
+        let newestFirst = rows.filter(\.isParsed).sorted { a, b in
+            (DBTimestamp.parse(a.uploaded_at) ?? .distantPast) > (DBTimestamp.parse(b.uploaded_at) ?? .distantPast)
+        }
+        for day in operatingDays(departedAt: departedAt, calendar: calendar) {
+            if let sheet = newestFirst.first(where: { $0.isDispatched(on: day) }) { return sheet }
+        }
+        return nil
+    }
+}

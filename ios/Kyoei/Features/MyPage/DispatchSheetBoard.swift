@@ -17,11 +17,13 @@ extension Color {
 /// One sheet: parse status, the two parsed views, and the original PDF.
 struct DispatchSheetDetail: View {
     let sheet: DispatchSheetRow
+    var backLabel = "一覧へ戻る"
     let onBack: () -> Void
 
+    /// Left to right: 1台詳細, 回戦まとめ, 原本.
     enum Tab: String, CaseIterable, Identifiable {
-        case summary = "回戦まとめ"
         case vehicles = "1台詳細"
+        case summary = "回戦まとめ"
         case original = "原本"
         var id: String { rawValue }
     }
@@ -41,9 +43,16 @@ struct DispatchSheetDetail: View {
     @State private var packing: PackingTarget?
     /// 回戦 that just became all 照合済, asked about once the camera closes.
     @State private var packingPrompts: [DispatchRound] = []
+    /// 「○○と○○は同じ場所ですか？」 answers (the driver's own, every sheet).
+    @State private var placeAnswers = RealtimeTable<PlaceAliasRow>(table: "dispatch_place_aliases") {
+        try await DispatchSheetRepository.fetchPlaceAliases()
+    }
+    /// Pairs answered in this session, hidden before the table refreshes.
+    @State private var answeredHere: Set<PlacePair> = []
 
-    init(sheet: DispatchSheetRow, onBack: @escaping () -> Void) {
+    init(sheet: DispatchSheetRow, backLabel: String = "一覧へ戻る", onBack: @escaping () -> Void) {
         self.sheet = sheet
+        self.backLabel = backLabel
         self.onBack = onBack
         let sheetID = sheet.id
         _checks = State(initialValue: RealtimeTable(table: "dispatch_chassis_checks") {
@@ -57,9 +66,19 @@ struct DispatchSheetDetail: View {
     private var checkIndex: ChassisChecks { ChassisChecks(checks.rows) }
     private var chassisState: SheetChassisState { SheetChassisState(checks: checkIndex, acknowledgments: acknowledgments.rows) }
 
+    private var placeAliases: PlaceAliases {
+        PlaceAliases(placeAnswers.rows, order: content.map(PlaceNames.places(in:)) ?? [])
+    }
+
+    /// The next 似た名前の場所 to ask about (after the table has loaded once).
+    private var placeQuestion: PlacePair? {
+        guard let content, !placeAnswers.isLoading, placeAnswers.error == nil else { return nil }
+        return PlaceNames.unansweredPairs(in: content, answers: placeAnswers.rows).first { !answeredHere.contains($0) }
+    }
+
     var body: some View {
         VStack(spacing: 8) {
-            BackHeader(label: "一覧へ戻る", variant: .subtle, onBack: onBack)
+            BackHeader(label: backLabel, variant: .subtle, onBack: onBack)
                 .padding(.horizontal, 16)
             heading.padding(.horizontal, 16)
             Picker("表示", selection: $tab) {
@@ -78,10 +97,10 @@ struct DispatchSheetDetail: View {
                             Text(message).appFont(12, weight: .semibold).foregroundStyle(Color.destructive)
                         }
                         if !content.warnings.isEmpty {
-                            SheetWarnings(warnings: content.warnings) { tab = .original }
+                            SheetWarnings(content: content) { tab = .original }
                         }
                         if tab == .summary {
-                            DispatchSummaryList(content: content, state: chassisState, packed: Set(packings.map(\.round)), onPacking: openPacking)
+                            DispatchSummaryList(content: content, state: chassisState, aliases: placeAliases, packed: Set(packings.map(\.round)), onPacking: openPacking)
                         } else {
                             DispatchVehicleList(content: content, state: chassisState, actions: cardActions)
                         }
@@ -97,6 +116,7 @@ struct DispatchSheetDetail: View {
         }
         .syncing(checks)
         .syncing(acknowledgments)
+        .syncing(placeAnswers)
         // Reload whenever the list row says the parse result changed
         // (Realtime on dispatch_sheets updates `sheet`).
         .task(id: "\(sheet.id)|\(sheet.statusLabel)") { await loadContent() }
@@ -115,6 +135,22 @@ struct DispatchSheetDetail: View {
             PackingEditorView(target: target) { _ in
                 packing = nil
                 Task { await loadPackings() }
+            }
+        }
+        .overlay {
+            if scan == nil, packing == nil, packingPrompts.isEmpty, let pair = placeQuestion {
+                ConfirmActionDialog(
+                    message: "「\(pair.first)」と「\(pair.second)」は同じ場所ですか？",
+                    confirmLabel: "同じ場所",
+                    cancelLabel: "違う場所",
+                    onConfirm: { answerPlace(pair, same: true) },
+                    onCancel: { answerPlace(pair, same: false) }
+                ) {
+                    Text("同じ場所なら、回戦まとめで1つの場所としてまとめて表示します。この答えは次の配車表からも使われます。")
+                        .appFont(13).foregroundStyle(Color.mutedForeground)
+                        .multilineTextAlignment(.center)
+                }
+                .id(pair.id)
             }
         }
         .overlay {
@@ -228,6 +264,18 @@ struct DispatchSheetDetail: View {
         }
     }
 
+    private func answerPlace(_ pair: PlacePair, same: Bool) {
+        answeredHere.insert(pair)
+        Task {
+            do {
+                try await DispatchSheetRepository.answerPlaceAlias(PlaceAliasInsert(pair, same: same))
+            } catch {
+                message = "「同じ場所」の答えを保存できませんでした。通信状況を確認してください。"
+            }
+            await placeAnswers.refresh()
+        }
+    }
+
     private func loadPackings() async {
         if let fresh = try? await PackingRepository.fetch(sheetID: sheet.id) { packings = fresh }
     }
@@ -236,8 +284,9 @@ struct DispatchSheetDetail: View {
         packing = PackingTarget(sheetID: sheet.id, sheetTitle: sheet.title, round: round, existing: packings.first { $0.round == round.round })
     }
 
-    /// 照合 of a printed number, or 記録 of `read` for a blank 車体番号 (which
-    /// keeps its photo; a 照合's photo is never uploaded).
+    /// 照合 of a printed number, or 記録 of `read` for a blank 車体番号. A 記録
+    /// keeps its photo, and so does a voice 照合 that followed an unreadable
+    /// shot; a camera 照合's photo is never uploaded.
     private func record(_ vehicle: DispatchVehicle, read: String, method: ChassisCheckMethod, input: ChassisInput, photo: Data?) {
         let before = checkIndex
         let userID = auth.userID
@@ -245,7 +294,7 @@ struct DispatchSheetDetail: View {
             defer { promptPacking(before: before) }
             do {
                 var photoPath: String?
-                if vehicle.needsRecording, let photo, let userID, let jpeg = ImageEncoding.jpeg(from: photo, maxDimension: 1600) {
+                if vehicle.needsRecording || input == .voice, let photo, let userID, let jpeg = ImageEncoding.jpeg(from: photo, maxDimension: 1600) {
                     photoPath = try? await AttachmentStore.shared.upload(jpeg, filename: "chassis.jpg", to: .chassisPhotos, folder: userID)
                 }
                 try await DispatchSheetRepository.recordCheck(ChassisCheckInsert(sheetID: sheet.id, vehicle: vehicle, read: read, method: method, input: input, photoPath: photoPath))
@@ -343,6 +392,8 @@ struct SheetChassisState {
 private struct DispatchSummaryList: View {
     let content: DispatchSheetContent
     let state: SheetChassisState
+    /// 似た名前の場所 answered as the same place are one route.
+    let aliases: PlaceAliases
     /// 回戦 with a 荷姿 record.
     let packed: Set<String>
     let onPacking: (DispatchRound) -> Void
@@ -350,7 +401,7 @@ private struct DispatchSummaryList: View {
     var body: some View {
         let today = LocalDate(Date())
         ForEach(content.rounds) { round in
-            let routes = round.routes
+            let routes = round.routes(aliases: aliases)
             let earliest = routes.compactMap { $0.earliestDropoff(today: today) }.min()
             let review = state.reviewCount(round.vehicles)
             VStack(alignment: .leading, spacing: 10) {
@@ -801,7 +852,8 @@ private struct ChassisProgressChips: View {
     }
 }
 
-/// Mono chassis number with the last 4 digits emphasized.
+/// Mono chassis number with the 番号 emphasized: after the hyphen, or for a
+/// 外車 (no hyphen, may be shortened) the digits after the last letter.
 /// Always the full number — 車体番号 is never abbreviated anywhere.
 struct ChassisNumberText: View {
     let chassis: String
@@ -812,8 +864,9 @@ struct ChassisNumberText: View {
         if chassis.isEmpty {
             Text("車体番号 空欄").appFont(14).foregroundStyle(Color.mutedForeground)
         } else {
-            (Text(chassis.dropLast(4)).font(.system(size: compact ? 14 : 17, weight: .bold, design: .monospaced))
-                + Text(chassis.suffix(4)).font(.system(size: compact ? 15 : 22, weight: .heavy, design: .monospaced)).foregroundColor(.primary))
+            let parts = ChassisNumber.emphasis(chassis)
+            (Text(parts.head).font(.system(size: compact ? 14 : 17, weight: .bold, design: .monospaced))
+                + Text(parts.serial).font(.system(size: compact ? 15 : 22, weight: .heavy, design: .monospaced)).foregroundColor(.primary))
                 .foregroundStyle(Color.appForeground)
                 .textSelection(.enabled)
         }
@@ -927,26 +980,64 @@ private struct FlowChips: View {
     }
 }
 
+/// The parser's notes on the sheet. Tapping opens what to check — each
+/// vehicle with its 要確認 items — with a button to the 原本.
 private struct SheetWarnings: View {
-    let warnings: [String]
+    let content: DispatchSheetContent
     let onShowOriginal: () -> Void
 
+    @State private var expanded = false
+
+    private var flagged: [DispatchVehicle] { content.vehicles.filter { !$0.warnings.isEmpty } }
+
     var body: some View {
-        Button(action: onShowOriginal) {
-            HStack(alignment: .top, spacing: 8) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                VStack(alignment: .leading, spacing: 2) {
-                    ForEach(warnings, id: \.self) { Text($0) }
-                    Text("原本で確認する ›").underline()
+        VStack(alignment: .leading, spacing: 10) {
+            Button { withAnimation(.easeOut(duration: 0.2)) { expanded.toggle() } } label: {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                    VStack(alignment: .leading, spacing: 2) {
+                        ForEach(content.warnings, id: \.self) { Text($0) }
+                        Text(expanded ? "閉じる" : "確認する内容を見る ›").underline()
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: expanded ? "chevron.up" : "chevron.down").font(.system(size: 12, weight: .bold))
                 }
-                Spacer(minLength: 0)
+                .contentShape(Rectangle())
             }
-            .appFont(12, weight: .bold)
-            .foregroundStyle(Color.destructive)
-            .padding(10)
-            .background(Color.destructive.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+            .buttonStyle(.plain)
+            if expanded {
+                if !flagged.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(flagged) { vehicle in
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text("\(vehicle.round == "不明" ? "回戦不明" : "\(vehicle.round)回戦") ・ \(vehicle.vehicleName.isEmpty ? "（品名なし）" : vehicle.vehicleName)")
+                                    .appFont(13, weight: .black).foregroundStyle(Color.appForeground)
+                                if !vehicle.chassisNumber.isEmpty {
+                                    ChassisNumberText(chassis: vehicle.chassisNumber, compact: true)
+                                }
+                                ForEach(vehicle.warnings, id: \.self) { warning in
+                                    Label(warning, systemImage: "exclamationmark.circle")
+                                        .appFont(12, weight: .bold).foregroundStyle(Color.destructive)
+                                }
+                            }
+                            .padding(10)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.card, in: RoundedRectangle(cornerRadius: 10))
+                        }
+                    }
+                }
+                Text("読み取りが原本と違うことがあります。原本で内容を確かめてください。")
+                    .appFont(12).foregroundStyle(Color.appForeground)
+                Button(action: onShowOriginal) {
+                    Label("原本を確認する", systemImage: "doc.text").appFont(14, weight: .bold).frame(maxWidth: .infinity)
+                }
+                .buttonStyle(PillButtonStyle(kind: .destructive))
+            }
         }
-        .buttonStyle(.plain)
+        .appFont(12, weight: .bold)
+        .foregroundStyle(Color.destructive)
+        .padding(10)
+        .background(Color.destructive.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
     }
 }
 

@@ -55,8 +55,15 @@ private struct DriverHomeMain: View {
     @Environment(SettingsStore.self) private var settings
     @Environment(SharedData.self) private var data
     @Environment(InspectionStore.self) private var inspections
+    @Environment(AuthStore.self) private var auth
     @State private var pending: PendingAction?
     @State private var inspecting = false
+    /// 出庫 → 「赤枠を持ち出しますか？」.
+    @State private var askingRedPlate = false
+    /// The plate chosen to take out (its 使用予定地 screen).
+    @State private var takingPlate: RedPlateBoardRow?
+    /// 帰庫 with plates still out: return or keep each.
+    @State private var platesOut: [RedPlateBoardRow] = []
 
     private enum PendingAction: Equatable {
         /// 出庫 before today's 日常点検 (or after one that didn't allow it).
@@ -88,6 +95,10 @@ private struct DriverHomeMain: View {
             }
             .pageTint(tint)
             .overlay { dialog(status: status, now: now) }
+            .overlay { redPlateDialog }
+        }
+        .sheet(item: $takingPlate) { plate in
+            RedPlateDetailView(row: plate) { takingPlate = nil }
         }
         .fullScreen(isPresented: $inspecting) {
             InspectionFlowView { record in
@@ -249,6 +260,7 @@ private struct DriverHomeMain: View {
                 onConfirm: {
                     pending = nil
                     store.returnToYard(staffMemberID: settings.settings.staffMemberID)
+                    checkPlatesOut()
                 },
                 onCancel: { pending = nil }
             )
@@ -275,6 +287,32 @@ private struct DriverHomeMain: View {
         }
         pending = nil
         store.depart(viaSplitRest: step == .splitRestMessage, staffMemberID: settings.settings.staffMemberID)
+        askingRedPlate = true
+    }
+
+    // MARK: 赤枠
+
+    @ViewBuilder private var redPlateDialog: some View {
+        if askingRedPlate {
+            RedPlateTakePrompt(
+                onTake: { plate in
+                    askingRedPlate = false
+                    takingPlate = plate
+                },
+                onSkip: { askingRedPlate = false }
+            )
+        } else if !platesOut.isEmpty {
+            RedPlateReturnPrompt(plates: platesOut) { platesOut = [] }
+        }
+    }
+
+    /// After 帰庫: the driver's plates still out, if any, are asked about.
+    private func checkPlatesOut() {
+        let userID = auth.userID
+        Task {
+            guard let board = try? await RedPlateRepository.board() else { return }
+            platesOut = RedPlateBoard.mine(board, userID: userID)
+        }
     }
 
     private func warningBody(_ step: DepartureConfirmation, status: DriverHomeStatus, messages: ConfirmMessages) -> String? {

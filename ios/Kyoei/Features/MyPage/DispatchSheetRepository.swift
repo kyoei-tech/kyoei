@@ -13,6 +13,13 @@ enum DispatchSheetRepository {
             .execute().value
     }
 
+    /// Every sheet the signed-in driver can see — only their own (RLS).
+    static func fetchMine() async throws -> [DispatchSheetRow] {
+        try await Backend.client.from("dispatch_sheets").select(DispatchSheetRow.selectColumns)
+            .order("uploaded_at", ascending: false)
+            .execute().value
+    }
+
     static func fetchDetail(id: String) async throws -> DispatchSheetDetailRow {
         try await Backend.client.from("dispatch_sheets").select(DispatchSheetDetailRow.selectColumns)
             .eq("id", value: id)
@@ -98,6 +105,21 @@ enum DispatchSheetRepository {
 
     static func removeBlankAcknowledgment(id: String) async throws {
         try await Backend.client.from("dispatch_blank_acknowledgments").delete().eq("id", value: id).execute()
+    }
+}
+
+extension DispatchSheetRepository {
+    // MARK: 似た名前の場所 (personal; applies to every sheet)
+
+    static func fetchPlaceAliases() async throws -> [PlaceAliasRow] {
+        try await Backend.client.from("dispatch_place_aliases").select(PlaceAliasRow.selectColumns).execute().value
+    }
+
+    /// Answering the same pair again (e.g. on another device) replaces the answer.
+    static func answerPlaceAlias(_ answer: PlaceAliasInsert) async throws {
+        try await Backend.client.from("dispatch_place_aliases")
+            .upsert(answer, onConflict: "user_id,name_a,name_b", returning: .minimal)
+            .execute()
     }
 }
 

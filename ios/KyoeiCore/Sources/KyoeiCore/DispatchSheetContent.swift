@@ -102,19 +102,7 @@ public struct DispatchRound: Equatable, Identifiable, Sendable {
     public var title: String { round == "不明" ? "回戦不明" : "\(round)回戦" }
 
     /// Vehicles grouped by 積地 → 降地, in sheet order.
-    public var routes: [DispatchRoute] {
-        var order: [String] = []
-        var groups: [String: [DispatchVehicle]] = [:]
-        for vehicle in vehicles {
-            let key = vehicle.pickup + "\u{1F}" + vehicle.dropoff
-            if groups[key] == nil { order.append(key) }
-            groups[key, default: []].append(vehicle)
-        }
-        return order.map { key in
-            let members = groups[key]!
-            return DispatchRoute(pickup: members[0].pickup, dropoff: members[0].dropoff, vehicles: members)
-        }
-    }
+    public var routes: [DispatchRoute] { routes(aliases: PlaceAliases()) }
 }
 
 public struct DispatchRoute: Equatable, Identifiable, Sendable {
@@ -195,6 +183,9 @@ public enum ChassisNumber {
     // (Computed: Regex isn't Sendable, so it can't be a stored static.)
     private static var japanese: Regex<(Substring, Substring, Substring)> { /([A-Z0-9]{2,8})-([0-9OIL]{3,8})(?![0-9A-Z])/ }
     private static var vin: Regex<(Substring, Substring)> { /(?:^|[^A-Z0-9])([A-HJ-NPR-Z0-9]{17})(?![A-Z0-9])/ }
+    // No hyphen on the stamping ("GP31022135", a shortened "R123456"):
+    // letters and digits, ending in at least 4 digits.
+    private static var unhyphenated: Regex<(Substring, Substring)> { /(?:^|[^A-Z0-9-])([A-Z0-9]{0,12}[A-Z][0-9]{4,8})(?![A-Z0-9-])/ }
 
     /// Chassis-number-shaped strings in text read off a caution plate or
     /// stamping. Only the all-digit serial is repaired (O→0, I/L→1); the
@@ -213,8 +204,62 @@ public enum ChassisNumber {
                 let value = String(match.output.1)
                 if !found.contains(value) { found.append(value) }
             }
+            for match in text.matches(of: unhyphenated) {
+                let value = String(match.output.1)
+                if !found.contains(value) { found.append(value) }
+            }
         }
         return found
+    }
+
+    // MARK: 照合と強調
+
+    /// The compared form: normalized, without hyphens. Whether a number has a
+    /// hyphen is never part of the judgment — the sheet may leave it out
+    /// where the stamping or caution plate has one, and the other way round.
+    public static func matchKey(_ raw: String) -> String {
+        normalize(raw).replacingOccurrences(of: "-", with: "")
+    }
+
+    /// Everything after the last letter of the hyphen-free number
+    /// ("WDD2050422R123456" → "123456", "GP3-1022135" → "31022135"); the
+    /// whole number when it has no letter.
+    public static func tailAfterLastLetter(_ raw: String) -> String {
+        let key = matchKey(raw)
+        guard let letter = key.lastIndex(where: { $0.isLetter }) else { return key }
+        return String(key[key.index(after: letter)...])
+    }
+
+    /// The full number split for display: the head, and the 番号 that is
+    /// emphasized — after the hyphen, or with none, after the last letter.
+    /// Nothing is dropped (車体番号 is never abbreviated).
+    public static func emphasis(_ raw: String) -> (head: String, serial: String) {
+        let number = normalize(raw)
+        let start = emphasisStart(number)
+        return (String(number[..<start]), String(number[start...]))
+    }
+
+    private static func emphasisStart(_ number: String) -> String.Index {
+        if let hyphen = number.lastIndex(of: "-") { return number.index(after: hyphen) }
+        if let letter = number.lastIndex(where: { $0.isLetter }) { return number.index(after: letter) }
+        return number.startIndex
+    }
+
+    /// Whether a number read off the car is the sheet's number. Hyphens are
+    /// ignored. The same number matches; so does a shortened one (外車 are
+    /// often shortened on the sheet: 「R123456」 for 「WDD2050422R123456」):
+    /// the shorter must be exactly the end of the longer, and include
+    /// everything after the longer one's last letter. A different letter
+    /// anywhere in the shorter one is a mismatch — the driver then retakes
+    /// the photo or speaks the number (and the photo is kept).
+    public static func matches(read: String, sheet: String) -> Bool {
+        let read = matchKey(read)
+        let sheet = matchKey(sheet)
+        guard !read.isEmpty, !sheet.isEmpty else { return false }
+        if read == sheet { return true }
+        let (short, long) = read.count < sheet.count ? (read, sheet) : (sheet, read)
+        let tail = tailAfterLastLetter(long)
+        return !tail.isEmpty && long.hasSuffix(short) && tailAfterLastLetter(short) == tail
     }
 
     /// Spaces around a dash ("GP3 - 1022135") are dropped; other spaces stay
@@ -236,10 +281,13 @@ public enum ChassisMatch: Equatable, Sendable {
     case mismatch(read: String)
 
     /// Exact match only (after normalization) — a near miss is a mismatch.
+    /// Hyphens are ignored, and the part after the last letter matching in
+    /// full is enough (ChassisNumber.matches).
     /// Returns nil while nothing chassis-shaped has been read.
     public static func evaluate(candidates: [String], against vehicles: [DispatchVehicle]) -> ChassisMatch? {
         for candidate in candidates {
-            if let vehicle = vehicles.first(where: { !$0.needsRecording && $0.normalizedChassis == candidate }) {
+            if let vehicle = vehicles.first(where: { !$0.needsRecording && $0.normalizedChassis == candidate })
+                ?? vehicles.first(where: { !$0.needsRecording && ChassisNumber.matches(read: candidate, sheet: $0.chassisNumber) }) {
                 return .matched(vehicle: vehicle, chassis: candidate)
             }
         }
@@ -283,7 +331,8 @@ public struct ChassisCheckRow: Codable, Equatable, Identifiable, Sendable {
     public var checked_at: String
     /// nil on rows from before 音声入力 existed (= camera).
     public var input: ChassisInput?
-    /// Photo kept for a 記録 (blank 車体番号), in chassis-photos.
+    /// Photo kept for a 記録 (blank 車体番号), or for a voice 照合 whose shot
+    /// couldn't be read, in chassis-photos.
     public var photo_path: String?
 
     public init(id: String, sheet_id: String, chassis_number: String, vehicle_index: Int? = nil, method: ChassisCheckMethod, checked_at: String, input: ChassisInput? = nil, photo_path: String? = nil) {
@@ -390,15 +439,16 @@ public struct ChassisCheckInsert: Encodable, Equatable, Sendable {
     public var input: ChassisInput
     public var photo_path: String?
 
-    /// 照合 of a printed number, or 記録 of the read number for a blank one
-    /// (only a 記録 keeps its photo).
+    /// 照合 of a printed number, or 記録 of the read number for a blank one.
+    /// A photo is kept for a 記録, and for a 照合 entered by voice after the
+    /// shot couldn't be read (汚れ・サビ); a camera 照合's photo never is.
     public init(sheetID: String, vehicle: DispatchVehicle, read: String, method: ChassisCheckMethod, input: ChassisInput = .camera, photoPath: String? = nil) {
         sheet_id = sheetID
         chassis_number = ChassisNumber.normalize(vehicle.needsRecording ? read : vehicle.chassisNumber)
         vehicle_index = vehicle.needsRecording ? vehicle.id : nil
         self.method = method
         self.input = input
-        photo_path = vehicle.needsRecording ? photoPath : nil
+        photo_path = vehicle.needsRecording || input == .voice ? photoPath : nil
     }
 }
 
@@ -445,7 +495,7 @@ public enum ChassisRecording: Equatable, Sendable {
 
     public static func evaluate(read: String, against vehicles: [DispatchVehicle]) -> ChassisRecording {
         let normalized = ChassisNumber.normalize(read)
-        if let other = vehicles.first(where: { !$0.needsRecording && $0.normalizedChassis == normalized }) {
+        if let other = vehicles.first(where: { !$0.needsRecording && ChassisNumber.matches(read: normalized, sheet: $0.chassisNumber) }) {
             return .belongsTo(other)
         }
         return .record(normalized)

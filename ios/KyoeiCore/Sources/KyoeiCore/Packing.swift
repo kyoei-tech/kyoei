@@ -100,6 +100,72 @@ public struct PackingDraft: Equatable, Sendable {
     }
 }
 
+/// 並び替えで記録: the cars in a column top to bottom, the column standing
+/// for the 車格's floors in order. A car dragged into a slot pushes the rest
+/// down; 空き slots let a floor stay empty. Slot i is floor i; slots past the
+/// last floor are 未入力.
+public struct PackingOrder: Equatable, Sendable {
+    public enum Slot: Hashable, Sendable {
+        case vehicle(Int)
+        /// An empty floor; the number only keeps the slots distinct.
+        case empty(Int)
+    }
+
+    public private(set) var slots: [Slot]
+    public let floors: [String]
+
+    /// Starts from the current assignment: placed cars on their floors and
+    /// the rest below the floors. With nothing placed yet, the cars fill the
+    /// floors in sheet order.
+    public init(vehicles: [DispatchVehicle], floors: [String], draft: PackingDraft) {
+        self.floors = floors
+        let ids = vehicles.map(\.id)
+        let onFloor = Dictionary(ids.compactMap { id in draft.floor(of: id).map { ($0, id) } }, uniquingKeysWith: { first, _ in first })
+        var rest = ids.filter { id in draft.floor(of: id).flatMap(floors.firstIndex(of:)) == nil }
+        let fillFromSheet = onFloor.isEmpty
+        var slots: [Slot] = []
+        for (index, floor) in floors.enumerated() {
+            if let id = onFloor[floor] {
+                slots.append(.vehicle(id))
+            } else if fillFromSheet, !rest.isEmpty {
+                slots.append(.vehicle(rest.removeFirst()))
+            } else {
+                slots.append(.empty(index))
+            }
+        }
+        self.slots = slots + rest.map(Slot.vehicle)
+    }
+
+    /// Floor of slot `index`, or nil past the last floor.
+    public func floor(at index: Int) -> String? {
+        floors.indices.contains(index) ? floors[index] : nil
+    }
+
+    public mutating func move(fromOffsets source: IndexSet, toOffset destination: Int) {
+        let moving = source.sorted().map { slots[$0] }
+        var remaining = slots.enumerated().filter { !source.contains($0.offset) }.map(\.element)
+        let insertAt = destination - source.filter { $0 < destination }.count
+        remaining.insert(contentsOf: moving, at: min(max(insertAt, 0), remaining.count))
+        slots = remaining
+    }
+
+    /// Moves slot `index` one place up (-1) or down (+1).
+    public mutating func step(_ index: Int, by offset: Int) {
+        let target = index + offset
+        guard slots.indices.contains(index), slots.indices.contains(target) else { return }
+        slots.swapAt(index, target)
+    }
+
+    /// The assignment this order stands for.
+    public var draft: PackingDraft {
+        var draft = PackingDraft()
+        for (index, slot) in slots.enumerated() {
+            if case .vehicle(let id) = slot, let floor = floor(at: index) { draft.assign(floor, to: id) }
+        }
+        return draft
+    }
+}
+
 public enum PackingPrompt {
     /// 回戦 whose vehicles just became all 照合済 (between two check states).
     public static func newlyCompleted(rounds: [DispatchRound], before: ChassisChecks, after: ChassisChecks) -> [DispatchRound] {
