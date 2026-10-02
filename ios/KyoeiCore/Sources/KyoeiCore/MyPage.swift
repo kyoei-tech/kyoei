@@ -91,13 +91,13 @@ public enum MyPageItem: String, CaseIterable, Sendable {
         case .awardVote: "社長賞にふさわしい方へ投票できます。"
         case .leaveRequest: "休暇の申請ができます。"
         case .repairRequest: "車両の修理を申請できます。"
-        case .packagingHistory: "荷姿の履歴を確認できます。"
+        case .packagingHistory: "回戦ごとに、何番に何を積んだかと写真を記録・確認できます。"
         }
     }
 
     /// Needs the account linked to its 出勤簿 name (配車表 etc.); 点検簿 works on the account alone.
-    public var needsStaffLink: Bool { self != .inspection }
+    public var needsStaffLink: Bool { self != .inspection && self != .packagingHistory }
 
     /// Features the web app hadn't built yet either (shown as 準備中).
-    public var isComingSoon: Bool { self != .dispatchSheet && self != .tripHistory && self != .inspection }
+    public var isComingSoon: Bool { ![.dispatchSheet, .tripHistory, .inspection, .packagingHistory].contains(self) }
 }

@@ -97,3 +97,15 @@ test('inspection records: month range in JST', async () => {
   assert.equal(shiftMonth('2026-01', -1), '2025-12')
   assert.equal(shiftMonth('2026-12', 1), '2027-01')
 })
+
+test('packing floors and card plates mirror the app', async () => {
+  const { loadingFloors, packingPlates } = await import('./profile.ts')
+  assert.deepEqual(loadingFloors('loader'), [])
+  assert.deepEqual(loadingFloors('heavy'), ['上段', '下段前', '下段後'])
+  assert.deepEqual(loadingFloors('trailer_hanging'), ['1番', '2番', '3番', '4番', '5番', '宙吊り', '6番'])
+  assert.deepEqual(loadingFloors('cab_trailer_lifter'), ['0番', '1番', '2番', '3番', '4番', '5番', '6番'])
+  assert.deepEqual(loadingFloors('cab_trailer_hanging'), ['0番', '1番', '2番', '3番', '4番', '5番', '宙吊り', '6番'])
+  assert.deepEqual(packingPlates('three_car', 'T', null), ['T'])
+  assert.deepEqual(packingPlates('trailer_lifter', 'H', 'C'), ['C'])
+  assert.deepEqual(packingPlates('cab_trailer_hanging', 'H', 'C'), ['H', 'C'])
+})

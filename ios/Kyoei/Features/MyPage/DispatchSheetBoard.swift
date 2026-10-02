@@ -34,6 +34,12 @@ struct DispatchSheetDetail: View {
     @State private var scan: ScanRequest?
     @State private var reparsing = false
     @State private var message: String?
+    @Environment(SettingsStore.self) private var settings
+    /// 荷姿 records of this sheet, by 回戦.
+    @State private var packings: [PackingRecord] = []
+    @State private var packing: PackingTarget?
+    /// 回戦 that just became all 照合済, asked about once the camera closes.
+    @State private var packingPrompts: [DispatchRound] = []
 
     init(sheet: DispatchSheetRow, onBack: @escaping () -> Void) {
         self.sheet = sheet
@@ -74,7 +80,7 @@ struct DispatchSheetDetail: View {
                             SheetWarnings(warnings: content.warnings) { tab = .original }
                         }
                         if tab == .summary {
-                            DispatchSummaryList(content: content, state: chassisState)
+                            DispatchSummaryList(content: content, state: chassisState, packed: Set(packings.map(\.round)), onPacking: openPacking)
                         } else {
                             DispatchVehicleList(content: content, state: chassisState, actions: cardActions)
                         }
@@ -93,6 +99,28 @@ struct DispatchSheetDetail: View {
         // Reload whenever the list row says the parse result changed
         // (Realtime on dispatch_sheets updates `sheet`).
         .task(id: "\(sheet.id)|\(sheet.statusLabel)") { await loadContent() }
+        .task(id: sheet.id) { await loadPackings() }
+        .fullScreen(item: $packing) { target in
+            PackingEditorView(target: target) { _ in
+                packing = nil
+                Task { await loadPackings() }
+            }
+        }
+        .overlay {
+            if scan == nil, packing == nil, let round = packingPrompts.first {
+                ConfirmActionDialog(
+                    message: "\(round.title)の照合が終わりました。\n荷姿を記録しますか？",
+                    confirmLabel: "記録する",
+                    cancelLabel: "あとで",
+                    onConfirm: {
+                        packingPrompts.removeFirst()
+                        openPacking(round)
+                    },
+                    onCancel: { packingPrompts.removeFirst() }
+                )
+                .id(round.id)
+            }
+        }
         .fullScreen(item: $scan) { request in
             if let content {
                 ChassisScanFlow(
@@ -189,9 +217,19 @@ struct DispatchSheetDetail: View {
         }
     }
 
+    private func loadPackings() async {
+        if let fresh = try? await PackingRepository.fetch(sheetID: sheet.id) { packings = fresh }
+    }
+
+    private func openPacking(_ round: DispatchRound) {
+        packing = PackingTarget(sheetID: sheet.id, sheetTitle: sheet.title, round: round, existing: packings.first { $0.round == round.round })
+    }
+
     /// 照合 of a printed number, or 記録 of `read` for a blank 車体番号.
     private func record(_ vehicle: DispatchVehicle, read: String, method: ChassisCheckMethod) {
+        let before = checkIndex
         Task {
+            defer { promptPacking(before: before) }
             do {
                 try await DispatchSheetRepository.recordCheck(ChassisCheckInsert(sheetID: sheet.id, vehicle: vehicle, read: read, method: method))
                 message = nil
@@ -201,6 +239,16 @@ struct DispatchSheetDetail: View {
                     : "照合結果を保存できませんでした。通信状況を確認してください。"
             }
             await checks.refresh()
+        }
+    }
+
+    /// Queues the 荷姿 question for 回戦 this check completed (設定 can turn it off).
+    private func promptPacking(before: ChassisChecks) {
+        guard settings.settings.packingPrompt, let content else { return }
+        let packed = Set(packings.map(\.round))
+        for round in PackingPrompt.newlyCompleted(rounds: content.rounds, before: before, after: checkIndex)
+        where !packed.contains(round.round) && !packingPrompts.contains(where: { $0.id == round.id }) {
+            packingPrompts.append(round)
         }
     }
 
@@ -278,6 +326,9 @@ struct SheetChassisState {
 private struct DispatchSummaryList: View {
     let content: DispatchSheetContent
     let state: SheetChassisState
+    /// 回戦 with a 荷姿 record.
+    let packed: Set<String>
+    let onPacking: (DispatchRound) -> Void
 
     var body: some View {
         let today = LocalDate(Date())
@@ -298,6 +349,16 @@ private struct DispatchSummaryList: View {
                 ForEach(routes) { route in
                     RouteBlock(route: route, today: today, state: state)
                 }
+                let done = packed.contains(round.round)
+                Button { onPacking(round) } label: {
+                    Label(done ? "荷姿 記録済み（編集）" : "荷姿を記録", systemImage: done ? "checkmark.circle.fill" : "shippingbox")
+                        .appFont(14, weight: .bold)
+                        .frame(maxWidth: .infinity, minHeight: 40)
+                        .foregroundStyle(done ? Color.primary : Color.appForeground)
+                        .background(done ? Color.primary.opacity(0.12) : Color.appBackground, in: RoundedRectangle(cornerRadius: 12))
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(done ? Color.primary.opacity(0.5) : Color.border))
+                }
+                .buttonStyle(.plain)
             }
             .padding(14)
             .card(radius: 18, border: earliest.map { $0.isUrgent } == true ? .destructive : .border)

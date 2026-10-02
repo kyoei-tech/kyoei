@@ -89,6 +89,8 @@ struct MyPageView: View {
                 if let me { DispatchSheetView(staffID: me.id, staffName: me.name, userID: userID) }
             case .inspection:
                 InspectionLogView()
+            case .packagingHistory:
+                PackingHistoryView()
             default:
                 TabPage {
                     VStack(spacing: 8) {

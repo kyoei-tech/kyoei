@@ -46,3 +46,31 @@ export function vehicleProblem(vehicleClass: string | null, vehicleKind: string 
   if (chassisKind && !isTrailerClass(vehicleClass)) return '台車を割り当てられるのはトレーラーだけです。'
   return null
 }
+
+/** 荷姿のフロア in order (mirrors VehicleClass.loadingFloors). Empty = photo only. */
+export function loadingFloors(vehicleClass: string | null | undefined): string[] {
+  switch (vehicleClass) {
+    case 'two_car':
+    case 'heavy':
+    case 'three_car':
+      return ['上段', '下段前', '下段後']
+    case 'five_car':
+      return ['1番', '2番', '3番', '4番', '5番']
+    case 'trailer_hanging':
+    case 'trailer_lifter':
+    case 'cab_trailer_hanging':
+    case 'cab_trailer_lifter': {
+      const floors = Array.from({ length: vehicleClass.startsWith('cab_') ? 7 : 6 }, (_, i) => `${vehicleClass.startsWith('cab_') ? i : i + 1}番`)
+      if (vehicleClass.endsWith('hanging')) floors.splice(floors.indexOf('6番'), 0, '宙吊り')
+      return floors
+    }
+    default:
+      return []
+  }
+}
+
+/** The plates shown on a driver's 荷姿 card: 単車 its truck, トレーラー its 台車, キャブ搭 the head and 台車. */
+export function packingPlates(vehicleClass: string | null | undefined, vehiclePlate: string | null | undefined, chassisPlate: string | null | undefined): string[] {
+  const plates = !isTrailerClass(vehicleClass) ? [vehiclePlate] : vehicleClass?.startsWith('cab_') ? [vehiclePlate, chassisPlate] : [chassisPlate]
+  return plates.filter((p): p is string => !!p)
+}

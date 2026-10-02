@@ -52,6 +52,11 @@ struct SettingsView: View {
                     partTimeGate.guarded { store.settings.setPartTimeMode(!store.settings.partTimeMode) }
                 }
             }
+            SettingsCard(title: "荷姿の記録", note: "配車表で1回戦分の車台番号の照合が終わったときに、荷姿（何番に何を積んだか・写真）の入力画面を出します。オフにしても、配車表の「荷姿を記録」からいつでも入力できます。") {
+                ToggleRow(title: "照合完了時に入力画面を出す", systemImage: "shippingbox", isOn: store.settings.packingPrompt) {
+                    store.settings.packingPrompt.toggle()
+                }
+            }
             if store.settings.testDriveMode {
                 TestDriveSection(onExit: { store.settings.testDriveMode = false })
             }

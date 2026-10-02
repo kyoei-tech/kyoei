@@ -51,6 +51,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var testDriveMode = false
     /// Remote push events this device subscribes to.
     public var pushTopics: Set<PushTopic> = Set(PushTopic.allCases)
+    /// 荷姿: ask for the loading record when a 回戦's vehicles are all 照合済.
+    public var packingPrompt = true
 
     public init() {}
 
@@ -68,7 +70,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case theme, fontLevels, deviceFont, appMode, partTimeMode, pushNotificationsEnabled, staffMemberID, testDriveMode, pushTopics
+        case theme, fontLevels, deviceFont, appMode, partTimeMode, pushNotificationsEnabled, staffMemberID, testDriveMode, pushTopics, packingPrompt
     }
 
     // Tolerant decoding: every field falls back to its default, so adding a
@@ -91,6 +93,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         // Unknown topic names (from a newer build) are dropped, not fatal.
         let storedTopics = (try? c.decodeIfPresent([String].self, forKey: .pushTopics)).flatMap { $0 }
         pushTopics = storedTopics.map { Set($0.compactMap(PushTopic.init(rawValue:))) } ?? base.pushTopics
+        packingPrompt = (try? c.decodeIfPresent(Bool.self, forKey: .packingPrompt)) ?? base.packingPrompt
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -104,5 +107,6 @@ public struct AppSettings: Codable, Equatable, Sendable {
         try c.encodeIfPresent(staffMemberID, forKey: .staffMemberID)
         try c.encode(testDriveMode, forKey: .testDriveMode)
         try c.encode(pushTopics.map(\.rawValue).sorted(), forKey: .pushTopics)
+        try c.encode(packingPrompt, forKey: .packingPrompt)
     }
 }

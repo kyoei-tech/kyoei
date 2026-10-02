@@ -15,11 +15,13 @@ public enum AttachmentBucket: String, CaseIterable, Sendable {
     case timecardTodo = "timecard-todo"
     /// 点検簿の否の写真. Private like dispatch sheets: `<auth user id>/...`.
     case inspectionPhotos = "inspection-photos"
+    /// 荷姿の写真. Private: `<auth user id>/...`.
+    case packingPhotos = "packing-photos"
 
     public var maxBytes: Int {
         switch self {
         case .dispatchSheets: 20 * 1024 * 1024
-        case .beginnerNotes, .timecardTodo, .inspectionPhotos: 10 * 1024 * 1024
+        case .beginnerNotes, .timecardTodo, .inspectionPhotos, .packingPhotos: 10 * 1024 * 1024
         }
     }
 }
