@@ -14,6 +14,7 @@ enum StaffLinkRepository {
 /// Port of components/mypage-view.tsx.
 struct MyPageView: View {
     @Environment(AuthStore.self) private var auth
+    @Environment(RepairStore.self) private var repairs
     @State private var profiles = RealtimeTable<StaffProfileRow>(table: "staff_members", fetch: StaffLinkRepository.fetch)
     @State private var selected: MyPageItem?
     /// my_profile(): 役職・フルネーム・車格・担当車両・期限 (entered from the admin console).
@@ -64,6 +65,10 @@ struct MyPageView: View {
                             Text(item.summary).appFont(12).foregroundStyle(Color.mutedForeground)
                         }
                         Spacer(minLength: 0)
+                        if item == .repairRequest, !repairs.unread.isEmpty {
+                            Text("更新あり").appFont(11, weight: .black).foregroundStyle(Color.destructiveForeground)
+                                .padding(.horizontal, 8).padding(.vertical, 3).background(Color.destructive, in: Capsule())
+                        }
                         Image(systemName: "chevron.right").foregroundStyle(Color.mutedForeground)
                     }
                     .padding(.horizontal, 20).padding(.vertical, 16).card()
@@ -97,6 +102,8 @@ struct MyPageView: View {
                 AwardVoteView()
             case .selfEvaluation:
                 SelfReviewView()
+            case .repairRequest:
+                RepairListView()
             default:
                 TabPage {
                     VStack(spacing: 8) {

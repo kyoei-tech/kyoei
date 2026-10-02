@@ -17,11 +17,13 @@ public enum AttachmentBucket: String, CaseIterable, Sendable {
     case inspectionPhotos = "inspection-photos"
     /// 荷姿の写真. Private: `<auth user id>/...`.
     case packingPhotos = "packing-photos"
+    /// 修理申請の写真（ドライバー: `<auth user id>/...`、伝票: `slips/...`）.
+    case repairPhotos = "repair-photos"
 
     public var maxBytes: Int {
         switch self {
         case .dispatchSheets: 20 * 1024 * 1024
-        case .beginnerNotes, .timecardTodo, .inspectionPhotos, .packingPhotos: 10 * 1024 * 1024
+        case .beginnerNotes, .timecardTodo, .inspectionPhotos, .packingPhotos, .repairPhotos: 10 * 1024 * 1024
         }
     }
 }

@@ -34,6 +34,9 @@ struct InspectionFlowView: View {
     @State private var reportNote = ""
     @State private var confirmsCancel = false
     @State private var saving = false
+    /// 修理申請 prefilled from this inspection's 否 items.
+    @State private var repairDraft: RepairEditorTarget?
+    @State private var repairSent = false
 
     private var vehicleClass: VehicleClass? { store.profile?.vehicle_class }
     private var isTrailer: Bool { vehicleClass?.isTrailer == true }
@@ -57,6 +60,12 @@ struct InspectionFlowView: View {
             .scrollDismissesKeyboard(.interactively)
         }
         .background(Color.appBackground.ignoresSafeArea())
+        .fullScreen(item: $repairDraft) { target in
+            RepairEditorView(target: target) { saved in
+                repairDraft = nil
+                if saved { repairSent = true }
+            }
+        }
         .onAppear {
             vehiclePlate = store.profile?.vehicle?.plate ?? ""
             chassisPlate = store.profile?.chassis?.plate ?? ""
@@ -441,6 +450,15 @@ struct InspectionFlowView: View {
             if store.pending.contains(where: { $0.record.id == record.id }) {
                 Text("電波が戻ったら自動で送信します（この端末には保存済みです）。")
                     .appFont(12).foregroundStyle(Color.secondary).multilineTextAlignment(.center)
+            }
+            if record.has_issue {
+                if repairSent {
+                    Label("修理申請を送りました", systemImage: "checkmark.circle.fill").appFont(14, weight: .bold).foregroundStyle(Color.primary)
+                } else {
+                    Button("この内容で修理申請を作成") { repairDraft = RepairEditorTarget(existing: nil, draft: record) }
+                        .buttonStyle(PillButtonStyle(kind: .outline))
+                        .padding(.top, 4)
+                }
             }
             Button(allowed ? "出庫へ進む" : "閉じる") { onFinish(record) }
                 .buttonStyle(PillButtonStyle(kind: allowed ? .primary : .outline))

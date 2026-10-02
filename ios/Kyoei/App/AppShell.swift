@@ -20,6 +20,7 @@ struct AppShell: View {
     @State private var testDriveGate = PinGate(code: AppShell.testDriveModePasscode)
     @State private var newsNotifier = NewsNotifier()
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(RepairStore.self) private var repairs
 
     var body: some View {
         VStack(spacing: 0) {
@@ -56,6 +57,10 @@ struct AppShell: View {
         .task(id: settings.settings.pushNotificationsEnabled) {
             guard settings.settings.pushNotificationsEnabled else { return }
             await newsNotifier.run(announce: announceNews)
+        }
+        // 修理申請: check for a decided schedule / completion on every return.
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { Task { await repairs.refresh() } }
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active, settings.settings.pushNotificationsEnabled else { return }

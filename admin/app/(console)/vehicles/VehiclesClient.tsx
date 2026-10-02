@@ -75,7 +75,7 @@ export function VehiclesClient({ vehicles }: { vehicles: VehicleView[] }) {
                 <td>{due(v.shakenDue)}</td>
                 <td>{due(v.inspection3mDue)}</td>
                 <td>{due(v.inspection12mDue)}</td>
-                <td>{v.assignee ?? <span style={{ color: 'var(--muted)' }}>未割り当て</span>}</td>
+                <td>{v.assignee ?? <span style={{ color: 'var(--muted)' }}>未割り当て</span>}<div><a href={`/repairs?plate=${encodeURIComponent(v.plate)}`} style={{ fontSize: 12 }}>修理履歴</a></div></td>
                 <td>
                   <div className="row" style={{ justifyContent: 'flex-end', gap: 6 }}>
                     <button type="button" className="btn btn-small" onClick={() => setEditing(v.id)}>編集</button>

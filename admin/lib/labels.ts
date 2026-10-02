@@ -9,6 +9,7 @@ export const CATEGORY_LABELS: Record<string, string> = {
   red_plates: '赤枠管理',
   award: '社長賞',
   self_review: '自己評価シート',
+  repairs: '修理申請',
   content: 'アプリ内編集',
 }
 
@@ -41,6 +42,8 @@ const ACTION_LABELS: Record<string, string> = {
   excuse_inspection: '未点検でも計算対象に戻す',
   unexcuse_inspection: '計算対象から外す',
   update_review_template: 'シートの項目・手当表を変更',
+  president_decide_repair: '修理の予定を決定（社長印）',
+  maintenance_complete_repair: '修理を記録（担当印）',
 }
 
 export function actionLabel(action: string): string {

@@ -14,6 +14,7 @@ struct KyoeiApp: App {
     @State private var lock = AppLockStore()
     @State private var approvals = AdminApprovalStore()
     @State private var inspections = InspectionStore()
+    @State private var repairs = RepairStore()
 
     init() {
         UNUserNotificationCenter.current().delegate = ForegroundNotificationDelegate.shared
@@ -30,6 +31,8 @@ struct KyoeiApp: App {
                 .environment(lock)
                 .environment(approvals)
                 .environment(inspections)
+                .environment(repairs)
+                .task(id: auth.userID) { await repairs.start(userID: auth.userID) }
                 .task(id: auth.userID) { await inspections.start(userID: auth.userID) }
                 .preferredColorScheme(settings.colorScheme)
                 .environment(\.locale, Locale(identifier: "ja_JP"))

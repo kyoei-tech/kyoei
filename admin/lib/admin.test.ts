@@ -128,3 +128,19 @@ test('self review template form and allowance table', async () => {
   assert.equal(markOf(null), '－')
   assert.equal(sum([3, 2, null]), 5)
 })
+
+test('repair requests: status and 社長 decision form', async () => {
+  const { repairStatus, decisionFromForm, destinationLabel } = await import('./repair.ts')
+  const base = { withdrawn_at: null, president_stamped_at: null, completed_on: null, method: null, vendor: null }
+  assert.equal(repairStatus(base), 'submitted')
+  assert.equal(repairStatus({ ...base, president_stamped_at: 'x' }), 'scheduled')
+  assert.equal(repairStatus({ ...base, president_stamped_at: 'x', completed_on: '2026-10-06' }), 'done')
+  assert.equal(repairStatus({ ...base, withdrawn_at: 'x' }), 'withdrawn')
+  assert.equal(destinationLabel({ method: 'outsource', vendor: '日野自動車' }), '外注（日野自動車）')
+  const f = (v: Record<string, string>) => (k: string) => v[k] ?? null
+  assert.deepEqual(decisionFromForm(f({ method: 'outsource', vendor: 'other', vendor_other: ' 佐藤自動車 ', entry_on: '2026-10-06' })),
+    { method: 'outsource', vendor: '佐藤自動車', requestedOn: null, entryOn: '2026-10-06', note: '' })
+  assert.ok('error' in decisionFromForm(f({ method: 'outsource', vendor: 'other', entry_on: '2026-10-06' })))
+  assert.ok('error' in decisionFromForm(f({ method: 'in_house' })))
+  assert.equal((decisionFromForm(f({ method: 'in_house', vendor: '日野自動車', entry_on: '2026-10-06' })) as { vendor: null }).vendor, null)
+})
