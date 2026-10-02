@@ -54,11 +54,14 @@ public enum PlaceNames {
     /// The shorter name must be at least this long for a prefix to count.
     static let minimumPrefix = 4
 
-    /// The place without its 会員番号: a parenthesized number after the name
-    /// (「USS東京(12345)」 → 「USS東京」). Notes like 「(愛知)」 stay. Used for
-    /// 回戦まとめ and for the 「同じ場所」 answers.
+    /// The place without its 会員番号: a parenthesized number after the name,
+    /// with or without a letter in front, or dashes where it is blank
+    /// (「USS名古屋会場(Y4613)」「JU神奈川(92575)」「…ヤード(----)」). Notes like
+    /// 「(愛知)」 and 「【搬出】」 stay. Used for 回戦まとめ and the 「同じ場所」
+    /// answers.
     public static func withoutMemberNumber(_ name: String) -> String {
-        name.replacing(/\s*[(（]\s*[0-9０-９][0-9０-９\-‐－ー]*\s*[)）]/, with: "")
+        name.precomposedStringWithCompatibilityMapping
+            .replacing(/\s*\(\s*(?:[A-Za-z]{0,3}\s*[0-9][0-9\-]*|[-‐ー]+)\s*\)/, with: "")
             .trimmingCharacters(in: .whitespaces)
     }
 

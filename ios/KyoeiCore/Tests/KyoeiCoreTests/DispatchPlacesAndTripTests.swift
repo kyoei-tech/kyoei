@@ -83,6 +83,12 @@ import Testing
         #expect(PlaceNames.withoutMemberNumber("USS東京(12345)") == "USS東京")
         #expect(PlaceNames.withoutMemberNumber("JU神奈川 （39505）") == "JU神奈川")
         #expect(PlaceNames.withoutMemberNumber("東西海運 あおなみヤード(愛知)") == "東西海運 あおなみヤード(愛知)")
+        // As written on real sheets: a letter in front, or dashes for a blank one.
+        #expect(PlaceNames.withoutMemberNumber("USS名古屋会場(Y4613)") == "USS名古屋会場")
+        #expect(PlaceNames.withoutMemberNumber("USS 東京 【搬出】(Y4351)") == "USS 東京 【搬出】")
+        #expect(PlaceNames.withoutMemberNumber("東西海運 あおなみヤード(----)") == "東西海運 あおなみヤード")
+        #expect(PlaceNames.withoutMemberNumber("東西海運 あおなみヤード(愛知)(----)") == "東西海運 あおなみヤード(愛知)")
+        #expect(PlaceNames.withoutMemberNumber("木更津JFA JAPANFORWARDINGAGENCY(千葉)") == "木更津JFA JAPANFORWARDINGAGENCY(千葉)")
         // Two member numbers of one place are one route, and never asked about.
         let content = DispatchSheetContent(rounds: [DispatchRound(round: "1", vehicles: [
             vehicle(0, "USS東京(12345)", "木更津JFA"), vehicle(1, "USS東京(67890)", "木更津JFA"),
