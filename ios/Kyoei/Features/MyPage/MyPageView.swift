@@ -91,6 +91,8 @@ struct MyPageView: View {
                 InspectionLogView()
             case .packagingHistory:
                 PackingHistoryView()
+            case .redPlates:
+                RedPlatesView()
             default:
                 TabPage {
                     VStack(spacing: 8) {

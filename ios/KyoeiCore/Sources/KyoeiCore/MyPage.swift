@@ -96,8 +96,8 @@ public enum MyPageItem: String, CaseIterable, Sendable {
     }
 
     /// Needs the account linked to its 出勤簿 name (配車表 etc.); 点検簿 works on the account alone.
-    public var needsStaffLink: Bool { self != .inspection && self != .packagingHistory }
+    public var needsStaffLink: Bool { ![.inspection, .packagingHistory, .redPlates].contains(self) }
 
     /// Features the web app hadn't built yet either (shown as 準備中).
-    public var isComingSoon: Bool { ![.dispatchSheet, .tripHistory, .inspection, .packagingHistory].contains(self) }
+    public var isComingSoon: Bool { ![.redPlates, .dispatchSheet, .tripHistory, .inspection, .packagingHistory].contains(self) }
 }

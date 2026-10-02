@@ -6,6 +6,7 @@ export const CATEGORY_LABELS: Record<string, string> = {
   customer_search: '顧客検索',
   vehicles: '車両',
   inspection: '点検簿',
+  red_plates: '赤枠管理',
   content: 'アプリ内編集',
 }
 
@@ -27,6 +28,9 @@ const ACTION_LABELS: Record<string, string> = {
   create_inspection_item: '点検項目を追加',
   update_inspection_item: '点検項目を変更',
   delete_inspection_item: '点検項目を削除',
+  return_red_plate: '赤枠を返却処理',
+  create_red_plate: '赤枠を追加',
+  update_red_plate: '赤枠を変更',
 }
 
 export function actionLabel(action: string): string {
