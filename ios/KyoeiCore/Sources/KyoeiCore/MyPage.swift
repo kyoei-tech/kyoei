@@ -57,6 +57,7 @@ public enum AuthErrorMessage {
 }
 
 public enum MyPageItem: String, CaseIterable, Sendable {
+    case redPlates = "red-plates"
     case dispatchSheet = "dispatch-sheet"
     case tripHistory = "trip-history"
     case inspection
@@ -68,10 +69,11 @@ public enum MyPageItem: String, CaseIterable, Sendable {
 
     public var label: String {
         switch self {
+        case .redPlates: "赤枠管理"
         case .dispatchSheet: "配車表"
         case .tripHistory: "運行履歴"
         case .inspection: "点検簿"
-        case .selfEvaluation: "自己評価シート"
+        case .selfEvaluation: "自己評価・目標設定シート"
         case .awardVote: "社長賞投票"
         case .leaveRequest: "休暇申請"
         case .repairRequest: "修理申請"
@@ -81,10 +83,11 @@ public enum MyPageItem: String, CaseIterable, Sendable {
 
     public var summary: String {
         switch self {
+        case .redPlates: "赤枠（ディーラーナンバー）の持ち出しと返却を記録します。"
         case .dispatchSheet: "配車表を確認できます。"
         case .tripHistory: "過去の出庫・帰庫と休息時間を確認できます。"
         case .inspection: "車両の点検記録を確認できます。"
-        case .selfEvaluation: "自己評価を記入・確認できます。"
+        case .selfEvaluation: "毎月の自己評価と目標を記入・確認できます。"
         case .awardVote: "社長賞にふさわしい方へ投票できます。"
         case .leaveRequest: "休暇の申請ができます。"
         case .repairRequest: "車両の修理を申請できます。"

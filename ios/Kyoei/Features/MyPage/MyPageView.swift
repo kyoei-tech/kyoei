@@ -16,6 +16,8 @@ struct MyPageView: View {
     @Environment(AuthStore.self) private var auth
     @State private var profiles = RealtimeTable<StaffProfileRow>(table: "staff_members", fetch: StaffLinkRepository.fetch)
     @State private var selected: MyPageItem?
+    /// my_profile(): 役職・フルネーム・車格・担当車両・期限 (entered from the admin console).
+    @State private var profile: MyProfile?
 
     var body: some View {
         let userID = auth.userID ?? ""
@@ -28,35 +30,23 @@ struct MyPageView: View {
             }
         }
         .syncing(profiles)
+        .task { await loadProfile() }
+    }
+
+    private func loadProfile() async {
+        if let fresh: MyProfile = try? await Backend.client.rpc("my_profile").execute().value {
+            profile = fresh
+        }
     }
 
     private var heading: some View {
-        PageHeading(title: "マイページ", subtitle: "ご自身のアカウントと、名前・入社年月日・勤続年数を確認できます。")
+        PageHeading(title: "マイページ", subtitle: "ご自身の情報と、各種の記録・申請です。")
     }
 
     private func home(_ me: StaffProfileRow?) -> some View {
         TabPage {
             heading
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(spacing: 12) {
-                    Image(systemName: "person.text.rectangle").foregroundStyle(Color.primary)
-                        .frame(width: 44, height: 44).background(Color.primary.opacity(0.15), in: Circle())
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(me?.name ?? "（出勤簿の名前が未設定）").appFont(18, weight: .bold).foregroundStyle(Color.appForeground)
-                        if let label = auth.loginLabel {
-                            Text("ログインID：\(label)").appFont(12).foregroundStyle(Color.mutedForeground)
-                        }
-                    }
-                }
-                Divider()
-                profileRow("入社年月日", formatHireDate(me?.hireDate) ?? "未登録")
-                profileRow("勤続年数", Tenure(hireDate: me?.hireDate)?.label ?? "未登録")
-                if let roles = auth.account?.roleLabel, !roles.isEmpty {
-                    profileRow("権限", roles)
-                }
-            }
-            .padding(20)
-            .card()
+            ProfileCard(profile: profile, staff: me, loginLabel: auth.loginLabel)
             if me == nil && !profiles.isLoading {
                 Text("出勤簿の名前がまだ紐付いていません。管理者に紐付けを依頼すると、配車表などの機能が使えるようになります。")
                     .appFont(13, weight: .semibold).foregroundStyle(Color.secondary)
@@ -130,6 +120,7 @@ struct MyPageView: View {
 extension MyPageItem {
     var systemImage: String {
         switch self {
+        case .redPlates: "rectangle.on.rectangle"
         case .dispatchSheet: "doc.text"
         case .tripHistory: "clock.arrow.circlepath"
         case .inspection: "checklist"
@@ -138,6 +129,91 @@ extension MyPageItem {
         case .leaveRequest: "calendar.badge.minus"
         case .repairRequest: "wrench.and.screwdriver"
         case .packagingHistory: "shippingbox"
+        }
+    }
+}
+
+/// マイページ上部: 権限・名前・入社年月日・勤続年数・担当車格・担当車両・車検期限・
+/// 3ヶ月点検・12ヶ月点検・健康診断予定日. Dates near their deadline are highlighted.
+private struct ProfileCard: View {
+    let profile: MyProfile?
+    let staff: StaffProfileRow?
+    let loginLabel: String?
+
+    var body: some View {
+        let today = LocalDate(Date())
+        let hireDate = profile?.hireDate ?? staff?.hireDate
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                Image(systemName: "person.text.rectangle").foregroundStyle(Color.primary)
+                    .frame(width: 44, height: 44).background(Color.primary.opacity(0.15), in: Circle())
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(displayName).appFont(19, weight: .black).foregroundStyle(Color.appForeground)
+                    if let loginLabel {
+                        Text("ログインID：\(loginLabel)").appFont(12).foregroundStyle(Color.mutedForeground)
+                    }
+                }
+                Spacer(minLength: 0)
+                if let position = profile?.position {
+                    Text(position)
+                        .appFont(12, weight: .heavy)
+                        .foregroundStyle(Color.brandForeground)
+                        .padding(.horizontal, 12).padding(.vertical, 4)
+                        .background(Color.brand, in: SlantedRectangle(slant: 6))
+                }
+            }
+            Divider()
+            row("権限", profile?.position ?? "未設定")
+            row("入社年月日", formatHireDate(hireDate) ?? "未登録")
+            row("勤続年数", Tenure(hireDate: hireDate)?.label ?? "未登録")
+            row("担当車格", profile?.vehicle_class?.label ?? "未設定")
+            if let vehicles = profile?.vehicles, !vehicles.isEmpty {
+                ForEach(vehicles, id: \.plate) { v in
+                    VStack(alignment: .leading, spacing: 6) {
+                        row(vehicles.count > 1 ? "担当車両（\(v.kindLabel)）" : "担当車両", v.plate, mono: true)
+                        dueRow("車検期限", v.shaken_due, today: today)
+                        dueRow("3ヶ月点検", v.inspection_3m_due, today: today)
+                        dueRow("12ヶ月点検", v.inspection_12m_due, today: today)
+                    }
+                    .padding(10)
+                    .background(Color.appBackground, in: RoundedRectangle(cornerRadius: 12))
+                }
+            } else {
+                row("担当車両", "未定")
+            }
+            dueRow("健康診断予定日", profile?.health_check_due, today: today)
+        }
+        .padding(20)
+        .card()
+    }
+
+    private var displayName: String {
+        if let name = profile?.full_name, !name.isEmpty { return name }
+        return staff?.name ?? "（名前が未登録）"
+    }
+
+    private func row(_ label: String, _ value: String, mono: Bool = false) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(label).appFont(14).foregroundStyle(Color.mutedForeground)
+            Spacer(minLength: 8)
+            Text(value)
+                .appFont(14, weight: .semibold, design: mono ? .monospaced : .default)
+                .foregroundStyle(Color.appForeground)
+                .multilineTextAlignment(.trailing)
+        }
+    }
+
+    @ViewBuilder private func dueRow(_ label: String, _ iso: String?, today: LocalDate) -> some View {
+        if let due = DueDate(iso: iso, today: today) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(label).appFont(14).foregroundStyle(Color.mutedForeground)
+                Spacer(minLength: 8)
+                Text(due.label)
+                    .appFont(14, weight: due.status == .ok ? .semibold : .heavy)
+                    .foregroundStyle(due.status == .overdue ? Color.destructive : due.status == .soon ? Color.chassisUncheckedText : Color.appForeground)
+            }
+        } else {
+            row(label, "未登録")
         }
     }
 }

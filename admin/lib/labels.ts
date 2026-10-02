@@ -4,6 +4,7 @@ export const CATEGORY_LABELS: Record<string, string> = {
   accounts: 'アカウント',
   customers: 'POS番号一覧',
   customer_search: '顧客検索',
+  vehicles: '車両',
   content: 'アプリ内編集',
 }
 
@@ -19,6 +20,9 @@ const ACTION_LABELS: Record<string, string> = {
   delete_number: '会員番号を削除',
   delete_customer: '会員を削除',
   search: 'アプリで検索',
+  create_vehicle: '車両を登録',
+  update_vehicle: '車両を変更',
+  delete_vehicle: '車両を削除',
 }
 
 export function actionLabel(action: string): string {

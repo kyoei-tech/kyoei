@@ -65,3 +65,16 @@ test('setup codes and login IDs mirror the app', () => {
   assert.equal(normalizeLoginID('KYOEI0026'), 'kyoei0026')
   assert.equal(normalizeLoginID('a'), null)
 })
+
+import { isTrailerClass, vehicleClassLabel, vehicleProblem } from './profile.ts'
+
+test('vehicle class rules', () => {
+  assert.equal(vehicleClassLabel('cab_trailer_hanging'), 'トレーラー（キャブ搭・宙吊り）')
+  assert.ok(isTrailerClass('trailer_lifter') && !isTrailerClass('five_car'))
+  assert.equal(vehicleProblem('five_car', 'truck', null), null)
+  assert.equal(vehicleProblem('trailer_lifter', 'head', 'chassis'), null)
+  assert.ok(vehicleProblem('trailer_lifter', 'truck', null))
+  assert.ok(vehicleProblem('five_car', 'head', null))
+  assert.ok(vehicleProblem('five_car', 'truck', 'chassis'))
+  assert.equal(vehicleProblem(null, null, null), null) // 新人: 未定
+})

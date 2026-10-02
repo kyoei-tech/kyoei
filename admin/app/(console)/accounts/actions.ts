@@ -3,6 +3,7 @@ import QRCode from 'qrcode'
 import { revalidatePath } from 'next/cache'
 import { audit } from '@/lib/audit'
 import { requireAdmin, type AdminContext } from '@/lib/auth'
+import { optional, vehicleProblem } from '@/lib/profile'
 import { createServiceClient } from '@/lib/supabase/service'
 import { appSetupURL, CODE_VALID_FOR, formatToken, generateToken, hashToken, normalizeLoginID, syntheticEmail, webSetupURL } from '@/lib/tokens'
 
@@ -57,6 +58,35 @@ async function linkStaff(userId: string, staffId: string | null) {
   if (staffId) await service.from('staff_members').update({ auth_user_id: userId }).eq('id', staffId)
 }
 
+/** マイページのプロフィール from the form (full name, 役職, dates, 車格, vehicles). */
+async function saveProfile(userId: string, form: FormData): Promise<string | null> {
+  const service = createServiceClient()
+  const vehicleClass = optional(form, 'vehicle_class')
+  const vehicleId = optional(form, 'vehicle_id')
+  const chassisId = optional(form, 'chassis_id')
+  const kinds = new Map<string, string>()
+  const ids = [vehicleId, chassisId].filter((x): x is string => !!x)
+  if (ids.length) {
+    const { data } = await service.from('vehicles').select('id, kind').in('id', ids)
+    for (const v of data ?? []) kinds.set(v.id, v.kind)
+  }
+  const problem = vehicleProblem(vehicleClass, vehicleId ? (kinds.get(vehicleId) ?? null) : null, chassisId ? (kinds.get(chassisId) ?? null) : null)
+  if (problem) return problem
+  const { error } = await service.from('account_profiles').upsert({
+    user_id: userId,
+    full_name: String(form.get('full_name') ?? '').normalize('NFKC').replace(/\s+/g, ' ').trim(),
+    position_id: optional(form, 'position_id'),
+    hire_date: optional(form, 'hire_date'),
+    vehicle_class: vehicleClass,
+    vehicle_id: vehicleId,
+    chassis_id: chassisId,
+    health_check_due: optional(form, 'health_check_due'),
+    updated_at: new Date().toISOString(),
+  })
+  if (error) return error.code === '23505' ? 'その車両は別の人に割り当てられています。' : 'プロフィールを保存できませんでした。'
+  return null
+}
+
 function roles(form: FormData) {
   return {
     is_driver: form.get('is_driver') === 'on',
@@ -87,6 +117,8 @@ export async function createAccount(_prev: ActionResult | null, form: FormData):
     const { error: insertError } = await service.from('app_accounts').insert({ user_id: userId, login_id: loginId, ...roles(form) })
     if (insertError) throw insertError
     await linkStaff(userId, staffId)
+    const profileProblem = await saveProfile(userId, form)
+    if (profileProblem) throw new Error(profileProblem)
   } catch (e) {
     await service.auth.admin.deleteUser(userId)
     return { ok: false, error: e instanceof Error ? e.message : 'アカウントを作成できませんでした。' }
@@ -124,6 +156,8 @@ export async function updateAccount(_prev: ActionResult | null, form: FormData):
   if (userId === admin.userId && !next.is_admin) return { ok: false, error: '自分自身の管理者権限は外せません。' }
   const staffId = String(form.get('staff_id') ?? '') || null
   try {
+    const profileProblem = await saveProfile(userId, form)
+    if (profileProblem) throw new Error(profileProblem)
     await service.from('app_accounts').update({ ...next, updated_at: new Date().toISOString() }).eq('user_id', userId)
     await linkStaff(userId, staffId)
   } catch (e) {

@@ -1,6 +1,7 @@
 'use client'
 import { useActionState, useEffect, useState, useTransition } from 'react'
 import { CodeDialog } from '@/components/CodeDialog'
+import { isTrailerClass, VEHICLE_CLASSES, vehicleClassLabel } from '@/lib/profile'
 import { createAccount, issueResetCode, setDisabled, updateAccount, type ActionResult, type IssuedCode } from './actions'
 
 export type AccountView = {
@@ -15,8 +16,60 @@ export type AccountView = {
   status: 'use' | 'wait' | 'stop'
   lastSignIn: string | null
   pendingUntil: string | null
+  fullName: string
+  positionId: string | null
+  positionName: string | null
+  hireDate: string | null
+  vehicleClass: string | null
+  vehicleId: string | null
+  chassisId: string | null
+  vehiclePlates: string[]
+  healthCheckDue: string | null
 }
 export type StaffOption = { id: string; name: string; linkedTo: string | null }
+export type PositionOption = { id: string; name: string }
+export type VehicleOption = { id: string; plate: string; kind: string; holderId: string | null; holderName: string | null }
+
+/** プロフィール fields shared by the invite and edit forms. */
+function ProfileFields({ a, positions, vehicles }: { a?: AccountView; positions: PositionOption[]; vehicles: VehicleOption[] }) {
+  const [vehicleClass, setVehicleClass] = useState(a?.vehicleClass ?? '')
+  const trailer = isTrailerClass(vehicleClass)
+  const usable = (v: VehicleOption) => !v.holderId || v.holderId === a?.userId
+  const options = (kind: string) => vehicles.filter((v) => v.kind === kind)
+  return (
+    <>
+      <label className="field">名前（フルネーム）<input className="input" name="full_name" defaultValue={a?.fullName} placeholder="例：共栄 太郎" /></label>
+      <label className="field">役職
+        <select className="input" name="position_id" defaultValue={a?.positionId ?? ''}>
+          <option value="">（未設定）</option>
+          {positions.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+      </label>
+      <label className="field">入社年月日<input className="input" type="date" name="hire_date" defaultValue={a?.hireDate ?? ''} /></label>
+      <label className="field">健康診断予定日<input className="input" type="date" name="health_check_due" defaultValue={a?.healthCheckDue ?? ''} /></label>
+      <label className="field">担当車格
+        <select className="input" name="vehicle_class" value={vehicleClass} onChange={(e) => setVehicleClass(e.target.value)}>
+          <option value="">（未設定）</option>
+          {VEHICLE_CLASSES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+        </select>
+      </label>
+      <label className="field">{trailer ? '担当車両（ヘッド）' : '担当車両'}
+        <select className="input" name="vehicle_id" defaultValue={a?.vehicleId ?? ''} key={trailer ? 'head' : 'truck'}>
+          <option value="">未定</option>
+          {options(trailer ? 'head' : 'truck').map((v) => <option key={v.id} value={v.id} disabled={!usable(v)}>{v.plate}{usable(v) ? '' : `（${v.holderName}）`}</option>)}
+        </select>
+      </label>
+      {trailer && (
+        <label className="field">担当車両（台車）
+          <select className="input" name="chassis_id" defaultValue={a?.chassisId ?? ''}>
+            <option value="">未定</option>
+            {options('chassis').map((v) => <option key={v.id} value={v.id} disabled={!usable(v)}>{v.plate}{usable(v) ? '' : `（${v.holderName}）`}</option>)}
+          </select>
+        </label>
+      )}
+    </>
+  )
+}
 
 function RoleChecks({ a }: { a?: AccountView }) {
   return (
@@ -41,7 +94,7 @@ function StaffSelect({ staff, current, userId }: { staff: StaffOption[]; current
   )
 }
 
-export function AccountsClient({ accounts, staff, selfId }: { accounts: AccountView[]; staff: StaffOption[]; selfId: string }) {
+export function AccountsClient({ accounts, staff, selfId, positions, vehicles }: { accounts: AccountView[]; staff: StaffOption[]; selfId: string; positions: PositionOption[]; vehicles: VehicleOption[] }) {
   const [issued, setIssued] = useState<IssuedCode | null>(null)
   const [inviting, setInviting] = useState(false)
   const [editing, setEditing] = useState<string | null>(null)
@@ -82,11 +135,16 @@ export function AccountsClient({ accounts, staff, selfId }: { accounts: AccountV
       </div>
 
       {inviting && (
-        <form className="card" action={createAction} style={{ display: 'grid', gridTemplateColumns: '200px 240px minmax(0,1fr) auto', gap: 14, alignItems: 'end' }}>
+        <form className="card" action={createAction} style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 14, alignItems: 'end' }}>
+          <h2 style={{ gridColumn: '1 / -1', margin: 0 }}>アカウントを招待</h2>
           <label className="field">ログインID（社員番号など）<input className="input" name="login_id" required autoComplete="off" /></label>
-          <label className="field">出勤簿の名前<StaffSelect staff={staff} current={null} /></label>
-          <div className="field">権限<RoleChecks /></div>
-          <button type="submit" className="btn btn-primary" disabled={creating}>{creating ? '作成中…' : '作成してコードを発行'}</button>
+          <ProfileFields positions={positions} vehicles={vehicles} />
+          <label className="field">出勤簿の名前（紐付け）<StaffSelect staff={staff} current={null} /></label>
+          <div className="field" style={{ gridColumn: 'span 2' }}>アプリの権限<RoleChecks /></div>
+          <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 8 }}>
+            <button type="submit" className="btn btn-primary" disabled={creating}>{creating ? '作成中…' : '作成してコードを発行'}</button>
+            <button type="button" className="btn" onClick={() => setInviting(false)}>やめる</button>
+          </div>
           {createState && !createState.ok && <div className="error" style={{ gridColumn: '1 / -1' }}>{createState.error}</div>}
         </form>
       )}
@@ -94,20 +152,23 @@ export function AccountsClient({ accounts, staff, selfId }: { accounts: AccountV
 
       <table className="table">
         <thead>
-          <tr><th>ログインID</th><th>名前（出勤簿）</th><th>権限</th><th>状態</th><th>最終ログイン</th><th /></tr>
+          <tr><th>ログインID</th><th>名前・役職</th><th>車格・担当車両</th><th>アプリの権限</th><th>状態</th><th /></tr>
         </thead>
         <tbody>
           {accounts.map((a) =>
             editing === a.userId ? (
               <tr key={a.userId}>
                 <td colSpan={6}>
-                  <form action={updateAction} style={{ display: 'grid', gridTemplateColumns: '160px 240px minmax(0,1fr) auto auto', gap: 14, alignItems: 'end' }}>
+                  <form action={updateAction} style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 14, alignItems: 'end' }}>
                     <input type="hidden" name="user_id" value={a.userId} />
                     <div className="field">ログインID<b className="mono" style={{ color: 'var(--text)', height: 40, display: 'flex', alignItems: 'center' }}>{a.loginId}</b></div>
-                    <label className="field">出勤簿の名前<StaffSelect staff={staff} current={a.staffId} userId={a.userId} /></label>
-                    <div className="field">権限<RoleChecks a={a} /></div>
-                    <button type="submit" className="btn btn-primary" disabled={updating}>保存</button>
-                    <button type="button" className="btn" onClick={() => setEditing(null)}>やめる</button>
+                    <ProfileFields a={a} positions={positions} vehicles={vehicles} />
+                    <label className="field">出勤簿の名前（紐付け）<StaffSelect staff={staff} current={a.staffId} userId={a.userId} /></label>
+                    <div className="field" style={{ gridColumn: 'span 2' }}>アプリの権限<RoleChecks a={a} /></div>
+                    <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 8 }}>
+                      <button type="submit" className="btn btn-primary" disabled={updating}>保存</button>
+                      <button type="button" className="btn" onClick={() => setEditing(null)}>やめる</button>
+                    </div>
                     {updateState && !updateState.ok && <div className="error" style={{ gridColumn: '1 / -1' }}>{updateState.error}</div>}
                   </form>
                 </td>
@@ -115,7 +176,14 @@ export function AccountsClient({ accounts, staff, selfId }: { accounts: AccountV
             ) : (
               <tr key={a.userId}>
                 <td className="mono" style={{ fontWeight: 700 }}>{a.loginId}</td>
-                <td>{a.staffName ?? <span style={{ color: 'var(--muted)' }}>（未紐付け）</span>}</td>
+                <td>
+                  <div style={{ fontWeight: 700 }}>{a.fullName || a.staffName || <span style={{ color: 'var(--muted)' }}>（名前未登録）</span>}</div>
+                  <div style={{ fontSize: 12, color: 'var(--muted)' }}>{a.positionName ?? '役職未設定'}{a.staffName ? ` ・ 出勤簿：${a.staffName}` : ' ・ 出勤簿：未紐付け'}</div>
+                </td>
+                <td style={{ fontSize: 13 }}>
+                  <div>{vehicleClassLabel(a.vehicleClass)}</div>
+                  <div className="mono" style={{ color: 'var(--muted)', fontSize: 12 }}>{a.vehiclePlates.length ? a.vehiclePlates.join(' ／ ') : '車両未定'}</div>
+                </td>
                 <td>
                   <div className="row" style={{ gap: 4 }}>
                     {a.isDriver && <span className="chip chip-ink">ドライバー</span>}
@@ -126,8 +194,8 @@ export function AccountsClient({ accounts, staff, selfId }: { accounts: AccountV
                 <td>
                   {status(a)}
                   {a.pendingUntil && <div style={{ fontSize: 11, color: 'var(--orange)', marginTop: 4 }}>コード期限 {new Date(a.pendingUntil).toLocaleString('ja-JP', { dateStyle: 'short', timeStyle: 'short' })}</div>}
+                  {a.lastSignIn && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>最終ログイン {new Date(a.lastSignIn).toLocaleString('ja-JP', { dateStyle: 'short', timeStyle: 'short' })}</div>}
                 </td>
-                <td style={{ fontSize: 13, color: 'var(--muted)' }}>{a.lastSignIn ? new Date(a.lastSignIn).toLocaleString('ja-JP', { dateStyle: 'short', timeStyle: 'short' }) : '—'}</td>
                 <td>
                   <div className="row" style={{ gap: 6, justifyContent: 'flex-end' }}>
                     {!a.disabled && <button type="button" className="btn btn-small" disabled={pending} onClick={() => run(() => issueResetCode(a.userId))}>{a.status === 'wait' ? '招待コード再発行' : '再設定コード'}</button>}

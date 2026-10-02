@@ -27,7 +27,9 @@ import Testing
     }
 
     @Test func myPageItems() {
-        #expect(MyPageItem.allCases.first == .dispatchSheet)
+        #expect(MyPageItem.allCases.first == .redPlates)
+        #expect(MyPageItem.allCases[1] == .dispatchSheet)
+        #expect(MyPageItem.selfEvaluation.label == "自己評価・目標設定シート")
         #expect(MyPageItem.allCases.filter { !$0.isComingSoon } == [.dispatchSheet, .tripHistory])
         #expect(MyPageItem(rawValue: "self-eval") == .selfEvaluation)
     }
