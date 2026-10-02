@@ -109,3 +109,22 @@ test('packing floors and card plates mirror the app', async () => {
   assert.deepEqual(packingPlates('trailer_lifter', 'H', 'C'), ['C'])
   assert.deepEqual(packingPlates('cab_trailer_hanging', 'H', 'C'), ['H', 'C'])
 })
+
+test('self review template form and allowance table', async () => {
+  const { templateFromForm, allowanceProblem, markOf, sum } = await import('./review.ts')
+  const base: Record<string, string> = { purpose_question: '何のために', deadline_day: '15' }
+  for (let i = 0; i < 10; i++) base[`item_${i}`] = `項目${i + 1}`
+  for (let i = 0; i < 4; i++) { base[`goal_${i}`] = `目標${i}`; base[`reflection_${i}`] = `反省${i}` }
+  const rows = [[90, 90, '50,000'], [58, 89, '15000'], [0, 57, '12500']]
+  rows.forEach(([min, max, amount], i) => { base[`a_min_${i}`] = String(min); base[`a_max_${i}`] = String(max); base[`a_amount_${i}`] = String(amount) })
+  const ok = templateFromForm((k) => base[k] ?? null)
+  assert.ok(!('error' in ok))
+  if (!('error' in ok)) assert.deepEqual(ok.allowance[0], { min: 90, max: 90, amount: 50000 })
+  assert.match(String((templateFromForm((k) => ({ ...base, a_min_1: '60' })[k] ?? null) as { error: string }).error), /58点/)
+  assert.ok('error' in templateFromForm((k) => ({ ...base, item_3: ' ' })[k] ?? null))
+  assert.ok('error' in templateFromForm((k) => ({ ...base, deadline_day: '31' })[k] ?? null))
+  assert.match(String(allowanceProblem([{ min: 0, max: 90, amount: 1 }, { min: 90, max: 90, amount: 2 }])), /複数/)
+  assert.equal(markOf(3), '◎')
+  assert.equal(markOf(null), '－')
+  assert.equal(sum([3, 2, null]), 5)
+})

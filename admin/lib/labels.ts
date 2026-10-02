@@ -8,6 +8,7 @@ export const CATEGORY_LABELS: Record<string, string> = {
   inspection: '点検簿',
   red_plates: '赤枠管理',
   award: '社長賞',
+  self_review: '自己評価シート',
   content: 'アプリ内編集',
 }
 
@@ -36,6 +37,10 @@ const ACTION_LABELS: Record<string, string> = {
   approve_disclosure: '投票者の開示を承認',
   reject_disclosure: '投票者の開示を却下',
   view_disclosure: '開示済みの投票者を閲覧',
+  president_score: '社長採点を保存',
+  excuse_inspection: '未点検でも計算対象に戻す',
+  unexcuse_inspection: '計算対象から外す',
+  update_review_template: 'シートの項目・手当表を変更',
 }
 
 export function actionLabel(action: string): string {

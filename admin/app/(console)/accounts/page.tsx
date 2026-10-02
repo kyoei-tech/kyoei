@@ -10,7 +10,7 @@ export default async function AccountsPage() {
     supabase.from('app_accounts').select('user_id, login_id, is_driver, can_search_customers, is_admin, disabled_at').order('login_id'),
     supabase.from('staff_members').select('id, name, auth_user_id').order('sort_order', { ascending: true }),
     supabase.rpc('admin_pending_setup_codes'),
-    supabase.from('account_profiles').select('user_id, full_name, position_id, hire_date, vehicle_class, vehicle_id, chassis_id, health_check_due'),
+    supabase.from('account_profiles').select('user_id, full_name, position_id, hire_date, vehicle_class, vehicle_id, chassis_id, health_check_due, supervisor_id'),
     supabase.from('positions').select('id, name').order('sort_order'),
     supabase.from('vehicles').select('id, plate, kind').order('plate'),
   ])
@@ -57,6 +57,7 @@ export default async function AccountsPage() {
       chassisId: profiles.get(r.user_id)?.chassis_id ?? null,
       vehiclePlates: [profiles.get(r.user_id)?.vehicle_id, profiles.get(r.user_id)?.chassis_id].flatMap((id) => (id && plate.get(id) ? [plate.get(id)!] : [])),
       healthCheckDue: profiles.get(r.user_id)?.health_check_due ?? null,
+      supervisorId: profiles.get(r.user_id)?.supervisor_id ?? null,
     }
   })
   const positions: PositionOption[] = (positionRows ?? []).map((p) => ({ id: p.id, name: p.name }))

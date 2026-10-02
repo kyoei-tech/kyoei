@@ -25,13 +25,14 @@ export type AccountView = {
   chassisId: string | null
   vehiclePlates: string[]
   healthCheckDue: string | null
+  supervisorId: string | null
 }
 export type StaffOption = { id: string; name: string; linkedTo: string | null }
 export type PositionOption = { id: string; name: string }
 export type VehicleOption = { id: string; plate: string; kind: string; holderId: string | null; holderName: string | null }
 
 /** プロフィール fields shared by the invite and edit forms. */
-function ProfileFields({ a, positions, vehicles }: { a?: AccountView; positions: PositionOption[]; vehicles: VehicleOption[] }) {
+function ProfileFields({ a, positions, vehicles, people }: { a?: AccountView; positions: PositionOption[]; vehicles: VehicleOption[]; people: AccountView[] }) {
   const [vehicleClass, setVehicleClass] = useState(a?.vehicleClass ?? '')
   const trailer = isTrailerClass(vehicleClass)
   const usable = (v: VehicleOption) => !v.holderId || v.holderId === a?.userId
@@ -43,6 +44,12 @@ function ProfileFields({ a, positions, vehicles }: { a?: AccountView; positions:
         <select className="input" name="position_id" defaultValue={a?.positionId ?? ''}>
           <option value="">（未設定）</option>
           {positions.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+      </label>
+      <label className="field">上長（自己評価シートを採点する人）
+        <select className="input" name="supervisor_id" defaultValue={a?.supervisorId ?? ''}>
+          <option value="">（未設定）</option>
+          {people.filter((p) => p.userId !== a?.userId && !p.disabled).map((p) => <option key={p.userId} value={p.userId}>{p.fullName || p.staffName || p.loginId}{p.positionName ? `（${p.positionName}）` : ''}</option>)}
         </select>
       </label>
       <label className="field">入社年月日<input className="input" type="date" name="hire_date" defaultValue={a?.hireDate ?? ''} /></label>
@@ -138,7 +145,7 @@ export function AccountsClient({ accounts, staff, selfId, positions, vehicles }:
         <form className="card" action={createAction} style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 14, alignItems: 'end' }}>
           <h2 style={{ gridColumn: '1 / -1', margin: 0 }}>アカウントを招待</h2>
           <label className="field">ログインID（社員番号など）<input className="input" name="login_id" required autoComplete="off" /></label>
-          <ProfileFields positions={positions} vehicles={vehicles} />
+          <ProfileFields positions={positions} vehicles={vehicles} people={accounts} />
           <label className="field">出勤簿の名前（紐付け）<StaffSelect staff={staff} current={null} /></label>
           <div className="field" style={{ gridColumn: 'span 2' }}>アプリの権限<RoleChecks /></div>
           <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 8 }}>
@@ -162,7 +169,7 @@ export function AccountsClient({ accounts, staff, selfId, positions, vehicles }:
                   <form action={updateAction} style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 14, alignItems: 'end' }}>
                     <input type="hidden" name="user_id" value={a.userId} />
                     <div className="field">ログインID<b className="mono" style={{ color: 'var(--text)', height: 40, display: 'flex', alignItems: 'center' }}>{a.loginId}</b></div>
-                    <ProfileFields a={a} positions={positions} vehicles={vehicles} />
+                    <ProfileFields a={a} positions={positions} vehicles={vehicles} people={accounts} />
                     <label className="field">出勤簿の名前（紐付け）<StaffSelect staff={staff} current={a.staffId} userId={a.userId} /></label>
                     <div className="field" style={{ gridColumn: 'span 2' }}>アプリの権限<RoleChecks a={a} /></div>
                     <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 8 }}>

@@ -95,6 +95,8 @@ struct MyPageView: View {
                 RedPlatesView()
             case .awardVote:
                 AwardVoteView()
+            case .selfEvaluation:
+                SelfReviewView()
             default:
                 TabPage {
                     VStack(spacing: 8) {

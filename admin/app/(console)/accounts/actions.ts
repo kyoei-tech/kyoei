@@ -81,6 +81,7 @@ async function saveProfile(userId: string, form: FormData): Promise<string | nul
     vehicle_id: vehicleId,
     chassis_id: chassisId,
     health_check_due: optional(form, 'health_check_due'),
+    supervisor_id: optional(form, 'supervisor_id') === userId ? null : optional(form, 'supervisor_id'),
     updated_at: new Date().toISOString(),
   })
   if (error) return error.code === '23505' ? 'その車両は別の人に割り当てられています。' : 'プロフィールを保存できませんでした。'
