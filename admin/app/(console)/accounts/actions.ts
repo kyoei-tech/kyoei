@@ -3,6 +3,7 @@ import QRCode from 'qrcode'
 import { revalidatePath } from 'next/cache'
 import { audit } from '@/lib/audit'
 import { requireAdmin, type AdminContext } from '@/lib/auth'
+import { normalizePhone } from '@/lib/pickup'
 import { optional, vehicleProblem } from '@/lib/profile'
 import { createServiceClient } from '@/lib/supabase/service'
 import { appSetupURL, CODE_VALID_FOR, formatToken, generateToken, hashToken, normalizeLoginID, syntheticEmail, webSetupURL } from '@/lib/tokens'
@@ -75,6 +76,8 @@ async function saveProfile(userId: string, form: FormData): Promise<string | nul
   }
   const problem = vehicleProblem(vehicleClass, vehicleId ? (kinds.get(vehicleId) ?? null) : null, chassisId ? (kinds.get(chassisId) ?? null) : null)
   if (problem) return problem
+  const phone = normalizePhone(String(form.get('phone') ?? ''))
+  if (phone === undefined) return '電話番号は数字で入力してください（ハイフンは入れても入れなくても構いません）。'
   const { error } = await service.from('account_profiles').upsert({
     user_id: userId,
     full_name: String(form.get('full_name') ?? '').normalize('NFKC').replace(/\s+/g, ' ').trim(),
@@ -84,6 +87,7 @@ async function saveProfile(userId: string, form: FormData): Promise<string | nul
     vehicle_id: vehicleId,
     chassis_id: chassisId,
     supervisor_id: optional(form, 'supervisor_id') === userId ? null : optional(form, 'supervisor_id'),
+    phone,
     updated_at: new Date().toISOString(),
   })
   if (error) return error.code === '23505' ? 'その車両は別の人に割り当てられています。' : 'プロフィールを保存できませんでした。'
@@ -96,6 +100,8 @@ function roles(form: FormData) {
     can_search_customers: form.get('can_search_customers') === 'on',
     is_admin: form.get('is_admin') === 'on',
     can_check_leave: form.get('can_check_leave') === 'on',
+    can_approve_pickup_failure: form.get('can_approve_pickup_failure') === 'on',
+    can_view_pickup_failure: form.get('can_view_pickup_failure') === 'on',
   }
 }
 
@@ -169,7 +175,10 @@ export async function updateAccount(_prev: ActionResult | null, form: FormData):
   }
   const staffName = staffId ? ((await service.from('staff_members').select('name').eq('id', staffId).maybeSingle()).data?.name ?? null) : null
   await audit(admin, 'accounts', before.login_id, 'update', {
-    before: { is_driver: before.is_driver, can_search_customers: before.can_search_customers, is_admin: before.is_admin, can_check_leave: before.can_check_leave },
+    before: {
+      is_driver: before.is_driver, can_search_customers: before.can_search_customers, is_admin: before.is_admin, can_check_leave: before.can_check_leave,
+      can_approve_pickup_failure: before.can_approve_pickup_failure, can_view_pickup_failure: before.can_view_pickup_failure,
+    },
     after: { ...next, staffName },
   })
   revalidatePath('/accounts')

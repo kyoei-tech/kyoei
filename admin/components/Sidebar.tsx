@@ -19,7 +19,7 @@ const NAV: { title?: string; items: Item[] }[] = [
     title: 'マイページの申請・記録',
     items: [
       { href: '/inspections', label: '点検簿', ready: true }, { href: '/packing', label: '荷姿履歴', ready: true }, { href: '/self-review', label: '自己評価シート', ready: true }, { href: '/award', label: '社長賞', ready: true },
-      { href: '/leave', label: '休暇申請', ready: true }, { href: '/repairs', label: '修理申請', ready: true },
+      { href: '/leave', label: '休暇申請', ready: true }, { href: '/repairs', label: '修理申請', ready: true }, { href: '/pickup-failures', label: '引取不可', ready: true },
     ],
   },
   { title: '設定', items: [{ href: '/content/messages', label: '確認メッセージ', ready: true }, { href: '/content/notifications', label: '通知のルール', ready: true }] },

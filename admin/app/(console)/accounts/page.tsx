@@ -7,10 +7,10 @@ export default async function AccountsPage() {
   const admin = await requireAdmin()
   const supabase = await createClient()
   const [{ data: rows }, { data: staffRows }, { data: pending }, { data: profileRows }, { data: positionRows }, { data: vehicleRows }] = await Promise.all([
-    supabase.from('app_accounts').select('user_id, login_id, is_driver, can_search_customers, is_admin, can_check_leave, disabled_at').order('login_id'),
+    supabase.from('app_accounts').select('user_id, login_id, is_driver, can_search_customers, is_admin, can_check_leave, can_approve_pickup_failure, can_view_pickup_failure, disabled_at').order('login_id'),
     supabase.from('staff_members').select('id, name, auth_user_id').order('sort_order', { ascending: true }),
     supabase.rpc('admin_pending_setup_codes'),
-    supabase.from('account_profiles').select('user_id, full_name, position_id, hire_date, vehicle_class, vehicle_id, chassis_id, supervisor_id'),
+    supabase.from('account_profiles').select('user_id, full_name, position_id, hire_date, vehicle_class, vehicle_id, chassis_id, supervisor_id, phone'),
     supabase.from('positions').select('id, name').order('sort_order'),
     supabase.from('vehicles').select('id, plate, kind, vehicle_class').order('plate'),
   ])
@@ -44,6 +44,8 @@ export default async function AccountsPage() {
       isDriver: r.is_driver,
       canSearch: r.can_search_customers,
       canCheckLeave: r.can_check_leave,
+      canApprovePickup: r.can_approve_pickup_failure,
+      canViewPickup: r.can_view_pickup_failure,
       isAdmin: r.is_admin,
       disabled: !!r.disabled_at,
       status: r.disabled_at ? 'stop' : last ? 'use' : 'wait',
@@ -58,6 +60,7 @@ export default async function AccountsPage() {
       chassisId: profiles.get(r.user_id)?.chassis_id ?? null,
       vehiclePlates: [profiles.get(r.user_id)?.vehicle_id, profiles.get(r.user_id)?.chassis_id].flatMap((id) => (id && plate.get(id) ? [plate.get(id)!] : [])),
       supervisorId: profiles.get(r.user_id)?.supervisor_id ?? null,
+      phone: profiles.get(r.user_id)?.phone ?? null,
     }
   })
   const positions: PositionOption[] = (positionRows ?? []).map((p) => ({ id: p.id, name: p.name }))

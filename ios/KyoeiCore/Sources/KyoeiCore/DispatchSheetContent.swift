@@ -477,9 +477,11 @@ public struct ChassisCheckProgress: Equatable, Sendable {
     public var remaining: Int { total - checked }
     public var isComplete: Bool { remaining == 0 }
 
-    public init(vehicles: [DispatchVehicle], checks: ChassisChecks) {
-        total = vehicles.count
-        checked = vehicles.filter { checks.check(for: $0) != nil }.count
+    /// `excluding`: cars not to count (引取不可 approved — never picked up).
+    public init(vehicles: [DispatchVehicle], checks: ChassisChecks, excluding: Set<Int> = []) {
+        let counted = vehicles.filter { !excluding.contains($0.id) }
+        total = counted.count
+        checked = counted.filter { checks.check(for: $0) != nil }.count
     }
 }
 

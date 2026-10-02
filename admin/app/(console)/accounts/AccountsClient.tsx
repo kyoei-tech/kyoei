@@ -1,6 +1,7 @@
 'use client'
 import { useActionState, useEffect, useState, useTransition } from 'react'
 import { CodeDialog } from '@/components/CodeDialog'
+import { formatPhone } from '@/lib/pickup'
 import { isTrailerClass, VEHICLE_CLASSES, vehicleClassLabel } from '@/lib/profile'
 import { createAccount, issueResetCode, setDisabled, updateAccount, type ActionResult, type IssuedCode } from './actions'
 
@@ -12,6 +13,8 @@ export type AccountView = {
   isDriver: boolean
   canSearch: boolean
   canCheckLeave: boolean
+  canApprovePickup: boolean
+  canViewPickup: boolean
   isAdmin: boolean
   disabled: boolean
   status: 'use' | 'wait' | 'stop'
@@ -26,6 +29,7 @@ export type AccountView = {
   chassisId: string | null
   vehiclePlates: string[]
   supervisorId: string | null
+  phone: string | null
 }
 export type StaffOption = { id: string; name: string; linkedTo: string | null }
 export type PositionOption = { id: string; name: string }
@@ -54,6 +58,7 @@ function ProfileFields({ a, positions, vehicles, people }: { a?: AccountView; po
         </select>
       </label>
       <label className="field">入社年月日<input className="input" type="date" name="hire_date" defaultValue={a?.hireDate ?? ''} /></label>
+      <label className="field">電話番号（引取不可の連絡用）<input className="input" type="tel" name="phone" defaultValue={formatPhone(a?.phone)} placeholder="例：090-1234-5678" autoComplete="off" /></label>
       <label className="field">担当車格
         <select className="input" name="vehicle_class" value={vehicleClass} onChange={(e) => setVehicleClass(e.target.value)}>
           <option value="">（未設定）</option>
@@ -78,13 +83,16 @@ function ProfileFields({ a, positions, vehicles, people }: { a?: AccountView; po
   )
 }
 
+/** アプリの権限 — any number of them can be chosen. */
 function RoleChecks({ a }: { a?: AccountView }) {
   return (
-    <div className="row" style={{ gap: 14 }}>
+    <div className="row" style={{ gap: 14, flexWrap: 'wrap' }}>
       <label className="check"><input type="checkbox" name="is_driver" defaultChecked={a ? a.isDriver : true} />ドライバー</label>
       <label className="check"><input type="checkbox" name="can_search_customers" defaultChecked={a?.canSearch ?? false} />顧客検索</label>
       <label className="check"><input type="checkbox" name="is_admin" defaultChecked={a?.isAdmin ?? false} />管理者</label>
       <label className="check"><input type="checkbox" name="can_check_leave" defaultChecked={a?.canCheckLeave ?? false} />休暇の担当者</label>
+      <label className="check" title="出勤中のとき、ドライバーから引取不可の承認を頼まれます。記録もすべて見られます。"><input type="checkbox" name="can_approve_pickup_failure" defaultChecked={a?.canApprovePickup ?? false} />引取不可の承認</label>
+      <label className="check" title="引取不可の記録と写真を、アプリと管理画面で見られます。"><input type="checkbox" name="can_view_pickup_failure" defaultChecked={a?.canViewPickup ?? false} />引取不可の閲覧</label>
     </div>
   )
 }
@@ -148,7 +156,7 @@ export function AccountsClient({ accounts, staff, selfId, positions, vehicles }:
           <label className="field">ログインID（社員番号など）<input className="input" name="login_id" required autoComplete="off" /></label>
           <ProfileFields positions={positions} vehicles={vehicles} people={accounts} />
           <label className="field">出勤簿の名前（紐付け）<StaffSelect staff={staff} current={null} /></label>
-          <div className="field" style={{ gridColumn: 'span 2' }}>アプリの権限<RoleChecks /></div>
+          <div className="field" style={{ gridColumn: '1 / -1' }}>アプリの権限（複数選択可）<RoleChecks /></div>
           <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 8 }}>
             <button type="submit" className="btn btn-primary" disabled={creating}>{creating ? '作成中…' : '作成してコードを発行'}</button>
             <button type="button" className="btn" onClick={() => setInviting(false)}>やめる</button>
@@ -172,7 +180,7 @@ export function AccountsClient({ accounts, staff, selfId, positions, vehicles }:
                     <div className="field">ログインID<b className="mono" style={{ color: 'var(--text)', height: 40, display: 'flex', alignItems: 'center' }}>{a.loginId}</b></div>
                     <ProfileFields a={a} positions={positions} vehicles={vehicles} people={accounts} />
                     <label className="field">出勤簿の名前（紐付け）<StaffSelect staff={staff} current={a.staffId} userId={a.userId} /></label>
-                    <div className="field" style={{ gridColumn: 'span 2' }}>アプリの権限<RoleChecks a={a} /></div>
+                    <div className="field" style={{ gridColumn: '1 / -1' }}>アプリの権限（複数選択可）<RoleChecks a={a} /></div>
                     <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 8 }}>
                       <button type="submit" className="btn btn-primary" disabled={updating}>保存</button>
                       <button type="button" className="btn" onClick={() => setEditing(null)}>やめる</button>
@@ -187,6 +195,7 @@ export function AccountsClient({ accounts, staff, selfId, positions, vehicles }:
                 <td>
                   <div style={{ fontWeight: 700 }}>{a.fullName || a.staffName || <span style={{ color: 'var(--muted)' }}>（名前未登録）</span>}</div>
                   <div style={{ fontSize: 12, color: 'var(--muted)' }}>{a.positionName ?? '役職未設定'}{a.staffName ? ` ・ 出勤簿：${a.staffName}` : ' ・ 出勤簿：未紐付け'}</div>
+                  {a.phone && <div className="mono" style={{ fontSize: 12, color: 'var(--muted)' }}>{formatPhone(a.phone)}</div>}
                 </td>
                 <td style={{ fontSize: 13 }}>
                   <div>{vehicleClassLabel(a.vehicleClass)}</div>
@@ -197,6 +206,8 @@ export function AccountsClient({ accounts, staff, selfId, positions, vehicles }:
                     {a.isDriver && <span className="chip chip-ink">ドライバー</span>}
                     {a.canSearch && <span className="chip chip-lime">顧客検索</span>}
                     {a.canCheckLeave && <span className="chip chip-lime">休暇の担当者</span>}
+                    {a.canApprovePickup && <span className="chip chip-orange">引取不可の承認</span>}
+                    {a.canViewPickup && !a.canApprovePickup && <span className="chip chip-lime">引取不可の閲覧</span>}
                     {a.isAdmin && <span className="chip chip-dark">管理者</span>}
                   </div>
                 </td>

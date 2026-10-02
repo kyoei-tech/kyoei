@@ -16,6 +16,7 @@ struct MyPageView: View {
     @Environment(AuthStore.self) private var auth
     @Environment(RepairStore.self) private var repairs
     @Environment(LeaveStore.self) private var leaveStore
+    @Environment(PickupStore.self) private var pickups
     @State private var profiles = RealtimeTable<StaffProfileRow>(table: "staff_members", fetch: StaffLinkRepository.fetch)
     @State private var selected: MyPageItem?
     /// my_profile(): 役職・フルネーム・車格・担当車両・期限 (entered from the admin console).
@@ -61,7 +62,7 @@ struct MyPageView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
             }
-            ForEach(MyPageItem.allCases, id: \.self) { item in
+            ForEach(MyPageItem.allCases.filter { $0.isVisible(canViewPickup: auth.account?.canViewPickup == true) }, id: \.self) { item in
                 Button { selected = item } label: {
                     HStack(spacing: 12) {
                         Image(systemName: item.systemImage).foregroundStyle(Color.primary)
@@ -71,6 +72,10 @@ struct MyPageView: View {
                             Text(item.summary).appFont(12).foregroundStyle(Color.mutedForeground)
                         }
                         Spacer(minLength: 0)
+                        if item == .pickupFailures && !pickups.forMe.isEmpty {
+                            Text("承認待ち \(pickups.forMe.count)").appFont(11, weight: .black).foregroundStyle(Color.destructiveForeground)
+                                .padding(.horizontal, 8).padding(.vertical, 3).background(Color.destructive, in: Capsule())
+                        }
                         if (item == .repairRequest && !repairs.unread.isEmpty) || (item == .leaveRequest && !leaveStore.unread.isEmpty) {
                             Text("更新あり").appFont(11, weight: .black).foregroundStyle(Color.destructiveForeground)
                                 .padding(.horizontal, 8).padding(.vertical, 3).background(Color.destructive, in: Capsule())
@@ -112,6 +117,8 @@ struct MyPageView: View {
                 RepairListView()
             case .leaveRequest:
                 LeaveView()
+            case .pickupFailures:
+                PickupBoardView()
             }
         }
     }
@@ -144,6 +151,7 @@ extension MyPageItem {
         case .leaveRequest: "calendar.badge.minus"
         case .repairRequest: "wrench.and.screwdriver"
         case .packagingHistory: "shippingbox"
+        case .pickupFailures: "xmark.octagon"
         }
     }
 }

@@ -168,10 +168,10 @@ public struct PackingOrder: Equatable, Sendable {
 
 public enum PackingPrompt {
     /// 回戦 whose vehicles just became all 照合済 (between two check states).
-    public static func newlyCompleted(rounds: [DispatchRound], before: ChassisChecks, after: ChassisChecks) -> [DispatchRound] {
+    public static func newlyCompleted(rounds: [DispatchRound], before: ChassisChecks, after: ChassisChecks, excluding: Set<Int> = []) -> [DispatchRound] {
         rounds.filter { round in
-            !ChassisCheckProgress(vehicles: round.vehicles, checks: before).isComplete
-                && ChassisCheckProgress(vehicles: round.vehicles, checks: after).isComplete
+            !ChassisCheckProgress(vehicles: round.vehicles, checks: before, excluding: excluding).isComplete
+                && ChassisCheckProgress(vehicles: round.vehicles, checks: after, excluding: excluding).isComplete
         }
     }
 }

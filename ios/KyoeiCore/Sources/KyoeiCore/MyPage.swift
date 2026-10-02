@@ -66,6 +66,8 @@ public enum MyPageItem: String, CaseIterable, Sendable {
     case leaveRequest = "leave-request"
     case repairRequest = "repair-request"
     case packagingHistory = "packaging-history"
+    /// Only for accounts allowed to see 引取不可 (承認 or 閲覧).
+    case pickupFailures = "pickup-failures"
 
     public var label: String {
         switch self {
@@ -78,6 +80,7 @@ public enum MyPageItem: String, CaseIterable, Sendable {
         case .leaveRequest: "休暇申請"
         case .repairRequest: "修理申請"
         case .packagingHistory: "荷姿履歴"
+        case .pickupFailures: "引取不可"
         }
     }
 
@@ -92,11 +95,15 @@ public enum MyPageItem: String, CaseIterable, Sendable {
         case .leaveRequest: "休暇届を出し、有給の残り日数を確認できます。"
         case .repairRequest: "車両の故障を報告し、修理の予定と結果を確認できます。"
         case .packagingHistory: "回戦ごとに、何番に何を積んだかと写真を記録・確認できます。"
+        case .pickupFailures: "積地で引き取れなかった車の申請・承認・解決を確認できます。"
         }
     }
 
     /// Needs the account linked to its 出勤簿 name (配車表 etc.); 点検簿 works on the account alone.
-    public var needsStaffLink: Bool { ![.inspection, .packagingHistory, .redPlates, .awardVote, .selfEvaluation, .repairRequest, .leaveRequest].contains(self) }
+    public var needsStaffLink: Bool { ![.inspection, .packagingHistory, .redPlates, .awardVote, .selfEvaluation, .repairRequest, .leaveRequest, .pickupFailures].contains(self) }
+
+    /// 引取不可 is listed only for accounts with that permission.
+    public func isVisible(canViewPickup: Bool) -> Bool { self != .pickupFailures || canViewPickup }
 
     /// Features the web app hadn't built yet either (shown as 準備中).
     public var isComingSoon: Bool { false }

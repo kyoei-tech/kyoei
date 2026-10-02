@@ -87,7 +87,7 @@ public enum AppLockPolicy {
 
 /// app_accounts: the signed-in user's own row (RLS).
 public struct AccountRow: Codable, Equatable, Sendable {
-    public static let selectColumns = "user_id, login_id, is_driver, can_search_customers, is_admin, disabled_at"
+    public static let selectColumns = "user_id, login_id, is_driver, can_search_customers, is_admin, disabled_at, can_approve_pickup_failure, can_view_pickup_failure"
 
     public var user_id: String
     public var login_id: String
@@ -95,21 +95,31 @@ public struct AccountRow: Codable, Equatable, Sendable {
     public var can_search_customers: Bool
     public var is_admin: Bool
     public var disabled_at: String?
+    /// 引取不可の承認 / 閲覧. Optional: rows cached before these existed.
+    public var can_approve_pickup_failure: Bool?
+    public var can_view_pickup_failure: Bool?
 
-    public init(user_id: String, login_id: String, is_driver: Bool = true, can_search_customers: Bool = false, is_admin: Bool = false, disabled_at: String? = nil) {
+    public init(user_id: String, login_id: String, is_driver: Bool = true, can_search_customers: Bool = false, is_admin: Bool = false, disabled_at: String? = nil, can_approve_pickup_failure: Bool = false, can_view_pickup_failure: Bool = false) {
         self.user_id = user_id
         self.login_id = login_id
         self.is_driver = is_driver
         self.can_search_customers = can_search_customers
         self.is_admin = is_admin
         self.disabled_at = disabled_at
+        self.can_approve_pickup_failure = can_approve_pickup_failure
+        self.can_view_pickup_failure = can_view_pickup_failure
     }
 
     public var isDisabled: Bool { disabled_at != nil }
 
+    public var canApprovePickup: Bool { can_approve_pickup_failure == true }
+    /// Approvers see every record too.
+    public var canViewPickup: Bool { canApprovePickup || can_view_pickup_failure == true }
+
     /// "ドライバー・顧客検索" — for マイページ.
     public var roleLabel: String {
-        [is_driver ? "ドライバー" : nil, can_search_customers ? "顧客検索" : nil, is_admin ? "管理者" : nil]
+        [is_driver ? "ドライバー" : nil, can_search_customers ? "顧客検索" : nil,
+         canApprovePickup ? "引取不可の承認" : (canViewPickup ? "引取不可の閲覧" : nil), is_admin ? "管理者" : nil]
             .compactMap { $0 }.joined(separator: "・")
     }
 }

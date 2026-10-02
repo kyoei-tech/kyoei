@@ -17,6 +17,7 @@ struct KyoeiApp: App {
     @State private var repairs = RepairStore()
     @State private var leave = LeaveStore()
     @State private var appointments = AppointmentStore()
+    @State private var pickups = PickupStore()
 
     init() {
         UNUserNotificationCenter.current().delegate = ForegroundNotificationDelegate.shared
@@ -36,6 +37,8 @@ struct KyoeiApp: App {
                 .environment(repairs)
                 .environment(leave)
                 .environment(appointments)
+                .environment(pickups)
+                .task(id: auth.userID) { await pickups.start(userID: auth.userID) }
                 .task(id: auth.userID) { await appointments.start(userID: auth.userID) }
                 .task(id: auth.userID) { await leave.start(userID: auth.userID) }
                 .task(id: auth.userID) { await repairs.start(userID: auth.userID) }

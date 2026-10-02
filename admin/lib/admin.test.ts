@@ -229,3 +229,18 @@ test('車両管理・健康診断・カレンダー helpers', async () => {
   assert.equal(grid.flat().filter(Boolean).length, 31)
   assert.equal(jstDay('2026-10-02T16:00:00Z'), '2026-10-03')
 })
+
+test('引取不可: status, phone and photo file names', async () => {
+  const { pickupStatus, reasonLabel, normalizePhone, formatPhone, photoFileName } = await import('./pickup.ts')
+  assert.equal(pickupStatus({ approved_at: null, resolved_at: null }), 'pending')
+  assert.equal(pickupStatus({ approved_at: '2026-10-03T00:00:00Z', resolved_at: null }), 'approved')
+  assert.equal(pickupStatus({ approved_at: null, resolved_at: '2026-10-03T00:00:00Z' }), 'resolved')
+  assert.equal(reasonLabel('no_key'), '鍵が無い')
+  assert.equal(normalizePhone('０９０－１２３４－５６７８'), '09012345678')
+  assert.equal(normalizePhone(' '), null)
+  assert.equal(normalizePhone('abc'), undefined)
+  assert.equal(formatPhone('09012345678'), '090-1234-5678')
+  assert.equal(formatPhone('0312345678'), '03-1234-5678')
+  assert.equal(photoFileName('2026-10-02T23:30:00Z', 'プリウス α', 'ZVW30/1234567', 0), '引取不可_20261003_プリウス_α_ZVW30_1234567_1.jpg')
+  assert.equal(photoFileName('2026-10-03T01:00:00Z', '', '', 2), '引取不可_20261003_3.jpg')
+})

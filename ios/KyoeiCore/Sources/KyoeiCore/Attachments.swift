@@ -21,11 +21,13 @@ public enum AttachmentBucket: String, CaseIterable, Sendable {
     case repairPhotos = "repair-photos"
     /// 車体番号が空欄の車を記録したときの写真. Private: `<auth user id>/...`.
     case chassisPhotos = "chassis-photos"
+    /// 引取不可の写真. `<auth user id>/...`; people allowed to see 引取不可 read all.
+    case pickupPhotos = "pickup-photos"
 
     public var maxBytes: Int {
         switch self {
         case .dispatchSheets: 20 * 1024 * 1024
-        case .beginnerNotes, .timecardTodo, .inspectionPhotos, .packingPhotos, .repairPhotos, .chassisPhotos: 10 * 1024 * 1024
+        case .beginnerNotes, .timecardTodo, .inspectionPhotos, .packingPhotos, .repairPhotos, .chassisPhotos, .pickupPhotos: 10 * 1024 * 1024
         }
     }
 }

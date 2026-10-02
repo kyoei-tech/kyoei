@@ -11,6 +11,7 @@ struct RootView: View {
     @Environment(AuthStore.self) private var auth
     @Environment(AppLockStore.self) private var lock
     @Environment(AdminApprovalStore.self) private var approvals
+    @Environment(PickupStore.self) private var pickups
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -33,6 +34,12 @@ struct RootView: View {
                             guard account.is_admin, scenePhase == .active else { return }
                             await approvals.poll()
                         }
+                        // 引取不可: approvers get requests, drivers news of theirs.
+                        .task(id: "\(account.canApprovePickup)|\(scenePhase == .active)") {
+                            guard scenePhase == .active else { return }
+                            await pickups.poll(approver: account.canApprovePickup)
+                        }
+                    if !lock.isLocked { PickupRequestAlert() }
                     if !lock.isLocked { AdminApprovalView() }
                 case .missing:
                     AccountBlockedView(message: "このアカウントはまだ使えません。管理者に、アカウントの登録（ログインIDの発行）を依頼してください。")

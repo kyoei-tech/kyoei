@@ -38,6 +38,10 @@ struct DispatchSheetDetail: View {
     @State private var message: String?
     @Environment(SettingsStore.self) private var settings
     @Environment(AuthStore.self) private var auth
+    @Environment(PickupStore.self) private var pickupStore
+    /// 引取不可: the form for one car, or one request's detail.
+    @State private var pickupTarget: PickupTarget?
+    @State private var openPickup: PickupFailure?
     /// 荷姿 records of this sheet, by 回戦.
     @State private var packings: [PackingRecord] = []
     @State private var packing: PackingTarget?
@@ -64,7 +68,9 @@ struct DispatchSheetDetail: View {
     }
 
     private var checkIndex: ChassisChecks { ChassisChecks(checks.rows) }
-    private var chassisState: SheetChassisState { SheetChassisState(checks: checkIndex, acknowledgments: acknowledgments.rows) }
+    private var chassisState: SheetChassisState {
+        SheetChassisState(checks: checkIndex, acknowledgments: acknowledgments.rows, pickups: PickupFailures(pickupStore.mine, sheetID: sheet.id))
+    }
 
     private var placeAliases: PlaceAliases {
         PlaceAliases(placeAnswers.rows, order: content.map(PlaceNames.places(in:)) ?? [])
@@ -121,6 +127,13 @@ struct DispatchSheetDetail: View {
         // (Realtime on dispatch_sheets updates `sheet`).
         .task(id: "\(sheet.id)|\(sheet.statusLabel)") { await loadContent() }
         .task(id: sheet.id) { await loadPackings() }
+        .task(id: sheet.id) { await pickupStore.refreshMine() }
+        .fullScreen(item: $pickupTarget) { target in
+            PickupRequestView(target: target) { pickupTarget = nil }
+        }
+        .sheet(item: $openPickup) { record in
+            PickupDetailView(record: record) { openPickup = nil }
+        }
         #if DEBUG
         .onAppear {
             switch DebugShot.sub {
@@ -185,7 +198,7 @@ struct DispatchSheetDetail: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(sheet.title).appFont(18, weight: .bold).foregroundStyle(Color.appForeground)
             if let content {
-                let progress = ChassisCheckProgress(vehicles: content.vehicles, checks: checkIndex)
+                let progress = chassisState.progress(content.vehicles)
                 Text([
                     "\(content.vehicles.count)台",
                     content.vehicleNumber.map { "\($0)号車" },
@@ -312,7 +325,7 @@ struct DispatchSheetDetail: View {
     private func promptPacking(before: ChassisChecks) {
         guard settings.settings.packingPrompt, let content else { return }
         let packed = Set(packings.map(\.round))
-        for round in PackingPrompt.newlyCompleted(rounds: content.rounds, before: before, after: checkIndex)
+        for round in PackingPrompt.newlyCompleted(rounds: content.rounds, before: before, after: checkIndex, excluding: chassisState.pickups.notPickedUp)
         where !packed.contains(round.round) && !packingPrompts.contains(where: { $0.id == round.id }) {
             packingPrompts.append(round)
         }
@@ -324,7 +337,9 @@ struct DispatchSheetDetail: View {
             uncheck: uncheck,
             acknowledgeBlank: acknowledgeBlank,
             removeAcknowledgment: removeAcknowledgment,
-            showOriginal: { tab = .original }
+            showOriginal: { tab = .original },
+            requestPickup: { pickupTarget = PickupTarget(sheet: sheet, vehicle: $0) },
+            openPickup: { openPickup = $0 }
         )
     }
 
@@ -375,13 +390,15 @@ struct ScanRequest: Identifiable {
 struct SheetChassisState {
     let checks: ChassisChecks
     let acknowledgments: [BlankAcknowledgmentRow]
+    /// 引取不可 per car; approved ones are left out of the 照合 counts.
+    var pickups = PickupFailures()
 
     func status(of vehicle: DispatchVehicle) -> ChassisStatus {
         .of(vehicle, checks: checks, acknowledgments: acknowledgments)
     }
 
     func progress(_ vehicles: [DispatchVehicle]) -> ChassisCheckProgress {
-        ChassisCheckProgress(vehicles: vehicles, checks: checks)
+        ChassisCheckProgress(vehicles: vehicles, checks: checks, excluding: pickups.notPickedUp)
     }
 
     func reviewCount(_ vehicles: [DispatchVehicle]) -> Int {
@@ -453,7 +470,7 @@ private struct RouteBlock: View {
             }
             Divider()
             ForEach(route.vehicles) { vehicle in
-                SummaryVehicleRow(vehicle: vehicle, status: state.status(of: vehicle))
+                SummaryVehicleRow(vehicle: vehicle, status: state.status(of: vehicle), pickup: state.pickups.record(for: vehicle))
             }
         }
         .padding(10)
@@ -466,6 +483,7 @@ private struct RouteBlock: View {
 private struct SummaryVehicleRow: View {
     let vehicle: DispatchVehicle
     let status: ChassisStatus
+    let pickup: PickupFailure?
 
     var body: some View {
         HStack(spacing: 6) {
@@ -483,11 +501,15 @@ private struct SummaryVehicleRow: View {
                 }
             }
             Spacer(minLength: 4)
-            switch status {
-            case .blankNeedsReview: ReviewChip(text: "要確認")
-            case .blankConfirmed: ChassisBadge(kind: .record, isDone: false)
-            case .done: ChassisBadge(kind: vehicle.needsRecording ? .record : .match, isDone: true)
-            case .unmatched: ChassisBadge(kind: .match, isDone: false)
+            if let pickup, pickup.status != .resolved {
+                PickupChip(status: pickup.status)
+            } else {
+                switch status {
+                case .blankNeedsReview: ReviewChip(text: "要確認")
+                case .blankConfirmed: ChassisBadge(kind: .record, isDone: false)
+                case .done: ChassisBadge(kind: vehicle.needsRecording ? .record : .match, isDone: true)
+                case .unmatched: ChassisBadge(kind: .match, isDone: false)
+                }
             }
         }
         .padding(.vertical, status.needsReview ? 6 : 2)
@@ -495,6 +517,24 @@ private struct SummaryVehicleRow: View {
         .background(status.needsReview ? Color.destructive.opacity(0.1) : .clear, in: RoundedRectangle(cornerRadius: 8))
         .padding(.horizontal, status.needsReview ? -6 : 0)
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// 「引取不可 申請中」 (orange outline) / 「引取不可」 (filled red).
+private struct PickupChip: View {
+    let status: PickupStatus
+
+    var body: some View {
+        let approved = status == .approved
+        Label(approved ? "引取不可" : "引取不可 申請中", systemImage: "xmark.octagon.fill")
+            .labelStyle(.titleAndIcon)
+            .appFont(12, weight: .black)
+            .foregroundStyle(approved ? Color.destructiveForeground : Color.chassisUncheckedText)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(approved ? Color.destructive : Color.chassisUncheckedSoft, in: RoundedRectangle(cornerRadius: 6))
+            .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(approved ? .clear : Color.chassisUnchecked, lineWidth: 1.5))
+            .fixedSize()
     }
 }
 
@@ -533,7 +573,7 @@ private struct DispatchVehicleList: View {
                 }
                 ChassisProgressChips(progress: state.progress(round.vehicles))
                 ForEach(round.vehicles) { vehicle in
-                    VehicleCard(vehicle: vehicle, status: state.status(of: vehicle), today: today, actions: actions)
+                    VehicleCard(vehicle: vehicle, status: state.status(of: vehicle), pickup: state.pickups.record(for: vehicle), today: today, actions: actions)
                 }
             }
             .padding(.top, 4)
@@ -547,11 +587,15 @@ struct VehicleCardActions {
     let acknowledgeBlank: (DispatchVehicle) -> Void
     let removeAcknowledgment: (BlankAcknowledgmentRow) -> Void
     let showOriginal: () -> Void
+    /// 引取不可: open the form for a car, or an existing request.
+    let requestPickup: (DispatchVehicle) -> Void
+    let openPickup: (PickupFailure) -> Void
 }
 
 private struct VehicleCard: View {
     let vehicle: DispatchVehicle
     let status: ChassisStatus
+    let pickup: PickupFailure?
     let today: LocalDate
     let actions: VehicleCardActions
 
@@ -613,12 +657,13 @@ private struct VehicleCard: View {
                 }
                 .buttonStyle(.plain)
             }
+            pickupSection
         }
         .padding(14)
         .background(Color.card, in: RoundedRectangle(cornerRadius: 18))
         // 未照合・未記録: an orange bar down the left edge.
         .overlay(alignment: .leading) {
-            if check == nil {
+            if check == nil && pickup?.status != .approved {
                 UnevenRoundedRectangle(topLeadingRadius: 18, bottomLeadingRadius: 18)
                     .fill(Color.chassisUnchecked)
                     .frame(width: 5)
@@ -641,7 +686,60 @@ private struct VehicleCard: View {
         }
     }
 
+    /// 引取不可: the request's state, or the button to start one.
+    @ViewBuilder private var pickupSection: some View {
+        if let pickup, pickup.status != .resolved {
+            let approved = pickup.status == .approved
+            Button { actions.openPickup(pickup) } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "xmark.octagon.fill").font(.system(size: 20, weight: .bold))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(approved ? "引取不可（承認済み）" : "引取不可 申請中").appFont(15, weight: .black)
+                        Text(approved ? "\(pickup.approved_by_name ?? "")さんが承認 ・ \(pickup.reason.label)" : (pickup.waitingLine ?? ""))
+                            .appFont(12, weight: .bold).multilineTextAlignment(.leading)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                }
+                .foregroundStyle(approved ? Color.destructive : Color.chassisUncheckedText)
+                .padding(12)
+                .background((approved ? Color.destructive : Color.chassisUnchecked).opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(approved ? Color.destructive : Color.chassisUnchecked, lineWidth: 1.5))
+            }
+            .buttonStyle(.plain)
+        } else {
+            if let pickup {
+                Button { actions.openPickup(pickup) } label: {
+                    Label("引取不可 → 解決済み（通常どおり輸送）", systemImage: "checkmark.circle")
+                        .appFont(12, weight: .bold).foregroundStyle(Color.mutedForeground)
+                }
+                .buttonStyle(.plain)
+            }
+            Button { actions.requestPickup(vehicle) } label: {
+                Label("引取不可", systemImage: "xmark.octagon")
+                    .appFont(14, weight: .bold)
+                    .frame(maxWidth: .infinity, minHeight: 40)
+                    .foregroundStyle(Color.destructive)
+                    .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.destructive.opacity(0.6), lineWidth: 1.5))
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("積地で引き取れなかったことを、理由と写真を付けて役職者に承認してもらいます")
+        }
+    }
+
     @ViewBuilder private var badge: some View {
+        if pickup?.status == .approved {
+            Label("引取不可", systemImage: "xmark.octagon.fill")
+                .appFont(12, weight: .black)
+                .foregroundStyle(Color.destructiveForeground)
+                .padding(.horizontal, 8).padding(.vertical, 4)
+                .background(Color.destructive, in: RoundedRectangle(cornerRadius: 6))
+        } else {
+            chassisBadge
+        }
+    }
+
+    @ViewBuilder private var chassisBadge: some View {
         switch status {
         case .unmatched:
             Button { actions.scan(vehicle) } label: { ChassisBadge(kind: .match, isDone: false) }
