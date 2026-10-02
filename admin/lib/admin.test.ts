@@ -206,3 +206,26 @@ test('アプリ内編集: LoL calendar, vehicles, visitors and note images', asy
   assert.ok('error' in rowFromForm(notes, g({ image_paths: JSON.stringify(['../x']) })))
   assert.deepEqual((rowFromForm(notes, g({})) as { row: Record<string, unknown> }).row.image_paths, [])
 })
+
+test('車両管理・健康診断・カレンダー helpers', async () => {
+  const { scheduleFromForm, healthFromForm, healthStatus, handoverLabel, whenLabel, monthGrid, jstDay } = await import('./schedule.ts')
+  const f = (v: Record<string, string>) => (k: string) => v[k] ?? null
+  assert.deepEqual(scheduleFromForm(f({ kind: 'shaken', scheduled_on: '2026-10-20', scheduled_time: '9:30', place: ' 日野厚木 ', handover: 'pickup', vendor: '日野自動車', notes: '' })),
+    { row: { kind: 'shaken', scheduled_on: '2026-10-20', scheduled_time: '9:30', place: '日野厚木', handover: 'pickup', vendor: '日野自動車', notes: '' } })
+  assert.equal((scheduleFromForm(f({ kind: 'shaken', scheduled_on: '2026-10-20', handover: 'bring', vendor: 'x' })) as { row: { vendor: string } }).row.vendor, '')
+  assert.ok('error' in scheduleFromForm(f({ kind: 'shaken', scheduled_on: '2026-10-20', handover: 'pickup' })))
+  assert.ok('error' in scheduleFromForm(f({ kind: 'oil', scheduled_on: '2026-10-20' })))
+  assert.ok('error' in scheduleFromForm(f({ kind: 'shaken', scheduled_on: '2026-10-20', scheduled_time: '9時' })))
+  assert.ok('error' in healthFromForm(f({ scheduled_on: '' })))
+  assert.equal(handoverLabel({ handover: 'pickup', vendor: '東名自動車' }), '東名自動車引取')
+  assert.equal(handoverLabel({ handover: 'bring', vendor: '' }), '共栄持込')
+  assert.equal(whenLabel('2026-10-20', '9:30'), '10/20(火) 9:30')
+  assert.equal(healthStatus(1, null, false, '2026-10-03'), 'none')
+  assert.equal(healthStatus(1, '2026-01-10', false, '2026-10-03'), 'done')
+  assert.equal(healthStatus(2, '2026-01-10', false, '2026-10-03'), 'due')
+  assert.equal(healthStatus(2, '2026-01-10', true, '2026-10-03'), 'scheduled')
+  const grid = monthGrid('2026-10')
+  assert.equal(grid[0][4], '2026-10-01')
+  assert.equal(grid.flat().filter(Boolean).length, 31)
+  assert.equal(jstDay('2026-10-02T16:00:00Z'), '2026-10-03')
+})

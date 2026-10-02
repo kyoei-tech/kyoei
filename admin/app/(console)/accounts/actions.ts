@@ -67,8 +67,11 @@ async function saveProfile(userId: string, form: FormData): Promise<string | nul
   const kinds = new Map<string, string>()
   const ids = [vehicleId, chassisId].filter((x): x is string => !!x)
   if (ids.length) {
-    const { data } = await service.from('vehicles').select('id, kind').in('id', ids)
-    for (const v of data ?? []) kinds.set(v.id, v.kind)
+    const { data } = await service.from('vehicles').select('id, kind, vehicle_class').in('id', ids)
+    for (const v of data ?? []) {
+      kinds.set(v.id, v.kind)
+      if (v.vehicle_class && v.vehicle_class !== vehicleClass) return '選んだ車両の車格が、担当車格と違います。'
+    }
   }
   const problem = vehicleProblem(vehicleClass, vehicleId ? (kinds.get(vehicleId) ?? null) : null, chassisId ? (kinds.get(chassisId) ?? null) : null)
   if (problem) return problem
@@ -80,7 +83,6 @@ async function saveProfile(userId: string, form: FormData): Promise<string | nul
     vehicle_class: vehicleClass,
     vehicle_id: vehicleId,
     chassis_id: chassisId,
-    health_check_due: optional(form, 'health_check_due'),
     supervisor_id: optional(form, 'supervisor_id') === userId ? null : optional(form, 'supervisor_id'),
     updated_at: new Date().toISOString(),
   })

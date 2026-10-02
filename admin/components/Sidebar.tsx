@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 
 type Item = { href: string; label: string; ready?: boolean }
 const NAV: { title?: string; items: Item[] }[] = [
-  { items: [{ href: '/', label: 'ホーム', ready: true }, { href: '/accounts', label: 'アカウント', ready: true }, { href: '/customers', label: 'POS番号一覧', ready: true }, { href: '/vehicles', label: '車両', ready: true }, { href: '/red-plates', label: '赤枠管理', ready: true }] },
+  { items: [{ href: '/', label: 'ホーム', ready: true }, { href: '/employees', label: '社員管理', ready: true }, { href: '/accounts', label: 'アカウント', ready: true }, { href: '/customers', label: 'POS番号一覧', ready: true }, { href: '/vehicles', label: '車両', ready: true }, { href: '/vehicle-schedules', label: '車両管理', ready: true }, { href: '/health', label: '健康診断', ready: true }, { href: '/red-plates', label: '赤枠管理', ready: true }] },
   {
     title: 'アプリ内編集',
     items: [

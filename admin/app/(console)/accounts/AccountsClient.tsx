@@ -25,19 +25,19 @@ export type AccountView = {
   vehicleId: string | null
   chassisId: string | null
   vehiclePlates: string[]
-  healthCheckDue: string | null
   supervisorId: string | null
 }
 export type StaffOption = { id: string; name: string; linkedTo: string | null }
 export type PositionOption = { id: string; name: string }
-export type VehicleOption = { id: string; plate: string; kind: string; holderId: string | null; holderName: string | null }
+export type VehicleOption = { id: string; plate: string; kind: string; vehicleClass: string | null; holderId: string | null; holderName: string | null }
 
 /** プロフィール fields shared by the invite and edit forms. */
 function ProfileFields({ a, positions, vehicles, people }: { a?: AccountView; positions: PositionOption[]; vehicles: VehicleOption[]; people: AccountView[] }) {
   const [vehicleClass, setVehicleClass] = useState(a?.vehicleClass ?? '')
   const trailer = isTrailerClass(vehicleClass)
   const usable = (v: VehicleOption) => !v.holderId || v.holderId === a?.userId
-  const options = (kind: string) => vehicles.filter((v) => v.kind === kind)
+  // Plates of the chosen 車格 (and ones not given a 車格 yet).
+  const options = (kind: string) => vehicles.filter((v) => v.kind === kind && (!v.vehicleClass || v.vehicleClass === vehicleClass))
   return (
     <>
       <label className="field">名前（フルネーム）<input className="input" name="full_name" defaultValue={a?.fullName} placeholder="例：共栄 太郎" /></label>
@@ -54,7 +54,6 @@ function ProfileFields({ a, positions, vehicles, people }: { a?: AccountView; po
         </select>
       </label>
       <label className="field">入社年月日<input className="input" type="date" name="hire_date" defaultValue={a?.hireDate ?? ''} /></label>
-      <label className="field">健康診断予定日<input className="input" type="date" name="health_check_due" defaultValue={a?.healthCheckDue ?? ''} /></label>
       <label className="field">担当車格
         <select className="input" name="vehicle_class" value={vehicleClass} onChange={(e) => setVehicleClass(e.target.value)}>
           <option value="">（未設定）</option>
@@ -62,14 +61,14 @@ function ProfileFields({ a, positions, vehicles, people }: { a?: AccountView; po
         </select>
       </label>
       <label className="field">{trailer ? '担当車両（ヘッド）' : '担当車両'}
-        <select className="input" name="vehicle_id" defaultValue={a?.vehicleId ?? ''} key={trailer ? 'head' : 'truck'}>
-          <option value="">未定</option>
-          {options(trailer ? 'head' : 'truck').map((v) => <option key={v.id} value={v.id} disabled={!usable(v)}>{v.plate}{usable(v) ? '' : `（${v.holderName}）`}</option>)}
+        <select className="input" name="vehicle_id" defaultValue={a?.vehicleId ?? ''} key={`v-${vehicleClass}`}>
+          <option value="">{vehicleClass ? '未定' : '先に担当車格を選んでください'}</option>
+          {vehicleClass && options(trailer ? 'head' : 'truck').map((v) => <option key={v.id} value={v.id} disabled={!usable(v)}>{v.plate}{v.vehicleClass ? '' : '（車格未設定）'}{usable(v) ? '' : `（${v.holderName}）`}</option>)}
         </select>
       </label>
       {trailer && (
         <label className="field">担当車両（台車）
-          <select className="input" name="chassis_id" defaultValue={a?.chassisId ?? ''}>
+          <select className="input" name="chassis_id" defaultValue={a?.chassisId ?? ''} key={`c-${vehicleClass}`}>
             <option value="">未定</option>
             {options('chassis').map((v) => <option key={v.id} value={v.id} disabled={!usable(v)}>{v.plate}{usable(v) ? '' : `（${v.holderName}）`}</option>)}
           </select>

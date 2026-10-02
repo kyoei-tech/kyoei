@@ -143,8 +143,8 @@ extension MyPageItem {
     }
 }
 
-/// マイページ上部: 権限・名前・入社年月日・勤続年数・担当車格・担当車両・車検期限・
-/// 3ヶ月点検・12ヶ月点検・健康診断予定日. Dates near their deadline are highlighted.
+/// マイページ上部: 権限・名前・入社年月日・勤続年数・担当車格・担当車両と、
+/// 3ヶ月点検・12ヶ月点検・車検・健康診断の次の予約（車両管理・健康診断で入力）.
 private struct ProfileCard: View {
     let profile: MyProfile?
     let staff: StaffProfileRow?
@@ -181,9 +181,9 @@ private struct ProfileCard: View {
                 ForEach(vehicles, id: \.plate) { v in
                     VStack(alignment: .leading, spacing: 6) {
                         row(vehicles.count > 1 ? "担当車両（\(v.kindLabel)）" : "担当車両", v.plate, mono: true)
-                        dueRow("車検期限", v.shaken_due, today: today)
-                        dueRow("3ヶ月点検", v.inspection_3m_due, today: today)
-                        dueRow("12ヶ月点検", v.inspection_12m_due, today: today)
+                        ForEach(VehicleAppointment.Kind.allCases, id: \.self) { kind in
+                            appointmentRow(kind.label, v.next(kind).map { ($0.whenLabel, $0.detailLabel, $0.notes, $0.scheduled_on) }, today: today)
+                        }
                     }
                     .padding(10)
                     .background(Color.appBackground, in: RoundedRectangle(cornerRadius: 12))
@@ -191,7 +191,7 @@ private struct ProfileCard: View {
             } else {
                 row("担当車両", "未定")
             }
-            dueRow("健康診断予定日", profile?.health_check_due, today: today)
+            appointmentRow("健康診断", profile?.health_check.map { ($0.whenLabel, $0.place, $0.notes, $0.scheduled_on) }, today: today)
         }
         .padding(20)
         .card()
@@ -213,17 +213,23 @@ private struct ProfileCard: View {
         }
     }
 
-    @ViewBuilder private func dueRow(_ label: String, _ iso: String?, today: LocalDate) -> some View {
-        if let due = DueDate(iso: iso, today: today) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(label).appFont(14).foregroundStyle(Color.mutedForeground)
-                Spacer(minLength: 8)
-                Text(due.label)
-                    .appFont(14, weight: due.status == .ok ? .semibold : .heavy)
-                    .foregroundStyle(due.status == .overdue ? Color.destructive : due.status == .soon ? Color.chassisUncheckedText : Color.appForeground)
+    /// 予約: "10/20(火) 9:30" over its place / 引取 and 特記事項; today in orange.
+    @ViewBuilder private func appointmentRow(_ label: String, _ value: (when: String, detail: String, notes: String, day: LocalDate)?, today: LocalDate) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(label).appFont(14).foregroundStyle(Color.mutedForeground)
+            Spacer(minLength: 8)
+            if let value {
+                VStack(alignment: .trailing, spacing: 1) {
+                    Text(value.day == today ? "今日 \(value.when)" : value.when)
+                        .appFont(14, weight: .heavy)
+                        .foregroundStyle(value.day <= today ? Color.chassisUncheckedText : Color.appForeground)
+                    if !value.detail.isEmpty { Text(value.detail).appFont(12).foregroundStyle(Color.mutedForeground) }
+                    if !value.notes.isEmpty { Text(value.notes).appFont(12, weight: .semibold).foregroundStyle(Color.secondary) }
+                }
+                .multilineTextAlignment(.trailing)
+            } else {
+                Text("予約なし").appFont(14).foregroundStyle(Color.mutedForeground)
             }
-        } else {
-            row(label, "未登録")
         }
     }
 }

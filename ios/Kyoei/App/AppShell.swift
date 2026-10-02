@@ -22,6 +22,7 @@ struct AppShell: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(RepairStore.self) private var repairs
     @Environment(LeaveStore.self) private var leave
+    @Environment(AppointmentStore.self) private var appointments
 
     var body: some View {
         VStack(spacing: 0) {
@@ -59,9 +60,9 @@ struct AppShell: View {
             guard settings.settings.pushNotificationsEnabled else { return }
             await newsNotifier.run(announce: announceNews)
         }
-        // 修理申請・休暇申請: check for news (予定決定・完了・確認済み) on every return.
+        // 修理・休暇・点検／車検・健康診断: check for news on every return.
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { Task { await repairs.refresh(); await leave.refresh() } }
+            if phase == .active { Task { await repairs.refresh(); await leave.refresh(); await appointments.refresh() } }
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active, settings.settings.pushNotificationsEnabled else { return }
