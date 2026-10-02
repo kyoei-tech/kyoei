@@ -155,3 +155,54 @@ test('leave helpers', async () => {
   assert.ok(typeof limitFrom('-1') === 'object')
   assert.deepEqual(daysBetween('2026-10-30', '2026-11-02'), ['2026-10-30', '2026-10-31', '2026-11-01', '2026-11-02'])
 })
+
+test('アプリ内編集: form → row per field type', async () => {
+  const { findTable, rowFromForm, displayValue, SECTIONS } = await import('./content.ts')
+  const f = (v: Record<string, string>) => (k: string) => v[k] ?? null
+  const rules = findTable('notifications', 'push_notification_rules')!.def
+  assert.deepEqual(rowFromForm(rules, f({ timer_type: 'continuous', threshold_ms: '180', title: '注意', message: '**休憩**を' })),
+    { row: { timer_type: 'continuous', threshold_ms: 10_800_000, title: '注意', message: '**休憩**を' } })
+  assert.ok('error' in rowFromForm(rules, f({ timer_type: 'nope', threshold_ms: '180', title: 'x', message: 'y' })))
+  assert.ok('error' in rowFromForm(rules, f({ timer_type: 'break', threshold_ms: '0', title: 'x', message: 'y' })))
+  const rows = findTable('yard', 'yard_rows')!.def
+  assert.deepEqual((rowFromForm(rows, f({ yard_id: 'y1', label: 'A列', destinations: '本郷\n川崎、 横浜' })) as { row: Record<string, unknown> }).row.destinations, ['本郷', '川崎', '横浜'])
+  const messages = findTable('messages', 'confirm_action_messages')!.def
+  assert.deepEqual(rowFromForm(messages, f({ label: 'evil', message: '出庫しますか？', confirm_label: '', cancel_label: '' })),
+    { row: { message: '出庫しますか？', confirm_label: '', cancel_label: '' } })
+  assert.equal(findTable('news', 'staff_members'), null)
+  assert.equal(displayValue(rules.fields[1], 10_800_000), '180分')
+  assert.equal(displayValue(findTable('aa', 'aa_venues')!.def.fields[0], 3), '水曜')
+  assert.equal(new Set(SECTIONS.map((s) => s.slug)).size, SECTIONS.length)
+})
+
+test('アプリ内編集: LoL calendar, vehicles, visitors and note images', async () => {
+  const { findTable, rowFromForm, displayValue } = await import('./content.ts')
+  const lol = findTable('lol', 'lol_entries')!.def
+  const base = { destination_id: 'aa', shop_name: 'USS東京' }
+  const f = (v: Record<string, string>) => (k: string) => ({ ...base, ...v } as Record<string, string>)[k] ?? null
+  const ok = rowFromForm(lol, f({
+    cal_out: JSON.stringify(['', '〇', '8:00〜17:00', '〜セリ終了後', '', '', '']),
+    vehicle_permission: JSON.stringify({ trailer: { status: '条件あり', condition: ' 平日のみ ' }, loader: { status: '〇', condition: 'x' } }),
+    visited_by: JSON.stringify([{ id: 'a', name: '山田' }, { id: '', name: ' 佐藤 ' }, { id: '', name: '' }]),
+  }))
+  assert.ok('row' in ok)
+  if ('row' in ok) {
+    assert.deepEqual(ok.row.cal_in, ['', '', '', '', '', '', ''])
+    assert.deepEqual((ok.row.vehicle_permission as Record<string, unknown>).trailer, { status: '条件あり', condition: '平日のみ' })
+    assert.deepEqual((ok.row.vehicle_permission as Record<string, unknown>).loader, { status: '〇', condition: '' })
+    assert.deepEqual((ok.row.vehicle_permission as Record<string, unknown>).compact, { status: '', condition: '' })
+    const people = ok.row.visited_by as { id: string; name: string }[]
+    assert.deepEqual(people.map((p) => p.name), ['山田', '佐藤'])
+    assert.equal(people[0].id, 'a')
+    assert.ok(people[1].id.length > 10)
+    assert.equal(displayValue(lol.fields.find((x) => x.key === 'vehicle_permission')!, ok.row.vehicle_permission), 'トレーラー△ ローダー〇')
+  }
+  assert.ok('error' in rowFromForm(lol, f({ cal_out: JSON.stringify(['', '', '', '', '', '']) })))
+  assert.ok('error' in rowFromForm(lol, f({ cal_out: JSON.stringify(['朝', '', '', '', '', '', '']) })))
+  assert.ok('error' in rowFromForm(lol, f({ vehicle_permission: JSON.stringify({ trailer: { status: 'OK' } }) })))
+  const notes = findTable('notes', 'beginner_notes')!.def
+  const g = (v: Record<string, string>) => (k: string) => ({ title: 'x', ...v } as Record<string, string>)[k] ?? null
+  assert.deepEqual((rowFromForm(notes, g({ image_paths: JSON.stringify(['note-a.jpg']) })) as { row: Record<string, unknown> }).row.image_paths, ['note-a.jpg'])
+  assert.ok('error' in rowFromForm(notes, g({ image_paths: JSON.stringify(['../x']) })))
+  assert.deepEqual((rowFromForm(notes, g({})) as { row: Record<string, unknown> }).row.image_paths, [])
+})

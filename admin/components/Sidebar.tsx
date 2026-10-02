@@ -9,10 +9,10 @@ const NAV: { title?: string; items: Item[] }[] = [
   {
     title: 'アプリ内編集',
     items: [
-      { href: '/soon/news', label: 'おしらせ' }, { href: '/soon/staff', label: '出勤簿（社員）' }, { href: '/soon/yard', label: 'ヤード配置' },
-      { href: '/soon/lol', label: 'LoL・LoL MAP' }, { href: '/soon/aa', label: 'オークション情報' }, { href: '/soon/cars', label: '高額車' },
-      { href: '/soon/emergency', label: '緊急連絡先' }, { href: '/soon/notes', label: '初心者ノート' }, { href: '/soon/terms', label: 'ドライバー語録' },
-      { href: '/soon/qa', label: 'Q&A' }, { href: '/soon/goal', label: '今月の目標' },
+      { href: '/content/news', label: 'おしらせ', ready: true }, { href: '/content/staff', label: '出勤簿（社員）', ready: true }, { href: '/content/yard', label: 'ヤード配置', ready: true },
+      { href: '/content/lol', label: 'LoL・LoL MAP', ready: true }, { href: '/content/aa', label: 'オークション情報', ready: true }, { href: '/content/cars', label: '高額車', ready: true },
+      { href: '/content/emergency', label: '緊急連絡先', ready: true }, { href: '/content/notes', label: '初心者ノート', ready: true }, { href: '/content/terms', label: 'ドライバー語録', ready: true },
+      { href: '/content/qa', label: 'Q&A', ready: true }, { href: '/content/goal', label: '今月の目標', ready: true },
     ],
   },
   {
@@ -22,7 +22,7 @@ const NAV: { title?: string; items: Item[] }[] = [
       { href: '/leave', label: '休暇申請', ready: true }, { href: '/repairs', label: '修理申請', ready: true },
     ],
   },
-  { title: '設定', items: [{ href: '/soon/messages', label: '確認メッセージ' }, { href: '/soon/notifications', label: '通知のルール' }] },
+  { title: '設定', items: [{ href: '/content/messages', label: '確認メッセージ', ready: true }, { href: '/content/notifications', label: '通知のルール', ready: true }] },
   { items: [{ href: '/history', label: '変更履歴', ready: true }] },
 ]
 
