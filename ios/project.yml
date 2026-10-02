@@ -47,6 +47,8 @@ targets:
               - kyoei
         NSFaceIDUsageDescription: しばらく離れたあとにアプリを開くとき、本人確認に使用します。
         NSCameraUsageDescription: 配車表の車台番号の照合と、事故報告での免許証などの撮影に使用します。
+        NSMicrophoneUsageDescription: 刻印が読み取れないときに、車台番号を音声で入力するために使用します。
+        NSSpeechRecognitionUsageDescription: 読み上げた車台番号を文字にするために使用します。
         NSPhotoLibraryAddUsageDescription: 事故報告の画像を写真に保存するために使用します。
         # Injected from Config/Secrets.xcconfig; read by App/AppConfig.swift.
         SUPABASE_URL: $(SUPABASE_URL)

@@ -35,6 +35,7 @@ struct DispatchSheetDetail: View {
     @State private var reparsing = false
     @State private var message: String?
     @Environment(SettingsStore.self) private var settings
+    @Environment(AuthStore.self) private var auth
     /// 荷姿 records of this sheet, by 回戦.
     @State private var packings: [PackingRecord] = []
     @State private var packing: PackingTarget?
@@ -127,7 +128,7 @@ struct DispatchSheetDetail: View {
                     vehicles: content.vehicles,
                     target: request.target,
                     state: chassisState,
-                    onConfirm: { vehicle, read, method in record(vehicle, read: read, method: method) },
+                    onConfirm: { vehicle, read, method, input, photo in record(vehicle, read: read, method: method, input: input, photo: photo) },
                     onClose: { scan = nil }
                 )
             }
@@ -225,13 +226,19 @@ struct DispatchSheetDetail: View {
         packing = PackingTarget(sheetID: sheet.id, sheetTitle: sheet.title, round: round, existing: packings.first { $0.round == round.round })
     }
 
-    /// 照合 of a printed number, or 記録 of `read` for a blank 車体番号.
-    private func record(_ vehicle: DispatchVehicle, read: String, method: ChassisCheckMethod) {
+    /// 照合 of a printed number, or 記録 of `read` for a blank 車体番号 (which
+    /// keeps its photo; a 照合's photo is never uploaded).
+    private func record(_ vehicle: DispatchVehicle, read: String, method: ChassisCheckMethod, input: ChassisInput, photo: Data?) {
         let before = checkIndex
+        let userID = auth.userID
         Task {
             defer { promptPacking(before: before) }
             do {
-                try await DispatchSheetRepository.recordCheck(ChassisCheckInsert(sheetID: sheet.id, vehicle: vehicle, read: read, method: method))
+                var photoPath: String?
+                if vehicle.needsRecording, let photo, let userID, let jpeg = ImageEncoding.jpeg(from: photo, maxDimension: 1600) {
+                    photoPath = try? await AttachmentStore.shared.upload(jpeg, filename: "chassis.jpg", to: .chassisPhotos, folder: userID)
+                }
+                try await DispatchSheetRepository.recordCheck(ChassisCheckInsert(sheetID: sheet.id, vehicle: vehicle, read: read, method: method, input: input, photoPath: photoPath))
                 message = nil
             } catch {
                 message = vehicle.needsRecording
@@ -704,11 +711,18 @@ private struct CheckedBox: View {
                 .frame(width: 26, height: 26)
                 .background(Color.primary, in: Circle())
             VStack(alignment: .leading, spacing: 1) {
-                Label(check.headline, systemImage: check.method == .cautionPlate ? "list.bullet.rectangle" : "seal")
+                Label(check.headline, systemImage: check.input == .voice ? "mic.fill" : (check.method == .cautionPlate ? "list.bullet.rectangle" : "seal"))
                     .appFont(15, weight: .black)
                 Text(check.detailLine()).appFont(12, weight: .bold)
             }
             Spacer(minLength: 0)
+            // 記録 keeps the photo of the plate / stamping it was read from.
+            if let path = check.photo_path {
+                AttachmentImage(reference: .stored(bucket: .chassisPhotos, path: path), contentMode: .fill)
+                    .frame(width: 64, height: 48)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .accessibilityLabel("記録した車体番号の写真")
+            }
         }
         .foregroundStyle(Color.primary)
         .padding(.horizontal, 12)

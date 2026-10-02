@@ -273,7 +273,7 @@ public enum ChassisCheckMethod: String, Codable, CaseIterable, Identifiable, Sen
 /// 記録 — the sheet left 車体番号 blank, so the real car's number is stored
 /// for that vehicle (`vehicle_index` = DispatchVehicle.id).
 public struct ChassisCheckRow: Codable, Equatable, Identifiable, Sendable {
-    public static let selectColumns = "id, sheet_id, chassis_number, vehicle_index, method, checked_at"
+    public static let selectColumns = "id, sheet_id, chassis_number, vehicle_index, method, checked_at, input, photo_path"
 
     public var id: String
     public var sheet_id: String
@@ -281,30 +281,39 @@ public struct ChassisCheckRow: Codable, Equatable, Identifiable, Sendable {
     public var vehicle_index: Int?
     public var method: ChassisCheckMethod
     public var checked_at: String
+    /// nil on rows from before 音声入力 existed (= camera).
+    public var input: ChassisInput?
+    /// Photo kept for a 記録 (blank 車体番号), in chassis-photos.
+    public var photo_path: String?
 
-    public init(id: String, sheet_id: String, chassis_number: String, vehicle_index: Int? = nil, method: ChassisCheckMethod, checked_at: String) {
+    public init(id: String, sheet_id: String, chassis_number: String, vehicle_index: Int? = nil, method: ChassisCheckMethod, checked_at: String, input: ChassisInput? = nil, photo_path: String? = nil) {
         self.id = id
         self.sheet_id = sheet_id
         self.chassis_number = chassis_number
         self.vehicle_index = vehicle_index
         self.method = method
         self.checked_at = checked_at
+        self.input = input
+        self.photo_path = photo_path
     }
+
+    /// "コーションプレート" / "刻印（音声）".
+    private var how: String { input == .voice ? "\(method.label)（音声）" : method.label }
 
     public var isRecorded: Bool { vehicle_index != nil }
 
     /// "07:41 コーションプレートで照合" / "…で記録" (with "9/1 " in front when not today).
     public func caption(now: Date = Date(), calendar: Calendar = .current) -> String {
         let verb = isRecorded ? "記録" : "照合"
-        guard let date = DBTimestamp.parse(checked_at) else { return "\(method.label)で\(verb)" }
+        guard let date = DBTimestamp.parse(checked_at) else { return "\(how)で\(verb)" }
         let c = calendar.dateComponents([.month, .day, .hour, .minute], from: date)
         let time = "\(pad2(c.hour ?? 0)):\(pad2(c.minute ?? 0))"
         let day = calendar.isDate(date, inSameDayAs: now) ? "" : "\(c.month ?? 0)/\(c.day ?? 0) "
-        return "\(day)\(time) \(method.label)で\(verb)"
+        return "\(day)\(time) \(how)で\(verb)"
     }
 
     /// Headline of the green box under the number: "コーションプレートで記録".
-    public var headline: String { "\(method.label)で\(isRecorded ? "記録" : "照合")" }
+    public var headline: String { "\(how)で\(isRecorded ? "記録" : "照合")" }
 
     /// Second line: "9月1日 07:52 ・ 実車から読み取り" / "… ・ 配車表と一致".
     public func detailLine(calendar: Calendar = .current) -> String {
@@ -378,13 +387,18 @@ public struct ChassisCheckInsert: Encodable, Equatable, Sendable {
     /// Set only when recording a number for a vehicle whose 車体番号 is blank.
     public var vehicle_index: Int?
     public var method: ChassisCheckMethod
+    public var input: ChassisInput
+    public var photo_path: String?
 
-    /// 照合 of a printed number, or 記録 of the read number for a blank one.
-    public init(sheetID: String, vehicle: DispatchVehicle, read: String, method: ChassisCheckMethod) {
+    /// 照合 of a printed number, or 記録 of the read number for a blank one
+    /// (only a 記録 keeps its photo).
+    public init(sheetID: String, vehicle: DispatchVehicle, read: String, method: ChassisCheckMethod, input: ChassisInput = .camera, photoPath: String? = nil) {
         sheet_id = sheetID
         chassis_number = ChassisNumber.normalize(vehicle.needsRecording ? read : vehicle.chassisNumber)
         vehicle_index = vehicle.needsRecording ? vehicle.id : nil
         self.method = method
+        self.input = input
+        photo_path = vehicle.needsRecording ? photoPath : nil
     }
 }
 

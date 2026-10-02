@@ -2,15 +2,15 @@ import KyoeiCore
 import SwiftUI
 #if os(iOS)
 import AVFoundation
-import VisionKit
 #endif
 
-/// 車台番号をカメラで照合: live text recognition on the caution plate or
-/// stamping → exact match against the sheet → 確認 (match) or 警告 (mismatch).
+/// 車台番号をカメラで照合: a shutter photo of the caution plate or stamping
+/// (or the number spoken, when a rusted stamping can't be read) → exact
+/// match against the sheet → 確認 (match) or 警告 (mismatch).
 ///
-/// A number that matches a vehicle is taken automatically once it has been
-/// read twice in a row; a number that matches nothing is only judged when the
-/// driver taps 「この番号で照合」, so a half-read plate never flashes a warning.
+/// The photo is read on the phone and discarded; a number that matches a
+/// vehicle goes straight to its result, anything else is shown for the driver
+/// to judge. Only a 記録 (blank 車体番号) keeps its photo.
 ///
 /// When the sheet leaves a vehicle's 車体番号 blank there is nothing to match,
 /// so the number read off the real car is recorded for it instead (記録).
@@ -20,11 +20,17 @@ struct ChassisScanFlow: View {
     let state: SheetChassisState
     /// (vehicle, number read, where it was read). For a 照合 the read number
     /// equals the sheet's; for a 記録 it is the number to store.
-    let onConfirm: (DispatchVehicle, String, ChassisCheckMethod) -> Void
+    let onConfirm: (DispatchVehicle, String, ChassisCheckMethod, ChassisInput, Data?) -> Void
     let onClose: () -> Void
 
     private enum Phase: Equatable {
         case scanning
+        /// Reading the photo just taken.
+        case reading
+        /// Read numbers that match no vehicle (or nothing read), for the driver to judge.
+        case readResult
+        /// Speaking the number.
+        case voice
         case matched(DispatchVehicle)
         case mismatch(read: String)
         /// Opened from `target`'s badge, but the number is another vehicle's.
@@ -37,7 +43,15 @@ struct ChassisScanFlow: View {
 
     @State private var phase: Phase = .scanning
     @State private var candidates: [String] = []
-    @State private var previousMatch: String?
+    /// The shot being judged; dropped on 撮り直す, kept only by a 記録.
+    @State private var photo: Data?
+    @State private var input: ChassisInput = .camera
+    @State private var voiceDraft = ""
+    @State private var speech = ChassisSpeech()
+    @State private var torchOn = false
+    #if os(iOS)
+    @State private var camera = ChassisCamera()
+    #endif
     @State private var method: ChassisCheckMethod = .cautionPlate
     /// Vehicles confirmed in this camera session (id → how), so 続けて照合
     /// knows them before the parent's list refreshes.
@@ -67,8 +81,12 @@ struct ChassisScanFlow: View {
         ZStack {
             Color.black.ignoresSafeArea()
             switch phase {
-            case .scanning:
+            case .scanning, .reading:
                 scanning
+            case .readResult:
+                readResult
+            case .voice:
+                voiceEntry
             case .matched(let vehicle):
                 matched(vehicle)
             case .mismatch(let read):
@@ -85,103 +103,280 @@ struct ChassisScanFlow: View {
             switch new {
             case .matched, .record: .success
             case .mismatch, .wrongVehicle, .belongsTo: .error
-            case .scanning: nil
+            case .scanning, .reading, .readResult, .voice: nil
             }
         }
+        #if os(iOS)
+        .onAppear { camera.start() }
+        .onDisappear {
+            camera.stop()
+            speech.stop()
+        }
+        #endif
     }
 
-    // MARK: Scanning
+    // MARK: Scanning (shutter)
 
     private var scanning: some View {
         ZStack {
-            ChassisCameraView { lines in update(with: lines) }
+            CameraArea(camera: cameraHandle, frozen: phase == .reading ? photo : nil)
                 .ignoresSafeArea()
             VStack(spacing: 12) {
                 HStack {
-                    Button(action: onClose) {
-                        Image(systemName: "xmark").font(.system(size: 17, weight: .bold))
-                            .frame(width: 44, height: 44).background(.black.opacity(0.5), in: Circle())
-                    }
-                    .accessibilityLabel("閉じる")
+                    closeButton
                     Spacer()
-                    TorchButton()
-                }
-                .foregroundStyle(.white)
-                VStack(spacing: 4) {
-                    Text(isRecording ? "記録する車の車体番号を写してください" : "コーションプレート、または刻印の車台番号を写してください")
-                        .appFont(15, weight: .bold)
-                    if isContinuous && !confirmedHere.isEmpty {
-                        Label("続けて照合中 ・ 今回 \(confirmedHere.count)台 確認", systemImage: "checkmark.circle.fill")
-                            .appFont(13, weight: .bold)
-                            .foregroundStyle(Color.brandLime)
-                    }
-                    if let target {
-                        Text(isRecording
-                            ? "記録する車：\(target.vehicleName)（配車表は車体番号が空欄）"
-                            : "照合する車：\(target.vehicleName)（\(target.chassisNumber)）")
-                            .appFont(13)
+                    if hasTorch {
+                        Button {
+                            torchOn.toggle()
+                            setTorch(torchOn)
+                        } label: {
+                            Image(systemName: torchOn ? "flashlight.on.fill" : "flashlight.off.fill")
+                                .font(.system(size: 17, weight: .bold))
+                                .frame(width: 44, height: 44)
+                                .background(torchOn ? Color.brand.opacity(0.9) : .black.opacity(0.5), in: Circle())
+                                .foregroundStyle(torchOn ? Color.brandForeground : .white)
+                        }
+                        .accessibilityLabel(torchOn ? "ライトを消す" : "ライトをつける")
                     }
                 }
-                .multilineTextAlignment(.center)
                 .foregroundStyle(.white)
-                .padding(12)
-                .background(.black.opacity(0.55), in: RoundedRectangle(cornerRadius: 14))
+                instructions
                 Spacer()
-                readPanel
+                // Guide: keep the number inside, then press the shutter.
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(Color.brandLime, style: StrokeStyle(lineWidth: 3, dash: [10, 6]))
+                    .frame(height: 120)
+                    .overlay(alignment: .bottom) {
+                        Text("この枠に車台番号を入れて撮影").appFont(12, weight: .bold).foregroundStyle(.white)
+                            .padding(.horizontal, 10).padding(.vertical, 4).background(.black.opacity(0.55), in: Capsule())
+                            .offset(y: 16)
+                    }
+                    .allowsHitTesting(false)
+                Spacer()
+                shutterBar
             }
             .padding(16)
         }
     }
 
-    private var readPanel: some View {
-        VStack(spacing: 10) {
-            if let read = candidates.first {
-                Text("読み取った番号").appFont(12).foregroundStyle(Color.mutedForeground)
-                Text(read).font(.system(size: 24, weight: .heavy, design: .monospaced)).foregroundStyle(Color.appForeground)
-                Button { judge() } label: {
-                    Text(isRecording ? "この番号を記録" : "この番号で照合").appFont(16, weight: .bold).frame(maxWidth: .infinity)
-                }
-                .buttonStyle(PillButtonStyle(kind: .primary))
-            } else {
-                ProgressView()
-                Text("車体番号を探しています…").appFont(14, weight: .semibold).foregroundStyle(Color.appForeground)
+    private var closeButton: some View {
+        Button(action: close) {
+            Image(systemName: "xmark").font(.system(size: 17, weight: .bold))
+                .frame(width: 44, height: 44).background(.black.opacity(0.5), in: Circle())
+        }
+        .accessibilityLabel("閉じる")
+    }
+
+    private var instructions: some View {
+        VStack(spacing: 4) {
+            Text(isRecording ? "記録する車の車体番号を撮影してください" : "コーションプレート、または刻印の車台番号を撮影してください")
+                .appFont(15, weight: .bold)
+            if isContinuous && !confirmedHere.isEmpty {
+                Label("続けて照合中 ・ 今回 \(confirmedHere.count)台 確認", systemImage: "checkmark.circle.fill")
+                    .appFont(13, weight: .bold)
+                    .foregroundStyle(Color.brandLime)
+            }
+            if let target {
+                Text(isRecording
+                    ? "記録する車：\(target.vehicleName)（配車表は車体番号が空欄）"
+                    : "照合する車：\(target.vehicleName)（\(target.chassisNumber)）")
+                    .appFont(13)
             }
         }
-        .padding(16)
-        .frame(maxWidth: 448)
-        .frame(maxWidth: .infinity)
-        .background(Color.card, in: RoundedRectangle(cornerRadius: 20))
+        .multilineTextAlignment(.center)
+        .foregroundStyle(.white)
+        .padding(12)
+        .background(.black.opacity(0.55), in: RoundedRectangle(cornerRadius: 14))
     }
 
-    private func update(with lines: [String]) {
-        guard phase == .scanning else { return }
-        candidates = ChassisNumber.candidates(in: lines)
-        // Recording is always confirmed by the driver: there is nothing on
-        // the sheet to tell a complete read from a partial one.
-        // A car just confirmed in this session is still in front of the
-        // camera after 続けて照合: don't bounce straight back to it (the
-        // 「この番号で照合」 button still works).
-        guard !isRecording,
-              case .matched(let vehicle, let chassis)? = ChassisMatch.evaluate(candidates: candidates, against: vehicles),
-              confirmedHere[vehicle.id] == nil else {
-            previousMatch = nil
-            return
+    private var shutterBar: some View {
+        HStack(alignment: .center) {
+            Button { startVoice() } label: {
+                VStack(spacing: 4) {
+                    Image(systemName: "mic.fill").font(.system(size: 22, weight: .bold))
+                    Text("音声で入力").appFont(11, weight: .bold)
+                }
+                .frame(width: 84, height: 64)
+                .foregroundStyle(.white)
+                .background(.black.opacity(0.55), in: RoundedRectangle(cornerRadius: 14))
+            }
+            .accessibilityLabel("車台番号を音声で入力")
+            Spacer()
+            Button { shoot() } label: {
+                ZStack {
+                    Circle().fill(.white).frame(width: 74, height: 74)
+                    Circle().stroke(.white, lineWidth: 4).frame(width: 88, height: 88)
+                    if phase == .reading { ProgressView().tint(.black) }
+                }
+            }
+            .disabled(phase == .reading)
+            .accessibilityLabel("撮影して読み取る")
+            Spacer()
+            Color.clear.frame(width: 84, height: 64)
         }
-        if previousMatch == chassis {
-            // A full, stable read of another vehicle's number is a definite
-            // result, so its warning is shown without waiting for a tap.
-            phase = phaseFor(match: .matched(vehicle: vehicle, chassis: chassis))
-        } else {
-            previousMatch = chassis
+        .overlay(alignment: .top) {
+            if phase == .reading {
+                Text("読み取っています…").appFont(13, weight: .bold).foregroundStyle(.white)
+                    .padding(.horizontal, 12).padding(.vertical, 6).background(.black.opacity(0.6), in: Capsule())
+                    .offset(y: -40)
+            }
         }
     }
 
-    private func judge() {
-        if isRecording, let target, let read = candidates.first {
+    /// Read numbers that matched nothing (or none at all): judge, retake or speak.
+    private var readResult: some View {
+        ResultCard(tint: candidates.isEmpty ? Color.secondary : Color.appForeground,
+                   icon: candidates.isEmpty ? "text.viewfinder" : "number.square",
+                   title: candidates.isEmpty ? "車台番号を読み取れませんでした" : "読み取った番号") {
+            if let photo, let image = Image(imageData: photo) {
+                image.resizable().scaledToFit().frame(maxHeight: 180).clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+            if candidates.isEmpty {
+                Text("枠の中に番号がはっきり写るように、近づいたりライトをつけたりして撮り直してください。刻印がさびて読めないときは「音声で入力」を使ってください。")
+                    .appFont(13, weight: .semibold).foregroundStyle(Color.appForeground)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                ForEach(candidates, id: \.self) { read in
+                    Button { judge(read) } label: {
+                        VStack(spacing: 2) {
+                            Text(read).font(.system(size: 22, weight: .heavy, design: .monospaced))
+                            Text(isRecording ? "この番号を記録" : "この番号で照合").appFont(13, weight: .bold)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(PillButtonStyle(kind: .primary))
+                }
+                Text("写真と違う番号が出ているときは、撮り直してください。").appFont(12).foregroundStyle(Color.mutedForeground)
+            }
+            Button(action: rescan) {
+                Label("撮り直す", systemImage: "camera.fill").appFont(16, weight: .bold).frame(maxWidth: .infinity)
+            }
+            .buttonStyle(PillButtonStyle(kind: candidates.isEmpty ? .primary : .outline))
+            Button { startVoice() } label: {
+                Label("音声で入力", systemImage: "mic.fill").appFont(15, weight: .bold).frame(maxWidth: .infinity)
+            }
+            .buttonStyle(PillButtonStyle(kind: .outline))
+            Button("閉じる", action: close).buttonStyle(PillButtonStyle(kind: .outline))
+        }
+    }
+
+    // MARK: 音声で入力
+
+    private var voiceEntry: some View {
+        ResultCard(tint: Color.appForeground, icon: speech.listening ? "waveform.circle.fill" : "mic.circle.fill",
+                   title: speech.listening ? "聞き取っています…" : "車台番号を読み上げてください") {
+            Text("例：「ゼット・ブイ・ダブリュー・さん・ゼロ、ハイフン、いち・に・さん…」\n1文字ずつ、はっきり読み上げてください。")
+                .appFont(13).foregroundStyle(Color.mutedForeground)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            if let problem = speech.problem {
+                Text(problem).appFont(13, weight: .semibold).foregroundStyle(Color.destructive)
+            }
+            if !speech.transcript.isEmpty {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("聞き取った言葉").appFont(11).foregroundStyle(Color.mutedForeground)
+                    Text(speech.transcript).appFont(14).foregroundStyle(Color.appForeground)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            FormField(label: "車台番号（違うところは直せます）") {
+                TextField("例：ZVW30-1234567", text: $voiceDraft)
+                    .font(.system(size: 22, weight: .heavy, design: .monospaced))
+                    .asciiKeyboard()
+                    .autocorrectionDisabled()
+                    .padding(12)
+                    .card(radius: 12, fill: .appBackground)
+            }
+            let number = ChassisNumber.normalize(voiceDraft)
+            Button { judgeVoice(number) } label: {
+                Text(isRecording ? "この番号を記録" : "この番号で照合").appFont(16, weight: .bold).frame(maxWidth: .infinity)
+            }
+            .buttonStyle(PillButtonStyle(kind: .primary))
+            .disabled(number.count < 4 || speech.listening)
+            .opacity(number.count < 4 || speech.listening ? 0.5 : 1)
+            Button {
+                if speech.listening { speech.stop() } else { Task { await speech.start() } }
+            } label: {
+                Label(speech.listening ? "読み上げを終える" : "もう一度読み上げる", systemImage: speech.listening ? "stop.fill" : "mic.fill")
+                    .appFont(15, weight: .bold).frame(maxWidth: .infinity)
+            }
+            .buttonStyle(PillButtonStyle(kind: .outline))
+            Button {
+                speech.stop()
+                rescan()
+            } label: {
+                Label("カメラに戻る", systemImage: "camera.fill").appFont(15, weight: .bold).frame(maxWidth: .infinity)
+            }
+            .buttonStyle(PillButtonStyle(kind: .outline))
+        }
+        .onChange(of: speech.transcript) { _, _ in voiceDraft = speech.number }
+    }
+
+    // MARK: Actions
+
+    #if os(iOS)
+    private var cameraHandle: ChassisCamera? { camera }
+    private var hasTorch: Bool { camera.hasTorch }
+    private func setTorch(_ on: Bool) { camera.setTorch(on) }
+    #else
+    private var cameraHandle: ChassisCamera? { nil }
+    private var hasTorch: Bool { false }
+    private func setTorch(_ on: Bool) {}
+    #endif
+
+    private func close() {
+        speech.stop()
+        photo = nil
+        onClose()
+    }
+
+    private func shoot() {
+        #if os(iOS)
+        phase = .reading
+        input = .camera
+        Task {
+            guard let shot = await camera.capture() else {
+                phase = .scanning
+                return
+            }
+            photo = shot
+            let lines = await ChassisTextReader.lines(in: shot)
+            candidates = ChassisNumber.candidates(in: lines)
+            // A read that matches a vehicle on the sheet goes straight to its
+            // result (unless it was just confirmed here during 続けて照合).
+            if !isRecording,
+               case .matched(let vehicle, let chassis)? = ChassisMatch.evaluate(candidates: candidates, against: vehicles),
+               confirmedHere[vehicle.id] == nil {
+                phase = phaseFor(match: .matched(vehicle: vehicle, chassis: chassis))
+            } else {
+                // Show the best reading first; alternatives follow.
+                candidates = Array(candidates.prefix(3))
+                phase = .readResult
+            }
+        }
+        #endif
+    }
+
+    private func startVoice() {
+        input = .voice
+        photo = nil
+        voiceDraft = ""
+        method = .stamp
+        phase = .voice
+        Task { await speech.start() }
+    }
+
+    private func judgeVoice(_ number: String) {
+        speech.stop()
+        candidates = [number]
+        judge(number)
+    }
+
+    private func judge(_ read: String) {
+        if isRecording, let target {
             phase = recordingPhase(for: target, read: read)
             return
         }
-        if let match = ChassisMatch.evaluate(candidates: candidates, against: vehicles) {
+        if let match = ChassisMatch.evaluate(candidates: [read], against: vehicles) {
             phase = phaseFor(match: match)
         }
     }
@@ -205,9 +400,11 @@ struct ChassisScanFlow: View {
         }
     }
 
+    /// Back to the camera; the last photo is discarded.
     private func rescan() {
         candidates = []
-        previousMatch = nil
+        photo = nil
+        input = .camera
         phase = .scanning
     }
 
@@ -239,7 +436,7 @@ struct ChassisScanFlow: View {
             } else {
                 methodPicker
                 confirmButtons(confirmLabel: "確認済みにする") {
-                    onConfirm(vehicle, vehicle.chassisNumber, method)
+                    onConfirm(vehicle, vehicle.chassisNumber, method, input, nil)
                     confirmedHere[vehicle.id] = method
                 }
                 if !isContinuous {
@@ -356,12 +553,14 @@ struct ChassisScanFlow: View {
         ResultCard(tint: Color.primary, icon: "square.and.pencil.circle.fill", title: "車体番号を記録します") {
             VehicleSummary(vehicle: vehicle)
             ReadNumber(label: "読み取った車体番号", number: read, tint: Color.appForeground)
-            Text("配車表には車体番号がないため、照合はせずにこの番号を記録します。実車の番号と同じか、もう一度確認してください。")
+            Text(input == .voice
+                 ? "配車表には車体番号がないため、照合はせずに読み上げた番号を記録します。実車の番号と同じか、もう一度確認してください。"
+                 : "配車表には車体番号がないため、照合はせずにこの番号を記録します。撮影した写真も一緒に残ります。実車の番号と同じか、もう一度確認してください。")
                 .appFont(13, weight: .semibold).foregroundStyle(Color.appForeground)
                 .frame(maxWidth: .infinity, alignment: .leading)
             methodPicker
             confirmButtons(confirmLabel: "この番号を記録する") {
-                onConfirm(vehicle, read, method)
+                onConfirm(vehicle, read, method, input, photo)
                 confirmedHere[vehicle.id] = method
             }
             Button("撮り直す", action: rescan).buttonStyle(PillButtonStyle(kind: .outline))
@@ -447,19 +646,23 @@ private struct VehicleSummary: View {
 
 // MARK: - Camera
 
-#if os(iOS)
-/// VisionKit live text scanner; reports every recognized line on each update.
-private struct ChassisCameraView: View {
-    let onLines: ([String]) -> Void
+/// The preview (or the frozen shot while it's being read), with the
+/// permission states.
+private struct CameraArea: View {
+    let camera: ChassisCamera?
+    let frozen: Data?
 
+    #if os(iOS)
     @State private var access: AVAuthorizationStatus = AVCaptureDevice.authorizationStatus(for: .video)
+    #endif
 
     var body: some View {
+        #if os(iOS)
         Group {
-            if !DataScannerViewController.isSupported {
-                CameraUnavailable(text: "この端末では文字の読み取りに対応していません。")
-            } else if access == .authorized {
-                LiveTextScanner(onLines: onLines)
+            if let frozen, let image = Image(imageData: frozen) {
+                image.resizable().scaledToFill()
+            } else if access == .authorized, let camera {
+                ChassisCameraPreview(camera: camera)
             } else if access == .notDetermined {
                 Color.black
             } else {
@@ -470,97 +673,17 @@ private struct ChassisCameraView: View {
             if access == .notDetermined {
                 _ = await AVCaptureDevice.requestAccess(for: .video)
                 access = AVCaptureDevice.authorizationStatus(for: .video)
+                if access == .authorized { camera?.start() }
             }
         }
+        #else
+        CameraUnavailable(text: "カメラ照合は iPhone でのみ使えます。")
+        #endif
     }
 }
 
-private struct LiveTextScanner: UIViewControllerRepresentable {
-    let onLines: ([String]) -> Void
-
-    func makeUIViewController(context: Context) -> DataScannerViewController {
-        let scanner = DataScannerViewController(
-            recognizedDataTypes: [.text(languages: ["en-US"])],
-            qualityLevel: .accurate,
-            recognizesMultipleItems: true,
-            isHighFrameRateTrackingEnabled: false,
-            isPinchToZoomEnabled: true,
-            isGuidanceEnabled: false,
-            isHighlightingEnabled: true
-        )
-        context.coordinator.start(scanner)
-        return scanner
-    }
-
-    func updateUIViewController(_ scanner: DataScannerViewController, context: Context) {
-        context.coordinator.onLines = onLines
-    }
-
-    static func dismantleUIViewController(_ scanner: DataScannerViewController, coordinator: Coordinator) {
-        coordinator.stop(scanner)
-    }
-
-    func makeCoordinator() -> Coordinator { Coordinator(onLines: onLines) }
-
-    @MainActor final class Coordinator {
-        var onLines: ([String]) -> Void
-        private var task: Task<Void, Never>?
-
-        init(onLines: @escaping ([String]) -> Void) {
-            self.onLines = onLines
-        }
-
-        func start(_ scanner: DataScannerViewController) {
-            try? scanner.startScanning()
-            task = Task { [weak self] in
-                for await items in scanner.recognizedItems {
-                    let lines = items.compactMap { item -> String? in
-                        if case .text(let text) = item { return text.transcript }
-                        return nil
-                    }
-                    self?.onLines(lines)
-                }
-            }
-        }
-
-        func stop(_ scanner: DataScannerViewController) {
-            task?.cancel()
-            scanner.stopScanning()
-        }
-    }
-}
-
-/// ライト: dim engine bays and trailer decks make plates hard to read.
-private struct TorchButton: View {
-    @State private var isOn = false
-
-    var body: some View {
-        if let device = AVCaptureDevice.default(for: .video), device.hasTorch {
-            Button {
-                do {
-                    try device.lockForConfiguration()
-                    device.torchMode = isOn ? .off : .on
-                    device.unlockForConfiguration()
-                    isOn.toggle()
-                } catch {}
-            } label: {
-                Image(systemName: isOn ? "flashlight.on.fill" : "flashlight.off.fill")
-                    .font(.system(size: 17, weight: .bold))
-                    .frame(width: 44, height: 44).background(.black.opacity(0.5), in: Circle())
-            }
-            .accessibilityLabel(isOn ? "ライトを消す" : "ライトをつける")
-        }
-    }
-}
-#else
-private struct ChassisCameraView: View {
-    let onLines: ([String]) -> Void
-    var body: some View { CameraUnavailable(text: "カメラ照合は iPhone でのみ使えます。") }
-}
-
-private struct TorchButton: View {
-    var body: some View { EmptyView() }
-}
+#if !os(iOS)
+final class ChassisCamera {}
 #endif
 
 private struct CameraUnavailable: View {
