@@ -5,6 +5,7 @@ export const CATEGORY_LABELS: Record<string, string> = {
   customers: 'POS番号一覧',
   customer_search: '顧客検索',
   vehicles: '車両',
+  inspection: '点検簿',
   content: 'アプリ内編集',
 }
 
@@ -23,6 +24,9 @@ const ACTION_LABELS: Record<string, string> = {
   create_vehicle: '車両を登録',
   update_vehicle: '車両を変更',
   delete_vehicle: '車両を削除',
+  create_inspection_item: '点検項目を追加',
+  update_inspection_item: '点検項目を変更',
+  delete_inspection_item: '点検項目を削除',
 }
 
 export function actionLabel(action: string): string {

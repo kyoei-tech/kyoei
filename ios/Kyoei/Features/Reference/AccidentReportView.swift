@@ -443,7 +443,7 @@ private struct PartyCard: View {
 
 #if canImport(UIKit)
 /// Camera capture (the web form's capture="environment").
-private struct CameraCapture: UIViewControllerRepresentable {
+struct CameraCapture: UIViewControllerRepresentable {
     let onCapture: (Data) -> Void
     @Environment(\.dismiss) private var dismiss
 

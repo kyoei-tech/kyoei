@@ -78,3 +78,22 @@ test('vehicle class rules', () => {
   assert.ok(vehicleProblem('five_car', 'truck', 'chassis'))
   assert.equal(vehicleProblem(null, null, null), null) // 新人: 未定
 })
+
+test('inspection items: form validation and 車格 selection', async () => {
+  const { itemFromForm, classesFrom } = await import('./inspection.ts')
+  const form = (values: Record<string, string>) => (key: string) => values[key] ?? null
+  const ok = itemFromForm(form({ section: ' タイヤ ', label: '空気圧', frequency: 'weekly', scope: 'each_unit', sort_order: '60', active: 'on' }), [])
+  assert.deepEqual(ok, { section: 'タイヤ', label: '空気圧', frequency: 'weekly', scope: 'each_unit', classes: null, sort_order: 60, active: true })
+  assert.ok('error' in itemFromForm(form({ section: 'x', label: 'y', frequency: 'daily', scope: 'once' }), []))
+  assert.ok('error' in itemFromForm(form({ section: 'x', label: '', frequency: 'every', scope: 'once' }), []))
+  assert.deepEqual(classesFrom(['trailer_hanging', 'bogus', 'cab_trailer_hanging']), ['trailer_hanging', 'cab_trailer_hanging'])
+})
+
+test('inspection records: month range in JST', async () => {
+  const { monthRange, shiftMonth } = await import('./inspection.ts')
+  assert.deepEqual(monthRange('2026-12'), { month: '2026-12', from: '2026-12-01', to: '2027-01-01' })
+  // 2026-10-31 20:00 UTC is already November in Japan.
+  assert.equal(monthRange('bad', new Date('2026-10-31T20:00:00Z')).month, '2026-11')
+  assert.equal(shiftMonth('2026-01', -1), '2025-12')
+  assert.equal(shiftMonth('2026-12', 1), '2027-01')
+})

@@ -44,11 +44,18 @@ struct AttachmentImage: View {
         }
     }
 
-    private static func image(from data: Data) -> Image? {
+    private static func image(from data: Data) -> Image? { Image(imageData: data) }
+}
+
+extension Image {
+    /// Decodes image file data (JPEG, PNG, HEIC…).
+    init?(imageData data: Data) {
         #if canImport(UIKit)
-        UIImage(data: data).map(Image.init(uiImage:))
+        guard let image = UIImage(data: data) else { return nil }
+        self.init(uiImage: image)
         #else
-        NSImage(data: data).map(Image.init(nsImage:))
+        guard let image = NSImage(data: data) else { return nil }
+        self.init(nsImage: image)
         #endif
     }
 }

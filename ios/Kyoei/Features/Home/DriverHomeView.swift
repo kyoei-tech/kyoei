@@ -26,9 +26,13 @@ private struct DriverHomeMain: View {
     @Environment(ShiftStore.self) private var store
     @Environment(SettingsStore.self) private var settings
     @Environment(SharedData.self) private var data
+    @Environment(InspectionStore.self) private var inspections
     @State private var pending: PendingAction?
+    @State private var inspecting = false
 
     private enum PendingAction: Equatable {
+        /// 出庫 before today's 日常点検 (or after one that didn't allow it).
+        case inspectionRequired
         case departure(DepartureConfirmation)
         case returnToYard
     }
@@ -56,6 +60,17 @@ private struct DriverHomeMain: View {
             }
             .pageTint(tint)
             .overlay { dialog(status: status, now: now) }
+        }
+        .fullScreen(isPresented: $inspecting) {
+            InspectionFlowView { record in
+                inspecting = false
+                // Straight on to the 出庫 confirmations when the inspection allows it.
+                if let record, record.allowsDeparture {
+                    let status = DriverHomeStatus(snapshot: snapshot, trips: data.trips, now: Date())
+                    pending = .departure(status.firstConfirmation)
+                }
+            }
+            .environment(inspections)
         }
     }
 
@@ -163,7 +178,7 @@ private struct DriverHomeMain: View {
                 foreground: departForeground,
                 dimmed: departed
             ) {
-                pending = .departure(status.firstConfirmation)
+                pending = inspections.canDepartToday ? .departure(status.firstConfirmation) : .inspectionRequired
             }
             .disabled(departed)
 
@@ -185,6 +200,19 @@ private struct DriverHomeMain: View {
         switch pending {
         case nil:
             EmptyView()
+        case .inspectionRequired:
+            ConfirmActionDialog(
+                message: inspections.todaysRecords.isEmpty
+                    ? "出庫の前に日常点検を行ってください。"
+                    : "今日の日常点検で「出庫できない」と記録されています。\n対応のあと、もう一度点検してください。",
+                confirmLabel: "日常点検を開始",
+                cancelLabel: "閉じる",
+                onConfirm: {
+                    pending = nil
+                    inspecting = true
+                },
+                onCancel: { pending = nil }
+            )
         case .returnToYard:
             ConfirmActionDialog(
                 message: messages.message("home-return", fallback: "帰庫を開始しますか？"),

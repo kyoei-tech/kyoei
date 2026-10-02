@@ -23,7 +23,7 @@ struct MyPageView: View {
         let userID = auth.userID ?? ""
         let me = StaffLink.me(userID: userID, in: profiles.rows)
         Group {
-            if let selected, let me {
+            if let selected, me != nil || !selected.needsStaffLink {
                 feature(selected, me: me, userID: userID)
             } else {
                 home(me)
@@ -69,14 +69,14 @@ struct MyPageView: View {
                     .padding(.horizontal, 20).padding(.vertical, 16).card()
                 }
                 .buttonStyle(.plain)
-                .disabled(me == nil)
-                .opacity(me == nil ? 0.5 : 1)
+                .disabled(me == nil && item.needsStaffLink)
+                .opacity(me == nil && item.needsStaffLink ? 0.5 : 1)
             }
             signOutButton
         }
     }
 
-    @ViewBuilder private func feature(_ item: MyPageItem, me: StaffProfileRow, userID: String) -> some View {
+    @ViewBuilder private func feature(_ item: MyPageItem, me: StaffProfileRow?, userID: String) -> some View {
         VStack(spacing: 0) {
             BackHeader(label: "マイページへ戻る", variant: .subtle) { selected = nil }
                 .padding(.horizontal, 16)
@@ -86,7 +86,9 @@ struct MyPageView: View {
             case .tripHistory:
                 TripHistoryView()
             case .dispatchSheet:
-                DispatchSheetView(staffID: me.id, staffName: me.name, userID: userID)
+                if let me { DispatchSheetView(staffID: me.id, staffName: me.name, userID: userID) }
+            case .inspection:
+                InspectionLogView()
             default:
                 TabPage {
                     VStack(spacing: 8) {

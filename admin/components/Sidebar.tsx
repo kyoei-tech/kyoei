@@ -18,7 +18,7 @@ const NAV: { title?: string; items: Item[] }[] = [
   {
     title: 'マイページの申請・記録',
     items: [
-      { href: '/soon/inspection', label: '点検簿' }, { href: '/soon/self-review', label: '自己評価シート' }, { href: '/soon/award', label: '社長賞' },
+      { href: '/inspections', label: '点検簿', ready: true }, { href: '/soon/self-review', label: '自己評価シート' }, { href: '/soon/award', label: '社長賞' },
       { href: '/soon/leave', label: '休暇申請' }, { href: '/soon/repair', label: '修理申請' },
     ],
   },
