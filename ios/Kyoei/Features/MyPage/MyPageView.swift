@@ -15,6 +15,7 @@ enum StaffLinkRepository {
 struct MyPageView: View {
     @Environment(AuthStore.self) private var auth
     @Environment(RepairStore.self) private var repairs
+    @Environment(LeaveStore.self) private var leaveStore
     @State private var profiles = RealtimeTable<StaffProfileRow>(table: "staff_members", fetch: StaffLinkRepository.fetch)
     @State private var selected: MyPageItem?
     /// my_profile(): 役職・フルネーム・車格・担当車両・期限 (entered from the admin console).
@@ -65,7 +66,7 @@ struct MyPageView: View {
                             Text(item.summary).appFont(12).foregroundStyle(Color.mutedForeground)
                         }
                         Spacer(minLength: 0)
-                        if item == .repairRequest, !repairs.unread.isEmpty {
+                        if (item == .repairRequest && !repairs.unread.isEmpty) || (item == .leaveRequest && !leaveStore.unread.isEmpty) {
                             Text("更新あり").appFont(11, weight: .black).foregroundStyle(Color.destructiveForeground)
                                 .padding(.horizontal, 8).padding(.vertical, 3).background(Color.destructive, in: Capsule())
                         }
@@ -104,16 +105,8 @@ struct MyPageView: View {
                 SelfReviewView()
             case .repairRequest:
                 RepairListView()
-            default:
-                TabPage {
-                    VStack(spacing: 8) {
-                        Text(item.label).appFont(18, weight: .bold).foregroundStyle(Color.appForeground)
-                        Text(item.summary).appFont(14).foregroundStyle(Color.mutedForeground)
-                        Text("準備中です").appFont(14, weight: .semibold).foregroundStyle(Color.primary).padding(.top, 8)
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 200)
-                    .card()
-                }
+            case .leaveRequest:
+                LeaveView()
             }
         }
     }

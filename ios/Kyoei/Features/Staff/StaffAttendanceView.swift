@@ -11,6 +11,8 @@ struct StaffAttendanceView: View {
     @State private var managerTable = RealtimeTable<YardManagerRow>(table: "yard_managers", fetch: YardManagerRepository.fetch)
     @State private var taps = TapResolver()
     @State private var editMode = false
+    /// staff_members.id on 確認済み leave today → 有給.
+    @State private var onLeave: [String: Bool] = [:]
     @State private var editor: Editor?
 
     /// The one inline form open at a time.
@@ -76,6 +78,7 @@ struct StaffAttendanceView: View {
             }
         }
         .syncing(staffTable)
+        .task(id: staffTable.rows.count) { await loadLeave() }
         .syncing(managerTable)
     }
 
@@ -87,6 +90,13 @@ struct StaffAttendanceView: View {
         }
     }
 
+    private struct LeaveRow: Decodable { let staff_member_id: String?; let paid: Bool }
+
+    private func loadLeave() async {
+        guard let rows: [LeaveRow] = try? await Backend.client.rpc("leave_on", params: ["p_day": LocalDate(Date()).iso]).execute().value else { return }
+        onLeave = Dictionary(rows.compactMap { row in row.staff_member_id.map { ($0.lowercased(), row.paid) } }, uniquingKeysWith: { a, b in a || b })
+    }
+
     private func staffCard(_ member: StaffMemberRow) -> some View {
         let working = member.status == .working
         let tint: Color = working ? .primary : .secondary
@@ -95,6 +105,10 @@ struct StaffAttendanceView: View {
                 Label("編集", systemImage: "pencil").appFont(11, weight: .semibold).foregroundStyle(Color.secondary)
             }
             Text(member.status.label).appFont(14, weight: .bold).foregroundStyle(tint)
+            if let paid = onLeave[member.id.lowercased()] {
+                Text(paid ? "休暇（有給）" : "休暇").appFont(11, weight: .black).foregroundStyle(Color.secondaryForeground)
+                    .padding(.horizontal, 8).padding(.vertical, 2).background(Color.secondary, in: Capsule())
+            }
             Label(member.name, systemImage: "person").appFont(14, weight: .semibold).foregroundStyle(Color.appForeground)
             Text(member.subtitle).appFont(12).foregroundStyle(Color.mutedForeground)
             if let tenure = Tenure(hireDate: member.hireDate) {

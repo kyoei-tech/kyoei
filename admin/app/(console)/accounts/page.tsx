@@ -7,7 +7,7 @@ export default async function AccountsPage() {
   const admin = await requireAdmin()
   const supabase = await createClient()
   const [{ data: rows }, { data: staffRows }, { data: pending }, { data: profileRows }, { data: positionRows }, { data: vehicleRows }] = await Promise.all([
-    supabase.from('app_accounts').select('user_id, login_id, is_driver, can_search_customers, is_admin, disabled_at').order('login_id'),
+    supabase.from('app_accounts').select('user_id, login_id, is_driver, can_search_customers, is_admin, can_check_leave, disabled_at').order('login_id'),
     supabase.from('staff_members').select('id, name, auth_user_id').order('sort_order', { ascending: true }),
     supabase.rpc('admin_pending_setup_codes'),
     supabase.from('account_profiles').select('user_id, full_name, position_id, hire_date, vehicle_class, vehicle_id, chassis_id, health_check_due, supervisor_id'),
@@ -43,6 +43,7 @@ export default async function AccountsPage() {
       staffName: staff?.name ?? null,
       isDriver: r.is_driver,
       canSearch: r.can_search_customers,
+      canCheckLeave: r.can_check_leave,
       isAdmin: r.is_admin,
       disabled: !!r.disabled_at,
       status: r.disabled_at ? 'stop' : last ? 'use' : 'wait',

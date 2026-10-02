@@ -7,6 +7,7 @@ import SwiftUI
 struct InspectionLogView: View {
     @Environment(InspectionStore.self) private var store
     @Environment(SharedData.self) private var data
+    @Environment(LeaveStore.self) private var leave
     @State private var overrides = RealtimeTable<AttendanceOverrideRow>(table: "attendance_day_overrides", fetch: AttendanceOverrideRepository.fetch)
     @State private var month = YearMonth(Date())
     @State private var selected: LocalDate?
@@ -27,7 +28,7 @@ struct InspectionLogView: View {
                     }
                     ForEach(Array(month.cells().enumerated()), id: \.offset) { index, cell in
                         if let cell {
-                            let mark = InspectionDayMark.resolve(day: cell, records: records, isWorkday: workdays[cell]?.showsMark == true, today: today)
+                            let mark = InspectionDayMark.resolve(day: cell, records: records, isWorkday: workdays[cell]?.showsMark == true, today: today, onLeave: leave.confirmedDays.contains(cell))
                             dayCell(cell, weekday: index % 7, mark: mark)
                         } else {
                             Color.clear.frame(height: 44)
@@ -38,6 +39,7 @@ struct InspectionLogView: View {
                     legend("〇", "点検済", .primary)
                     legend("△", "異常あり", .secondary)
                     legend("✕", "未点検", .destructive)
+                    legend("休", "休暇", .secondary)
                     legend("－", "非出勤日", .mutedForeground)
                 }
                 .appFont(10.4)
@@ -113,6 +115,7 @@ struct InspectionLogView: View {
         case .issue: ("△", .secondary)
         case .missing: ("✕", .destructive)
         case .off: ("－", .mutedForeground)
+        case .leave: ("休", .secondary)
         case nil: ("", .clear)
         }
         return Button { selected = selected == day ? nil : day } label: {

@@ -15,6 +15,7 @@ struct KyoeiApp: App {
     @State private var approvals = AdminApprovalStore()
     @State private var inspections = InspectionStore()
     @State private var repairs = RepairStore()
+    @State private var leave = LeaveStore()
 
     init() {
         UNUserNotificationCenter.current().delegate = ForegroundNotificationDelegate.shared
@@ -32,6 +33,8 @@ struct KyoeiApp: App {
                 .environment(approvals)
                 .environment(inspections)
                 .environment(repairs)
+                .environment(leave)
+                .task(id: auth.userID) { await leave.start(userID: auth.userID) }
                 .task(id: auth.userID) { await repairs.start(userID: auth.userID) }
                 .task(id: auth.userID) { await inspections.start(userID: auth.userID) }
                 .preferredColorScheme(settings.colorScheme)

@@ -330,6 +330,7 @@ private struct TripCard: View {
 struct AttendanceCalendarView: View {
     let trips: [TripHistoryEntry]
     let overrides: RealtimeTable<AttendanceOverrideRow>
+    @Environment(LeaveStore.self) private var leave
 
     @State private var month = YearMonth(Date())
     @State private var selected: LocalDate?
@@ -360,6 +361,7 @@ struct AttendanceCalendarView: View {
             }
             HStack(spacing: 12) {
                 (Text("〇").foregroundColor(.primary).bold() + Text("出勤日"))
+                (Text("休").foregroundColor(.secondary).bold() + Text("休暇"))
                 Text("空白：休日")
             }
             .appFont(10.4).foregroundStyle(Color.mutedForeground)
@@ -375,8 +377,12 @@ struct AttendanceCalendarView: View {
     private func dayCell(_ day: LocalDate, weekday: Int, entry: ResolvedAttendanceDay?) -> some View {
         VStack(spacing: 2) {
             Text("\(day.day)").appFont(12, weight: .medium).foregroundStyle(weekdayColor(weekday))
-            Text("〇").appFont(14, weight: .bold).foregroundStyle(entry?.showsMark == true ? Color.primary : .clear)
-                .accessibilityHidden(entry?.showsMark != true)
+            if leave.confirmedDays.contains(day) && entry?.showsMark != true {
+                Text("休").appFont(14, weight: .bold).foregroundStyle(Color.secondary)
+            } else {
+                Text("〇").appFont(14, weight: .bold).foregroundStyle(entry?.showsMark == true ? Color.primary : .clear)
+                    .accessibilityHidden(entry?.showsMark != true)
+            }
         }
         .frame(maxWidth: .infinity, minHeight: 44)
         .background(selected == day ? Color.primary.opacity(0.2) : .clear, in: RoundedRectangle(cornerRadius: 8))

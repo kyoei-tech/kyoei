@@ -73,6 +73,7 @@ struct SelfReviewView: View {
 private struct MySelfReviewSection: View {
     @Environment(InspectionStore.self) private var inspections
     @Environment(SharedData.self) private var data
+    @Environment(LeaveStore.self) private var leave
     @State private var overrides = RealtimeTable<AttendanceOverrideRow>(table: "attendance_day_overrides", fetch: AttendanceOverrideRepository.fetch)
     @State private var sheet: MySelfReview?
     @State private var loadFailed = false
@@ -105,7 +106,7 @@ private struct MySelfReviewSection: View {
     private var missingDays: [LocalDate] {
         guard let sheet else { return [] }
         let resolved = AttendanceCalendar.resolve(trips: data.trips, overrides: overrides.rows)
-        let workdays = Set(resolved.filter { $0.value.showsMark }.keys)
+        let workdays = Set(resolved.filter { $0.value.showsMark }.keys).subtracting(leave.confirmedDays)
         return SelfReviewRules.missingInspectionDays(period: sheet.period, workdays: workdays, inspected: Set(inspections.records.map(\.inspected_on)))
     }
 

@@ -144,3 +144,14 @@ test('repair requests: status and 社長 decision form', async () => {
   assert.ok('error' in decisionFromForm(f({ method: 'in_house' })))
   assert.equal((decisionFromForm(f({ method: 'in_house', vendor: '日野自動車', entry_on: '2026-10-06' })) as { vendor: null }).vendor, null)
 })
+
+test('leave helpers', async () => {
+  const { period, categoryLabel, limitFrom, daysBetween } = await import('./leave.ts')
+  assert.equal(period({ start_on: '2026-10-13', end_on: '2026-10-14' }), '10/13〜10/14')
+  assert.equal(period({ start_on: '2026-10-13', end_on: '2026-10-13' }), '10/13')
+  assert.equal(categoryLabel({ category: 'hospital', detail: '歯医者' }), '通院（歯医者）')
+  assert.equal(limitFrom(''), null)
+  assert.equal(limitFrom('3'), 3)
+  assert.ok(typeof limitFrom('-1') === 'object')
+  assert.deepEqual(daysBetween('2026-10-30', '2026-11-02'), ['2026-10-30', '2026-10-31', '2026-11-01', '2026-11-02'])
+})

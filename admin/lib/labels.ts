@@ -10,6 +10,7 @@ export const CATEGORY_LABELS: Record<string, string> = {
   award: '社長賞',
   self_review: '自己評価シート',
   repairs: '修理申請',
+  leave: '休暇申請',
   content: 'アプリ内編集',
 }
 
@@ -44,13 +45,20 @@ const ACTION_LABELS: Record<string, string> = {
   update_review_template: 'シートの項目・手当表を変更',
   president_decide_repair: '修理の予定を決定（社長印）',
   maintenance_complete_repair: '修理を記録（担当印）',
+  update_leave_settings: '休暇の締切・上限を変更',
+  set_leave_day_limit: '休暇の日付別上限を設定',
+  delete_leave_day_limit: '休暇の日付別上限を解除',
+  add_paid_grant: '有給を付与（手入力）',
+  add_paid_use: '有給の取得を記録（アプリ外）',
+  delete_paid_grant: '有給の付与を削除',
+  delete_paid_use: '有給の取得記録を削除',
 }
 
 export function actionLabel(action: string): string {
   return ACTION_LABELS[action] ?? action
 }
 
-const ROLE = { is_driver: 'ドライバー', can_search_customers: '顧客検索', is_admin: '管理者' } as const
+const ROLE = { is_driver: 'ドライバー', can_search_customers: '顧客検索', is_admin: '管理者', can_check_leave: '休暇の担当者' } as const
 
 /** One-line Japanese summary of an entry's detail. */
 export function detailSummary(action: string, detail: Record<string, unknown>): string {

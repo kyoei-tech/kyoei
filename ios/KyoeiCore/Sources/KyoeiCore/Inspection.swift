@@ -277,10 +277,13 @@ public enum InspectionDayMark: Equatable, Sendable {
     case missing
     /// 非出勤日.
     case off
+    /// 確認済みの休暇 (not counted as 未点検).
+    case leave
 
-    public static func resolve(day: LocalDate, records: [InspectionRecord], isWorkday: Bool, today: LocalDate) -> InspectionDayMark? {
+    public static func resolve(day: LocalDate, records: [InspectionRecord], isWorkday: Bool, today: LocalDate, onLeave: Bool = false) -> InspectionDayMark? {
         let todays = records.filter { $0.inspected_on == day }
         if !todays.isEmpty { return todays.contains { $0.has_issue } ? .issue : .done }
+        if onLeave { return .leave }
         if day > today { return nil }
         return isWorkday ? (day == today ? nil : .missing) : .off
     }

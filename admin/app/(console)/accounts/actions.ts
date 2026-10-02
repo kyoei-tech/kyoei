@@ -93,6 +93,7 @@ function roles(form: FormData) {
     is_driver: form.get('is_driver') === 'on',
     can_search_customers: form.get('can_search_customers') === 'on',
     is_admin: form.get('is_admin') === 'on',
+    can_check_leave: form.get('can_check_leave') === 'on',
   }
 }
 
@@ -166,7 +167,7 @@ export async function updateAccount(_prev: ActionResult | null, form: FormData):
   }
   const staffName = staffId ? ((await service.from('staff_members').select('name').eq('id', staffId).maybeSingle()).data?.name ?? null) : null
   await audit(admin, 'accounts', before.login_id, 'update', {
-    before: { is_driver: before.is_driver, can_search_customers: before.can_search_customers, is_admin: before.is_admin },
+    before: { is_driver: before.is_driver, can_search_customers: before.can_search_customers, is_admin: before.is_admin, can_check_leave: before.can_check_leave },
     after: { ...next, staffName },
   })
   revalidatePath('/accounts')

@@ -11,6 +11,7 @@ export type AccountView = {
   staffName: string | null
   isDriver: boolean
   canSearch: boolean
+  canCheckLeave: boolean
   isAdmin: boolean
   disabled: boolean
   status: 'use' | 'wait' | 'stop'
@@ -84,6 +85,7 @@ function RoleChecks({ a }: { a?: AccountView }) {
       <label className="check"><input type="checkbox" name="is_driver" defaultChecked={a ? a.isDriver : true} />ドライバー</label>
       <label className="check"><input type="checkbox" name="can_search_customers" defaultChecked={a?.canSearch ?? false} />顧客検索</label>
       <label className="check"><input type="checkbox" name="is_admin" defaultChecked={a?.isAdmin ?? false} />管理者</label>
+      <label className="check"><input type="checkbox" name="can_check_leave" defaultChecked={a?.canCheckLeave ?? false} />休暇の担当者</label>
     </div>
   )
 }
@@ -195,6 +197,7 @@ export function AccountsClient({ accounts, staff, selfId, positions, vehicles }:
                   <div className="row" style={{ gap: 4 }}>
                     {a.isDriver && <span className="chip chip-ink">ドライバー</span>}
                     {a.canSearch && <span className="chip chip-lime">顧客検索</span>}
+                    {a.canCheckLeave && <span className="chip chip-lime">休暇の担当者</span>}
                     {a.isAdmin && <span className="chip chip-dark">管理者</span>}
                   </div>
                 </td>

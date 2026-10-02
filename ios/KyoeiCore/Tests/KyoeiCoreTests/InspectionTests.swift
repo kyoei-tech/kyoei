@@ -97,3 +97,12 @@ import Testing
         #expect(again == records)
     }
 }
+
+@Suite struct InspectionLeaveTests {
+    @Test func leaveDayIsNotMissing() {
+        let today = LocalDate(year: 2026, month: 10, day: 10)
+        let day = LocalDate(year: 2026, month: 10, day: 8)
+        #expect(InspectionDayMark.resolve(day: day, records: [], isWorkday: true, today: today, onLeave: true) == .leave)
+        #expect(InspectionDayMark.resolve(day: day, records: [], isWorkday: true, today: today) == .missing)
+    }
+}

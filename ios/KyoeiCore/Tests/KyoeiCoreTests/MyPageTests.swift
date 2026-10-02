@@ -30,7 +30,7 @@ import Testing
         #expect(MyPageItem.allCases.first == .redPlates)
         #expect(MyPageItem.allCases[1] == .dispatchSheet)
         #expect(MyPageItem.selfEvaluation.label == "自己評価・目標設定シート")
-        #expect(MyPageItem.allCases.filter { !$0.isComingSoon } == [.redPlates, .dispatchSheet, .tripHistory, .inspection, .selfEvaluation, .awardVote, .repairRequest, .packagingHistory])
+        #expect(MyPageItem.allCases.filter { !$0.isComingSoon } == MyPageItem.allCases)
         #expect(MyPageItem(rawValue: "self-eval") == .selfEvaluation)
     }
 }
