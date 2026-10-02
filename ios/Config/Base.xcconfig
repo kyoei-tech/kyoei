@@ -1,0 +1,11 @@
+// Build settings shared by every checkout (committed). Machine-specific
+// values live in the git-ignored files included at the bottom:
+//   Secrets.xcconfig  Supabase URL / anon key (see Secrets.example.xcconfig)
+//   Local.xcconfig    optional signing overrides (see Local.example.xcconfig)
+
+// The App Store build: real bundle ID with Push Notifications.
+KYOEI_BUNDLE_ID = jp.kyoei.app
+KYOEI_ENTITLEMENTS = Kyoei/Kyoei.entitlements
+
+#include? "Secrets.xcconfig"
+#include? "Local.xcconfig"

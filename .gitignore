@@ -13,3 +13,19 @@ __v0_jsx-dev-runtime.ts
 node_modules
 .next/
 .DS_Store
+# iOS
+ios/Config/Secrets.xcconfig
+ios/Config/Local.xcconfig
+ios/Kyoei.xcodeproj/
+ios/Kyoei/Info.plist
+ios/**/.build/
+ios/build/
+ios/**/.swiftpm/
+ios/**/Package.resolved
+xcuserdata/
+
+# Sample dispatch sheets (contain real driver names)
+sample_haisha.pdf
+
+# Supabase CLI link state (project ref, versions)
+supabase/.temp/
