@@ -54,6 +54,14 @@ public enum PlaceNames {
     /// The shorter name must be at least this long for a prefix to count.
     static let minimumPrefix = 4
 
+    /// The place without its 会員番号: a parenthesized number after the name
+    /// (「USS東京(12345)」 → 「USS東京」). Notes like 「(愛知)」 stay. Used for
+    /// 回戦まとめ and for the 「同じ場所」 answers.
+    public static func withoutMemberNumber(_ name: String) -> String {
+        name.replacing(/\s*[(（]\s*[0-9０-９][0-9０-９\-‐－ー]*\s*[)）]/, with: "")
+            .trimmingCharacters(in: .whitespaces)
+    }
+
     /// Compared form: NFKC, no spaces, no parenthesized notes like 「(愛知)」.
     public static func key(_ name: String) -> String {
         let folded = name.precomposedStringWithCompatibilityMapping
@@ -72,11 +80,11 @@ public enum PlaceNames {
         return short.count >= minimumPrefix && long.hasPrefix(short)
     }
 
-    /// Every 積地・降地 on the sheet, in sheet order.
+    /// Every 積地・降地 on the sheet (without 会員番号), in sheet order.
     public static func places(in content: DispatchSheetContent) -> [String] {
         var seen: [String] = []
         for vehicle in content.vehicles {
-            for place in [vehicle.pickup, vehicle.dropoff] where !place.isEmpty && !seen.contains(place) {
+            for place in [vehicle.pickup, vehicle.dropoff].map(withoutMemberNumber) where !place.isEmpty && !seen.contains(place) {
                 seen.append(place)
             }
         }
@@ -132,19 +140,21 @@ public struct PlaceAliases: Equatable, Sendable {
 }
 
 extension DispatchRound {
-    /// Vehicles grouped by 積地 → 降地, treating spellings answered as the same
-    /// place as one (shown with the group's first spelling).
+    /// Vehicles grouped by 積地 → 降地 for 回戦まとめ: without 会員番号, and
+    /// treating spellings answered as the same place as one (shown with the
+    /// group's first spelling).
     public func routes(aliases: PlaceAliases) -> [DispatchRoute] {
+        func place(_ raw: String) -> String { aliases.name(for: PlaceNames.withoutMemberNumber(raw)) }
         var order: [String] = []
         var groups: [String: [DispatchVehicle]] = [:]
         for vehicle in vehicles {
-            let key = aliases.name(for: vehicle.pickup) + "\u{1F}" + aliases.name(for: vehicle.dropoff)
+            let key = place(vehicle.pickup) + "\u{1F}" + place(vehicle.dropoff)
             if groups[key] == nil { order.append(key) }
             groups[key, default: []].append(vehicle)
         }
         return order.map { key in
             let members = groups[key]!
-            return DispatchRoute(pickup: aliases.name(for: members[0].pickup), dropoff: aliases.name(for: members[0].dropoff), vehicles: members)
+            return DispatchRoute(pickup: place(members[0].pickup), dropoff: place(members[0].dropoff), vehicles: members)
         }
     }
 }

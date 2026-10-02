@@ -7,10 +7,11 @@ import Testing
     let shortened = DispatchVehicle(id: 1, round: "1", vehicleName: "ゴルフ", chassisNumber: "ZHW654321", pickup: "A", dropoff: "B")
     let fit = DispatchVehicle(id: 2, round: "1", vehicleName: "フィット", chassisNumber: "GK3-1234567", pickup: "A", dropoff: "B")
 
-    @Test func emphasisIsAfterTheHyphenOrTheLastLetter() {
+    @Test func emphasisIsTheDigitsAtTheEnd() {
         #expect(ChassisNumber.emphasis("GP3-1022135") == ("GP3-", "1022135"))
-        #expect(ChassisNumber.emphasis("VZNY12-103585") == ("VZNY12-", "103585"))
-        #expect(ChassisNumber.emphasis("WDD2050422R123456") == ("WDD2050422R", "123456"))
+        #expect(ChassisNumber.emphasis("HA36S-522329") == ("HA36S-", "522329"))
+        #expect(ChassisNumber.emphasis("WBA-8A16020NU76442") == ("WBA-8A16020N", "U76442"))
+        #expect(ChassisNumber.emphasis("WDD2050422R123456") == ("WDD2050422", "R123456"))
         #expect(ChassisNumber.emphasis("123456") == ("", "123456"))
     }
 
@@ -76,6 +77,19 @@ import Testing
         #expect(!PlaceNames.similar("JU神奈川", "木更津JFA"))
         #expect(!PlaceNames.similar("USS", "USS東京"))  // too short to count as a prefix
         #expect(!PlaceNames.similar("同じ", "同じ"))
+    }
+
+    @Test func memberNumbersAreLeftOutOfTheSummary() {
+        #expect(PlaceNames.withoutMemberNumber("USS東京(12345)") == "USS東京")
+        #expect(PlaceNames.withoutMemberNumber("JU神奈川 （39505）") == "JU神奈川")
+        #expect(PlaceNames.withoutMemberNumber("東西海運 あおなみヤード(愛知)") == "東西海運 あおなみヤード(愛知)")
+        // Two member numbers of one place are one route, and never asked about.
+        let content = DispatchSheetContent(rounds: [DispatchRound(round: "1", vehicles: [
+            vehicle(0, "USS東京(12345)", "木更津JFA"), vehicle(1, "USS東京(67890)", "木更津JFA"),
+        ])])
+        let routes = content.rounds[0].routes(aliases: PlaceAliases())
+        #expect(routes.map(\.pickup) == ["USS東京"] && routes[0].vehicles.count == 2)
+        #expect(PlaceNames.unansweredPairs(in: content, answers: []).isEmpty)
     }
 
     @Test func asksEachPairOnceAndGroupsAnsweredSamePlaces() {

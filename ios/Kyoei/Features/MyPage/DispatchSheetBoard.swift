@@ -852,8 +852,8 @@ private struct ChassisProgressChips: View {
     }
 }
 
-/// Mono chassis number with the 番号 emphasized: after the hyphen, or for a
-/// 外車 (no hyphen, may be shortened) the digits after the last letter.
+/// Mono chassis number with the digits at the end emphasized, plus the
+/// letter right before them (not a hyphen).
 /// Always the full number — 車体番号 is never abbreviated anywhere.
 struct ChassisNumberText: View {
     let chassis: String

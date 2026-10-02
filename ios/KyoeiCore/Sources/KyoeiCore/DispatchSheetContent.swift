@@ -231,18 +231,15 @@ public enum ChassisNumber {
     }
 
     /// The full number split for display: the head, and the 番号 that is
-    /// emphasized — after the hyphen, or with none, after the last letter.
+    /// emphasized — the digits at the end, together with the letter right
+    /// before them (a hyphen is not emphasized): "GP3-1022135" → "1022135",
+    /// "WDD2050422R123456" → "R123456", "WBA-8A16020NU76442" → "U76442".
     /// Nothing is dropped (車体番号 is never abbreviated).
     public static func emphasis(_ raw: String) -> (head: String, serial: String) {
         let number = normalize(raw)
-        let start = emphasisStart(number)
+        guard let last = number.lastIndex(where: { !$0.isNumber }) else { return ("", number) }
+        let start = number[last].isLetter ? last : number.index(after: last)
         return (String(number[..<start]), String(number[start...]))
-    }
-
-    private static func emphasisStart(_ number: String) -> String.Index {
-        if let hyphen = number.lastIndex(of: "-") { return number.index(after: hyphen) }
-        if let letter = number.lastIndex(where: { $0.isLetter }) { return number.index(after: letter) }
-        return number.startIndex
     }
 
     /// Whether a number read off the car is the sheet's number. Hyphens are
