@@ -33,6 +33,11 @@ struct MyPageView: View {
         }
         .syncing(profiles)
         .task { await loadProfile() }
+        #if DEBUG
+        .onAppear {
+            if let raw = DebugShot.item(after: "mypage:"), let item = MyPageItem(rawValue: raw) { selected = item }
+        }
+        #endif
     }
 
     private func loadProfile() async {

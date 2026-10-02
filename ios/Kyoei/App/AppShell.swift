@@ -70,11 +70,13 @@ struct AppShell: View {
         // A tap can also cold-launch the app, before onChange could observe it.
         .onAppear(perform: openRequestedTab)
         #if DEBUG
-        // Screenshots in the simulator: `-KyoeiOpenMenu settings` opens that menu page.
+        // Screenshots in the simulator: `-KyoeiOpenMenu settings` opens that menu page;
+        // `-KyoeiShot <screen>` opens any screen (see DebugShot).
         .onAppear {
             if let raw = UserDefaults.standard.string(forKey: "KyoeiOpenMenu"), let item = MenuItem(rawValue: raw) {
                 openMenuItem(item)
             }
+            openDebugShot()
         }
         #endif
         .onChange(of: NotificationRouter.shared.requestedTab) { _, _ in openRequestedTab() }
@@ -115,6 +117,35 @@ struct AppShell: View {
         }
         tab = newTab
     }
+
+    #if DEBUG
+    private func openDebugShot() {
+        let shot = DebugShot.screen
+        guard !shot.isEmpty, shot != "lock" else { return }
+        settings.settings.appMode = shot.hasPrefix("timecard") ? .timecard : .driver
+        settings.settings.partTimeMode = false
+        switch shot {
+        case "yard": tab = .yard
+        case "staff": tab = .staff
+        case "news", "news-detail": tab = .news
+        case "menu": tab = .menu
+        case "driving":
+            if shift.shift.mode != .departure { shift.depart(viaSplitRest: false, staffMemberID: nil) }
+            shift.driverScreen = .driving
+        case "rest":
+            if shift.shift.mode != .return {
+                if shift.shift.mode != .departure { shift.depart(viaSplitRest: false, staffMemberID: nil) }
+                shift.returnToYard(staffMemberID: nil)
+            }
+            shift.driverScreen = .rest
+        case "timecard-status":
+            shift.timecardScreen = .status
+        default:
+            if let raw = DebugShot.item(after: "menu:"), let item = MenuItem(rawValue: raw) { openMenuItem(item) }
+            if DebugShot.item(after: "mypage:") != nil || shot == "mypage" { openMenuItem(.mypage) }
+        }
+    }
+    #endif
 
     /// Lets other tabs (e.g. the home tab's 無事故 badge) jump straight into a
     /// menu sub-page instead of just switching to the menu tab.

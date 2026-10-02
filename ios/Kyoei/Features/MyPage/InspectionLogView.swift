@@ -62,6 +62,9 @@ struct InspectionLogView: View {
         .syncing(overrides)
         .refreshable { await store.refresh() }
         .task { await store.refresh() }
+        #if DEBUG
+        .onAppear { if DebugShot.sub == "flow" || DebugShot.sub == "step" { inspecting = true } }
+        #endif
         .fullScreen(isPresented: $inspecting) {
             InspectionFlowView { record in
                 inspecting = false

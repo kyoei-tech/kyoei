@@ -13,6 +13,12 @@ struct NewsView: View {
     @State private var gate = PinGate(code: "2486")
     @State private var screen: Screen = .list
 
+    #if DEBUG
+    private func openDebugShot() {
+        if DebugShot.name == "news-detail", screen == .list, let first = table.rows.first { screen = .detail(id: first.id) }
+    }
+    #endif
+
     private enum Screen: Equatable {
         case list
         case detail(id: String)
@@ -39,6 +45,9 @@ struct NewsView: View {
             }
         }
         .syncing(table)
+        #if DEBUG
+        .onChange(of: table.rows.count) { _, _ in openDebugShot() }
+        #endif
         .pinGate(gate)
         .onChange(of: resetToken) { _, _ in screen = .list }
     }

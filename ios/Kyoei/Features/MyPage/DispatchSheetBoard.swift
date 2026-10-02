@@ -101,6 +101,16 @@ struct DispatchSheetDetail: View {
         // (Realtime on dispatch_sheets updates `sheet`).
         .task(id: "\(sheet.id)|\(sheet.statusLabel)") { await loadContent() }
         .task(id: sheet.id) { await loadPackings() }
+        #if DEBUG
+        .onAppear {
+            switch DebugShot.sub {
+            case "vehicles": tab = .vehicles
+            case "original": tab = .original
+            case "voice", "camera": scan = ScanRequest(target: nil)
+            default: break
+            }
+        }
+        #endif
         .fullScreen(item: $packing) { target in
             PackingEditorView(target: target) { _ in
                 packing = nil

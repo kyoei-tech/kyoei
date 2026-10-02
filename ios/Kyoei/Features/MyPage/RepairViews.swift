@@ -55,7 +55,13 @@ struct RepairListView: View {
             }
         }
         .refreshable { await store.refresh() }
-        .task { await store.refresh() }
+        .task {
+            await store.refresh()
+            #if DEBUG
+            if DebugShot.sub == "editor" { editing = RepairEditorTarget(existing: nil, draft: nil) }
+            if DebugShot.sub == "detail" { open = store.requests.first }
+            #endif
+        }
         .sheet(item: $open) { request in
             RepairDetailView(request: request, onEdit: {
                 open = nil

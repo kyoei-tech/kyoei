@@ -106,6 +106,16 @@ struct ChassisScanFlow: View {
             case .scanning, .reading, .readResult, .voice: nil
             }
         }
+        #if DEBUG
+        .onAppear {
+            if DebugShot.sub == "voice" {
+                input = .voice
+                method = .stamp
+                voiceDraft = "ZVW30-1234567"
+                phase = .voice
+            }
+        }
+        #endif
         #if os(iOS)
         .onAppear { camera.start() }
         .onDisappear {

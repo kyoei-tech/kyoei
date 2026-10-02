@@ -35,6 +35,11 @@ struct DispatchSheetView: View {
             }
         }
         .syncing(table)
+        #if DEBUG
+        .onChange(of: table.rows.count) { _, _ in
+            if DebugShot.screen == "mypage:dispatch-sheet", !DebugShot.sub.isEmpty, openedID == nil { openedID = table.rows.first?.id }
+        }
+        #endif
         // Sheets read by an older parser (or uploaded on the web) are re-read
         // in the background; their rows update through Realtime.
         .task { await DispatchSheetRepository.reparseOutdated() }

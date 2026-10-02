@@ -68,6 +68,11 @@ struct RedPlatesView: View {
             }
         }
         .syncing(board)
+        #if DEBUG
+        .onChange(of: board.rows.count) { _, _ in
+            if DebugShot.sub == "detail", selected == nil { selected = board.rows.first { $0.isOut } ?? board.rows.first }
+        }
+        #endif
         .sheet(item: $selected) { row in
             RedPlateDetailView(row: row) {
                 selected = nil

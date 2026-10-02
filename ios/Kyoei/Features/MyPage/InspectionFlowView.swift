@@ -66,6 +66,14 @@ struct InspectionFlowView: View {
                 if saved { repairSent = true }
             }
         }
+        #if DEBUG
+        .task {
+            guard DebugShot.sub == "step" else { return }
+            try? await Task.sleep(for: .seconds(1))
+            let parts = plan()
+            if !parts.isEmpty { begin(parts); if steps.count > 3 { phase = .step(3) } }
+        }
+        #endif
         .onAppear {
             vehiclePlate = store.profile?.vehicle?.plate ?? ""
             chassisPlate = store.profile?.chassis?.plate ?? ""

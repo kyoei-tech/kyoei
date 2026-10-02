@@ -120,6 +120,10 @@ struct LeaveView: View {
         .task {
             await store.refresh()
             store.markRead()
+            #if DEBUG
+            if DebugShot.sub == "checker" { tab = .checker }
+            if DebugShot.sub == "editor" { editing = LeaveEditorTarget(existing: nil) }
+            #endif
         }
         .sheet(item: $editing) { target in
             LeaveEditorView(target: target) {
@@ -140,7 +144,7 @@ struct LeaveView: View {
                 Text("申請中の有給 \(leave.balance.pending)日を差し引いた日数です。").appFont(12).foregroundStyle(Color.mutedForeground)
             }
             if let next = leave.balance.next_expiry {
-                Text("\(next.on.year)年\(next.on.month)月\(next.on.day)日に \(next.days)日分が期限切れになります。").appFont(12).foregroundStyle(Color.secondary)
+                Text(verbatim: "\(next.on.year)年\(next.on.month)月\(next.on.day)日に \(next.days)日分が期限切れになります。").appFont(12).foregroundStyle(Color.secondary)
             }
         }
         .padding(16)

@@ -20,6 +20,8 @@ struct RootView: View {
                 SplashView()
             case .signedOut:
                 SignInFlow()
+            case .signedIn where isDebugSignInShot:
+                SignInFlow()
             case .signedIn:
                 switch auth.accountStatus {
                 case .checking:
@@ -47,6 +49,18 @@ struct RootView: View {
             await auth.observe()
         }
         .onOpenURL { url in Task { await auth.handle(url: url) } }
+        #if DEBUG
+        .task(id: auth.state) {
+            switch auth.state {
+            case .signedOut:
+                if let id = DebugShot.loginID, let pw = DebugShot.password { _ = await auth.signIn(loginID: id, password: pw) }
+            case .signedIn:
+                if !DebugShot.name.isEmpty && DebugShot.name != "lock" { lock.unlock() }
+            default:
+                break
+            }
+        }
+        #endif
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .background:
@@ -58,6 +72,17 @@ struct RootView: View {
                 break
             }
         }
+    }
+}
+
+extension RootView {
+    /// Screenshots of the sign-in screens while a demo session exists.
+    var isDebugSignInShot: Bool {
+        #if DEBUG
+        DebugShot.name == "login" || DebugShot.name == "setup"
+        #else
+        false
+        #endif
     }
 }
 
@@ -109,6 +134,9 @@ private struct SignInFlow: View {
             })
         } else {
             LoginView(onSetup: { showingSetup = true })
+                #if DEBUG
+                .onAppear { if DebugShot.name == "setup" { showingSetup = true } }
+                #endif
         }
     }
 }
@@ -303,6 +331,9 @@ struct LockView: View {
             .padding(20)
         }
         .task {
+            #if DEBUG
+            if DebugShot.name == "lock" { return }
+            #endif
             if lock.canUseDeviceAuthentication { _ = await lock.authenticate() }
         }
     }

@@ -21,6 +21,10 @@ final class AppLockStore {
         // Cold start: locked. It only shows once a restored session appears,
         // and a fresh sign-in unlocks it (see RootView).
         isLocked = true
+        #if DEBUG
+        // Simulator screenshots: no lock except on the lock screen's own shot.
+        if !DebugShot.name.isEmpty && DebugShot.name != "lock" { isLocked = false }
+        #endif
     }
 
     /// The app went to the background (home screen, another app, screen off).

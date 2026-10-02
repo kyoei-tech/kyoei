@@ -386,6 +386,9 @@ struct PackingHistoryView: View {
         do {
             records = try await PackingRepository.fetchMine(userID: userID)
             failed = false
+            #if DEBUG
+            if DebugShot.sub == "editor", editing == nil, let first = records.first { editing = PackingTarget(record: first) }
+            #endif
         } catch {
             failed = true
         }
